@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1750272033029,
+      "tag": "0000_mean_warbound",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1750279416412,
+      "tag": "0001_glamorous_crusher_hogan",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1750287675219,
+      "tag": "0002_empty_chameleon",
+      "breakpoints": true
+    }
+  ]
+}
