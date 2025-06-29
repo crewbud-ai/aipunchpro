@@ -22,6 +22,20 @@
       "when": 1750287675219,
       "tag": "0002_empty_chameleon",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1751180195806,
+      "tag": "0003_awesome_giant_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1751180551068,
+      "tag": "0004_natural_celestials",
+      "breakpoints": true
     }
   ]
 }

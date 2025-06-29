@@ -13,6 +13,7 @@ const protectedRoutes = [
   '/settings',
   '/api/user',
   '/api/company',
+  '/api/projects', // Add projects API protection
   '/api/protected', // Add any other protected API routes
 ]
 
@@ -86,12 +87,23 @@ export async function middleware(request: NextRequest) {
         requestHeaders.set('x-user-id', sessionValidation.data.userId)
         requestHeaders.set('x-session-id', sessionValidation.data.sessionId)
         
+        // Extract user info from session data
         if (sessionValidation.data.user?.role) {
           requestHeaders.set('x-user-role', sessionValidation.data.user.role)
         }
         
         if (sessionValidation.data.user?.email) {
           requestHeaders.set('x-user-email', sessionValidation.data.user.email)
+        }
+
+        // IMPORTANT: Add company ID to headers for project APIs
+        if (sessionValidation.data.user?.company?.id) {
+          requestHeaders.set('x-company-id', sessionValidation.data.user.company.id)
+        }
+
+        // Add user name for convenience
+        if (sessionValidation.data.user?.first_name && sessionValidation.data.user?.last_name) {
+          requestHeaders.set('x-user-name', `${sessionValidation.data.user.first_name} ${sessionValidation.data.user.last_name}`)
         }
 
         // If authenticated user tries to access auth pages, redirect to dashboard

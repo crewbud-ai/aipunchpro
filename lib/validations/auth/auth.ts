@@ -79,9 +79,10 @@ export const userSignupSchema = z.object({
         .optional()
         .transform(val => val === '' ? undefined : val), // Convert empty string to undefined
 
+    // Updated role enum for construction hierarchy (auth purposes only)
     role: z
-        .enum(['super_admin', 'admin', 'manager', 'member'])
-        .default('admin'),
+        .enum(['super_admin', 'admin', 'supervisor', 'member'])
+        .default('super_admin'),
 })
 
 // ==============================================
@@ -126,6 +127,8 @@ export type CompanySignupInput = z.infer<typeof companySignupSchema>
 export type UserSignupInput = z.infer<typeof userSignupSchema>
 export type CompleteSignupInput = z.infer<typeof completeSignupSchema>
 export type LoginInput = z.infer<typeof loginSchema>
+
+export type UserRole = 'super_admin' | 'admin' | 'supervisor' | 'member'
 
 // ==============================================
 // VALIDATION HELPER FUNCTIONS
