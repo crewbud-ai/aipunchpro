@@ -1,18 +1,21 @@
 // ==============================================
-// src/hooks/projects/use-update-project.ts - Update Project Hook
+// src/hooks/projects/use-update-project.ts - Complete Update Project Hook
 // ==============================================
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { projectsApi } from '@/lib/api/projects'
 import { 
   validateUpdateProject,
+  transformUpdateFormDataToApiData,
+  projectToUpdateFormData,
+  hasFormChanges,
   type Project,
   type UpdateProjectData,
   type UpdateProjectFormData,
   type UpdateProjectState,
   type UpdateProjectResult,
   type ProjectFormErrors,
-  type ProjectFieldError,
+  type LocationSuggestion,
 } from '@/types/projects'
 
 // ==============================================
@@ -25,6 +28,11 @@ interface UseUpdateProjectState {
   formData: UpdateProjectFormData
   originalProject: Project | null
   hasChanges: boolean
+  
+  // Location autocomplete state
+  locationSuggestions: LocationSuggestion[]
+  isLoadingLocation: boolean
+  locationError: string | null
 }
 
 interface UseUpdateProjectActions {
@@ -37,6 +45,14 @@ interface UseUpdateProjectActions {
   updateProject: (data?: UpdateProjectData) => Promise<void>
   resetForm: () => void
   reset: () => void
+  
+  // Location autocomplete actions
+  searchLocations: (query: string) => Promise<void>
+  selectLocation: (suggestion: LocationSuggestion) => Promise<void>
+  clearLocationSuggestions: () => void
+  
+  // Name availability checking (excluding current project)
+  checkNameAvailability: (name: string, currentProjectId: string) => Promise<void>
 }
 
 interface UseUpdateProjectReturn extends UseUpdateProjectState, UseUpdateProjectActions {
@@ -48,61 +64,40 @@ interface UseUpdateProjectReturn extends UseUpdateProjectState, UseUpdateProject
   hasErrors: boolean
   canSubmit: boolean
   isInitialized: boolean
+  hasLocationSuggestions: boolean
 }
 
 // ==============================================
-// UTILITY FUNCTIONS
+// DEFAULT FORM DATA
 // ==============================================
-const projectToFormData = (project: Project): UpdateProjectFormData => ({
-  id: project.id,
-  name: project.name,
-  description: project.description || '',
-  projectNumber: project.projectNumber || '',
-  status: project.status,
-  priority: project.priority,
-  budget: project.budget,
-  spent: project.spent,
-  progress: project.progress,
-  startDate: project.startDate || '',
-  endDate: project.endDate || '',
-  estimatedHours: project.estimatedHours,
-  actualHours: project.actualHours,
-  location: project.location || '',
-  address: project.address || '',
-  clientName: project.clientName || '',
-  clientContact: project.clientContact || '',
-  tags: project.tags || [],
+const getDefaultUpdateFormData = (projectId: string): UpdateProjectFormData => ({
+  id: projectId,
+  name: '',
+  description: '',
+  projectNumber: '',
+  status: 'not_started',
+  priority: 'medium',
+  budget: undefined,
+  spent: undefined,
+  progress: undefined,
+  startDate: '',
+  endDate: '',
+  actualStartDate: '',
+  actualEndDate: '',
+  estimatedHours: undefined,
+  actualHours: undefined,
+  locationSearch: '',
+  selectedLocation: undefined,
+  clientName: '',
+  clientEmail: '',
+  clientPhone: '',
+  clientContactPerson: '',
+  clientWebsite: '',
+  clientNotes: '',
+  projectManagerId: undefined,
+  foremanId: undefined,
+  tags: [],
 })
-
-const hasFormChanges = (
-  current: UpdateProjectFormData, 
-  original: Project | null
-): boolean => {
-  if (!original) return false
-  
-  const originalForm = projectToFormData(original)
-  
-  // Compare all fields
-  return (
-    current.name !== originalForm.name ||
-    current.description !== originalForm.description ||
-    current.projectNumber !== originalForm.projectNumber ||
-    current.status !== originalForm.status ||
-    current.priority !== originalForm.priority ||
-    current.budget !== originalForm.budget ||
-    current.spent !== originalForm.spent ||
-    current.progress !== originalForm.progress ||
-    current.startDate !== originalForm.startDate ||
-    current.endDate !== originalForm.endDate ||
-    current.estimatedHours !== originalForm.estimatedHours ||
-    current.actualHours !== originalForm.actualHours ||
-    current.location !== originalForm.location ||
-    current.address !== originalForm.address ||
-    current.clientName !== originalForm.clientName ||
-    current.clientContact !== originalForm.clientContact ||
-    JSON.stringify(current.tags) !== JSON.stringify(originalForm.tags)
-  )
-}
 
 // ==============================================
 // MAIN HOOK
@@ -115,28 +110,12 @@ export const useUpdateProject = () => {
     state: 'idle',
     result: null,
     errors: {},
-    formData: {
-      id: '',
-      name: '',
-      description: '',
-      projectNumber: '',
-      status: 'not_started',
-      priority: 'medium',
-      budget: undefined,
-      spent: undefined,
-      progress: undefined,
-      startDate: '',
-      endDate: '',
-      estimatedHours: undefined,
-      actualHours: undefined,
-      location: '',
-      address: '',
-      clientName: '',
-      clientContact: '',
-      tags: [],
-    },
+    formData: getDefaultUpdateFormData(''),
     originalProject: null,
     hasChanges: false,
+    locationSuggestions: [],
+    isLoadingLocation: false,
+    locationError: null,
   })
 
   // ==============================================
@@ -147,14 +126,15 @@ export const useUpdateProject = () => {
   const isError = state.state === 'error'
   const isIdle = state.state === 'idle'
   const hasErrors = Object.keys(state.errors).length > 0
-  const canSubmit = (state.formData.name?.trim().length || 0) > 0 && !isLoading && state.hasChanges
   const isInitialized = state.originalProject !== null
+  const canSubmit = state.hasChanges && !isLoading && !hasErrors && isInitialized
+  const hasLocationSuggestions = state.locationSuggestions.length > 0
 
   // ==============================================
-  // INITIALIZE FORM
+  // FORM INITIALIZATION
   // ==============================================
   const initializeForm = useCallback((project: Project) => {
-    const formData = projectToFormData(project)
+    const formData = projectToUpdateFormData(project)
     
     setState(prev => ({
       ...prev,
@@ -164,6 +144,9 @@ export const useUpdateProject = () => {
       errors: {},
       state: 'idle',
       result: null,
+      locationSuggestions: [],
+      isLoadingLocation: false,
+      locationError: null,
     }))
   }, [])
 
@@ -173,12 +156,12 @@ export const useUpdateProject = () => {
   const updateFormData = useCallback((field: keyof UpdateProjectFormData, value: any) => {
     setState(prev => {
       const newFormData = { ...prev.formData, [field]: value }
-      const hasChanges = hasFormChanges(newFormData, prev.originalProject)
+      const newHasChanges = prev.originalProject ? hasFormChanges(newFormData, prev.originalProject) : false
       
       return {
         ...prev,
         formData: newFormData,
-        hasChanges,
+        hasChanges: newHasChanges,
         // Clear field error when user starts typing
         errors: { ...prev.errors, [field]: undefined },
       }
@@ -188,12 +171,12 @@ export const useUpdateProject = () => {
   const updateFormDataBulk = useCallback((data: Partial<UpdateProjectFormData>) => {
     setState(prev => {
       const newFormData = { ...prev.formData, ...data }
-      const hasChanges = hasFormChanges(newFormData, prev.originalProject)
+      const newHasChanges = prev.originalProject ? hasFormChanges(newFormData, prev.originalProject) : false
       
       return {
         ...prev,
         formData: newFormData,
-        hasChanges,
+        hasChanges: newHasChanges,
       }
     })
   }, [])
@@ -223,8 +206,9 @@ export const useUpdateProject = () => {
     
     if (!validation.success) {
       const newErrors: ProjectFormErrors = {}
-      validation.errors.forEach((error: ProjectFieldError) => {
-        newErrors[error.field as keyof ProjectFormErrors] = error.message
+      validation.error.errors.forEach((error: any) => {
+        const fieldPath = error.path.join('.')
+        newErrors[fieldPath as keyof ProjectFormErrors] = error.message
       })
       
       setState(prev => ({
@@ -242,13 +226,179 @@ export const useUpdateProject = () => {
   }, [state.formData])
 
   // ==============================================
+  // LOCATION AUTOCOMPLETE
+  // ==============================================
+  const searchLocations = useCallback(async (query: string) => {
+    if (query.length < 3) {
+      setState(prev => ({
+        ...prev,
+        locationSuggestions: [],
+        locationError: null,
+      }))
+      return
+    }
+
+    try {
+      setState(prev => ({
+        ...prev,
+        isLoadingLocation: true,
+        locationError: null,
+      }))
+
+      const response = await projectsApi.getLocationSuggestions(query)
+
+      if (response.success) {
+        setState(prev => ({
+          ...prev,
+          locationSuggestions: response.suggestions,
+          isLoadingLocation: false,
+        }))
+      } else {
+        setState(prev => ({
+          ...prev,
+          locationSuggestions: [],
+          isLoadingLocation: false,
+          locationError: response.message || 'Failed to search locations',
+        }))
+      }
+    } catch (error: any) {
+      console.error('Error searching locations:', error)
+      setState(prev => ({
+        ...prev,
+        locationSuggestions: [],
+        isLoadingLocation: false,
+        locationError: 'Failed to search locations',
+      }))
+    }
+  }, [])
+
+  const selectLocation = useCallback(async (suggestion: LocationSuggestion) => {
+    try {
+      setState(prev => ({
+        ...prev,
+        isLoadingLocation: true,
+        locationError: null,
+      }))
+
+      // Get detailed location info
+      const response = await projectsApi.getLocationDetails(suggestion.place_id)
+
+      if (response.success) {
+        const place = response.place
+        
+        updateFormDataBulk({
+          locationSearch: suggestion.description,
+          selectedLocation: {
+            address: place.formatted_address,
+            displayName: place.name || suggestion.structured_formatting.main_text,
+            coordinates: {
+              lat: place.geometry.location.lat,
+              lng: place.geometry.location.lng,
+            },
+            placeId: suggestion.place_id,
+          },
+        })
+
+        setState(prev => ({
+          ...prev,
+          locationSuggestions: [],
+          isLoadingLocation: false,
+        }))
+      } else {
+        setState(prev => ({
+          ...prev,
+          isLoadingLocation: false,
+          locationError: response.message || 'Failed to get location details',
+        }))
+      }
+    } catch (error: any) {
+      console.error('Error selecting location:', error)
+      setState(prev => ({
+        ...prev,
+        isLoadingLocation: false,
+        locationError: 'Failed to get location details',
+      }))
+    }
+  }, [updateFormDataBulk])
+
+  const clearLocationSuggestions = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      locationSuggestions: [],
+      locationError: null,
+    }))
+  }, [])
+
+  // ==============================================
+  // NAME AVAILABILITY CHECKING (excluding current project)
+  // ==============================================
+  const checkNameAvailability = useCallback(async (name: string, currentProjectId: string) => {
+    if (!name.trim() || name.length < 2) {
+      updateFormData('isNameAvailable', undefined)
+      updateFormData('lastCheckedName', '')
+      return
+    }
+
+    // Don't check if name hasn't changed from original
+    if (state.originalProject && name === state.originalProject.name) {
+      updateFormDataBulk({
+        isNameAvailable: true,
+        lastCheckedName: name,
+        isCheckingName: false,
+      })
+      return
+    }
+
+    try {
+      updateFormData('isCheckingName', true)
+      
+      // Get projects with this name
+      const response = await projectsApi.getProjects({ 
+        search: name,
+        limit: 10 // Get a few to check for exact matches
+      })
+      
+      // Check if exact match exists (excluding current project)
+      const exactMatch = response.data.projects.find(
+        project => project.name.toLowerCase() === name.toLowerCase() && project.id !== currentProjectId
+      )
+      
+      const isAvailable = !exactMatch
+
+      updateFormDataBulk({
+        isNameAvailable: isAvailable,
+        lastCheckedName: name,
+        isCheckingName: false,
+      })
+
+      if (!isAvailable) {
+        setState(prev => ({
+          ...prev,
+          errors: { 
+            ...prev.errors, 
+            name: 'A project with this name already exists' 
+          },
+        }))
+      }
+    } catch (error: any) {
+      console.error('Error checking name availability:', error)
+      updateFormDataBulk({
+        isCheckingName: false,
+        isNameAvailable: undefined,
+        lastCheckedName: '',
+      })
+    }
+  }, [state.originalProject, updateFormData, updateFormDataBulk])
+
+  // ==============================================
   // UPDATE PROJECT
   // ==============================================
   const updateProject = useCallback(async (data?: UpdateProjectData) => {
-    const projectData = data || state.formData
-    
-    // Validate form if using form data
-    if (!data && !validateForm()) {
+    if (!isInitialized) {
+      setState(prev => ({
+        ...prev,
+        errors: { general: 'Project must be initialized before updating' },
+      }))
       return
     }
 
@@ -258,31 +408,41 @@ export const useUpdateProject = () => {
         state: 'loading',
         errors: {},
       }))
-      
-      const response = await projectsApi.updateProject(projectData)
-      
-      setState(prev => ({
-        ...prev,
-        result: response,
-      }))
-      
+
+      // Use provided data or transform form data
+      const projectData = data || transformUpdateFormDataToApiData(state.formData)
+
+      // Validate data before sending
+      const validation = validateUpdateProject(projectData)
+      if (!validation.success) {
+        const newErrors: ProjectFormErrors = {}
+        validation.error.errors.forEach((error: any) => {
+          const fieldPath = error.path.join('.')
+          newErrors[fieldPath as keyof ProjectFormErrors] = error.message
+        })
+        
+        setState(prev => ({
+          ...prev,
+          state: 'error',
+          errors: newErrors,
+        }))
+        return
+      }
+
+      const response = await projectsApi.updateProject(projectData.id, projectData)
+
       if (response.success) {
+        const updatedProject = response.data.project
+        
         setState(prev => ({
           ...prev,
           state: 'success',
-          originalProject: response.data.project,
-          formData: projectToFormData(response.data.project),
+          result: response,
+          originalProject: updatedProject,
+          formData: projectToUpdateFormData(updatedProject),
           hasChanges: false,
+          errors: {},
         }))
-        
-        // Reset to idle after showing success state
-        setTimeout(() => {
-          setState(prev => ({
-            ...prev,
-            state: 'idle',
-          }))
-        }, 2000)
-        
       } else {
         setState(prev => ({
           ...prev,
@@ -291,52 +451,22 @@ export const useUpdateProject = () => {
         }))
       }
     } catch (error: any) {
-      console.error('Update project error:', error)
+      console.error('Error updating project:', error)
       
       setState(prev => ({
         ...prev,
         state: 'error',
+        errors: { general: error.message || 'Failed to update project' },
       }))
-      
-      // Handle different error types
-      if (error.status === 400 && error.details) {
-        // Validation errors from API
-        const newErrors: ProjectFormErrors = {}
-        error.details.forEach((detail: ProjectFieldError) => {
-          newErrors[detail.field as keyof ProjectFormErrors] = detail.message
-        })
-        setState(prev => ({
-          ...prev,
-          errors: newErrors,
-        }))
-      } else if (error.status === 404) {
-        // Project not found
-        setState(prev => ({
-          ...prev,
-          errors: { general: 'Project not found' },
-        }))
-      } else if (error.status === 409) {
-        // Duplicate name error
-        setState(prev => ({
-          ...prev,
-          errors: { name: error.message || 'A project with this name already exists' },
-        }))
-      } else {
-        // General error
-        setState(prev => ({
-          ...prev,
-          errors: { general: error.message || 'Failed to update project' },
-        }))
-      }
     }
-  }, [state.formData, validateForm])
+  }, [state.formData, isInitialized])
 
   // ==============================================
-  // RESET FORM TO ORIGINAL
+  // FORM RESET
   // ==============================================
   const resetForm = useCallback(() => {
     if (state.originalProject) {
-      const formData = projectToFormData(state.originalProject)
+      const formData = projectToUpdateFormData(state.originalProject)
       setState(prev => ({
         ...prev,
         formData,
@@ -348,36 +478,17 @@ export const useUpdateProject = () => {
     }
   }, [state.originalProject])
 
-  // ==============================================
-  // RESET COMPLETELY
-  // ==============================================
   const reset = useCallback(() => {
     setState({
       state: 'idle',
       result: null,
       errors: {},
-      formData: {
-        id: '',
-        name: '',
-        description: '',
-        projectNumber: '',
-        status: 'not_started',
-        priority: 'medium',
-        budget: undefined,
-        spent: undefined,
-        progress: undefined,
-        startDate: '',
-        endDate: '',
-        estimatedHours: undefined,
-        actualHours: undefined,
-        location: '',
-        address: '',
-        clientName: '',
-        clientContact: '',
-        tags: [],
-      },
+      formData: getDefaultUpdateFormData(''),
       originalProject: null,
       hasChanges: false,
+      locationSuggestions: [],
+      isLoadingLocation: false,
+      locationError: null,
     })
   }, [])
 
@@ -392,6 +503,9 @@ export const useUpdateProject = () => {
     formData: state.formData,
     originalProject: state.originalProject,
     hasChanges: state.hasChanges,
+    locationSuggestions: state.locationSuggestions,
+    isLoadingLocation: state.isLoadingLocation,
+    locationError: state.locationError,
     
     // Computed properties
     isLoading,
@@ -401,6 +515,7 @@ export const useUpdateProject = () => {
     hasErrors,
     canSubmit,
     isInitialized,
+    hasLocationSuggestions,
     
     // Actions
     initializeForm,
@@ -412,5 +527,13 @@ export const useUpdateProject = () => {
     updateProject,
     resetForm,
     reset,
+    
+    // Location actions
+    searchLocations,
+    selectLocation,
+    clearLocationSuggestions,
+    
+    // Name checking
+    checkNameAvailability,
   } satisfies UseUpdateProjectReturn
 }

@@ -1,6 +1,39 @@
 // ==============================================
-// src/types/projects/project.ts - Core Project Types
+// src/types/projects/project.ts - Updated Core Project Types
 // ==============================================
+
+// ==============================================
+// LOCATION AND CLIENT INTERFACES (JSONB)
+// ==============================================
+export interface ProjectLocation {
+  address: string
+  displayName?: string
+  city?: string
+  state?: string
+  country?: string
+  zipCode?: string
+  coordinates?: {
+    lat: number
+    lng: number
+  }
+  placeId?: string
+  timezone?: string
+}
+
+export interface ProjectClient {
+  name?: string
+  contactPerson?: string
+  email?: string
+  phone?: string
+  secondaryEmail?: string
+  secondaryPhone?: string
+  website?: string
+  businessAddress?: string
+  billingAddress?: string
+  taxId?: string
+  notes?: string
+  preferredContact?: 'email' | 'phone' | 'both'
+}
 
 // ==============================================
 // CORE PROJECT INTERFACES
@@ -11,29 +44,55 @@ export interface Project {
   name: string
   description?: string
   projectNumber?: string
-  status: 'not_started' | 'in_progress' | 'on_track' | 'ahead_of_schedule' | 'behind_schedule' | 'completed'
-  priority: 'low' | 'medium' | 'high'
+  status: 'not_started' | 'in_progress' | 'on_track' | 'ahead_of_schedule' | 'behind_schedule' | 'on_hold' | 'completed' | 'cancelled'
+  priority: 'low' | 'medium' | 'high' | 'urgent'
   budget?: number
   spent?: number
   progress?: number
   startDate?: string
   endDate?: string
+  actualStartDate?: string
+  actualEndDate?: string
   estimatedHours?: number
   actualHours?: number
-  location?: string
-  address?: string
-  clientName?: string
-  clientContact?: string
+  
+  // Enhanced JSONB fields
+  location?: ProjectLocation
+  client?: ProjectClient
+  
   tags?: string[]
+  projectManagerId?: string
+  foremanId?: string
   createdBy: string
   createdAt: string
   updatedAt: string
+  
+  // Related data (populated from joins)
+  projectManager?: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
+  }
+  foreman?: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
+  }
+  creator?: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
+  }
 }
 
 export interface ProjectSummary {
   id: string
   name: string
   description?: string
+  projectNumber?: string
   status: Project['status']
   priority: Project['priority']
   progress?: number
@@ -41,8 +100,18 @@ export interface ProjectSummary {
   spent?: number
   startDate?: string
   endDate?: string
-  clientName?: string
+  location?: ProjectLocation
+  client?: ProjectClient
+  tags?: string[]
   createdAt: string
+  updatedAt: string
+  
+  // Basic team info for list view
+  projectManager?: {
+    id: string
+    firstName: string
+    lastName: string
+  }
 }
 
 // ==============================================
@@ -52,7 +121,10 @@ export interface ProjectFilters {
   status?: Project['status']
   priority?: Project['priority']
   search?: string
-  sortBy?: 'name' | 'created_at' | 'start_date' | 'progress'
+  location?: string  // Search by location
+  client?: string    // Search by client
+  managerId?: string // Filter by project manager
+  sortBy?: 'name' | 'created_at' | 'start_date' | 'progress' | 'priority' | 'status'
   sortOrder?: 'asc' | 'desc'
   limit?: number
   offset?: number
@@ -91,6 +163,9 @@ export interface GetProjectsResult {
       status?: Project['status']
       priority?: Project['priority']
       search?: string
+      location?: string
+      client?: string
+      managerId?: string
       sortBy?: string
       sortOrder?: 'asc' | 'desc'
     }
@@ -139,14 +214,34 @@ export interface ProjectFormErrors {
   budget?: string
   startDate?: string
   endDate?: string
+  actualStartDate?: string
+  actualEndDate?: string
   estimatedHours?: string
   actualHours?: string
   spent?: string
   progress?: string
+  projectManagerId?: string
+  foremanId?: string
+  
+  // Location errors
   location?: string
-  address?: string
-  clientName?: string
-  clientContact?: string
+  'location.address'?: string
+  'location.coordinates'?: string
+  locationSearch?: string
+  selectedLocation?: string
+  
+  // Client errors
+  client?: string
+  'client.name'?: string
+  'client.email'?: string
+  'client.phone'?: string
+  clientName?: string     // Form field aliases
+  clientEmail?: string
+  clientPhone?: string
+  clientContactPerson?: string
+  clientWebsite?: string
+  clientNotes?: string
+  
   tags?: string
   general?: string
 }
@@ -156,11 +251,70 @@ export interface ProjectFormErrors {
 // ==============================================
 export interface ProjectStats {
   total: number
-  planning: number
-  active: number
-  onHold: number
-  completed: number
+  byStatus: {
+    not_started: number
+    in_progress: number
+    on_track: number
+    ahead_of_schedule: number
+    behind_schedule: number
+    on_hold: number
+    completed: number
+    cancelled: number
+  }
+  byPriority: {
+    low: number
+    medium: number
+    high: number
+    urgent: number
+  }
   totalBudget: number
   totalSpent: number
   averageProgress: number
+  activeProjects: number
+  upcomingDeadlines: number
+}
+
+// ==============================================
+// LOCATION SUGGESTION TYPES (for Places API)
+// ==============================================
+export interface LocationSuggestion {
+  place_id: string
+  description: string
+  structured_formatting: {
+    main_text: string
+    secondary_text: string
+  }
+  types: string[]
+}
+
+export interface LocationDetails {
+  place_id: string
+  name: string
+  formatted_address: string
+  geometry: {
+    location: {
+      lat: number
+      lng: number
+    }
+  }
+  address_components: Array<{
+    long_name: string
+    short_name: string
+    types: string[]
+  }>
+}
+
+// ==============================================
+// PLACES API RESPONSE TYPES
+// ==============================================
+export interface PlacesAutocompleteResponse {
+  success: boolean
+  suggestions: LocationSuggestion[]
+  message: string
+}
+
+export interface PlacesDetailsResponse {
+  success: boolean
+  place: LocationDetails
+  message: string
 }

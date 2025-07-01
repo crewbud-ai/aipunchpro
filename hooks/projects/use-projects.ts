@@ -1,15 +1,17 @@
 // ==============================================
-// src/hooks/projects/use-projects.ts - Projects List Hook
+// src/hooks/projects/use-projects.ts - Updated Projects List Hook
 // ==============================================
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { projectsApi } from '@/lib/api/projects'
-import type {
-  ProjectSummary,
-  ProjectFilters,
-  ProjectsState,
-  GetProjectsResult,
-  ProjectStats,
+import { 
+  getDefaultProjectFiltersFormData,
+  type ProjectSummary,
+  type ProjectFilters,
+  type ProjectsState,
+  type GetProjectsResult,
+  type ProjectStats,
+  type ProjectFiltersFormData,
 } from '@/types/projects'
 
 // ==============================================
@@ -24,6 +26,7 @@ interface UseProjectsState {
     totalPages: number
   }
   filters: ProjectFilters
+  filtersForm: ProjectFiltersFormData
   state: ProjectsState
   error: string | null
 }
@@ -32,10 +35,18 @@ interface UseProjectsActions {
   loadProjects: (newFilters?: Partial<ProjectFilters>) => Promise<void>
   refreshProjects: () => Promise<void>
   updateFilters: (newFilters: Partial<ProjectFilters>) => void
+  updateFiltersForm: (field: keyof ProjectFiltersFormData, value: any) => void
+  applyFiltersForm: () => void
   clearFilters: () => void
   setPage: (page: number) => void
   setLimit: (limit: number) => void
   clearError: () => void
+  
+  // Enhanced search actions
+  searchByLocation: (locationQuery: string) => void
+  searchByClient: (clientQuery: string) => void
+  filterByManager: (managerId: string | undefined) => void
+  sortProjects: (sortBy: ProjectFilters['sortBy'], sortOrder?: ProjectFilters['sortOrder']) => void
 }
 
 interface UseProjectsReturn extends UseProjectsState, UseProjectsActions {
@@ -47,6 +58,14 @@ interface UseProjectsReturn extends UseProjectsState, UseProjectsActions {
   hasError: boolean
   hasNextPage: boolean
   hasPrevPage: boolean
+  hasActiveFilters: boolean
+  
+  // Enhanced computed properties
+  projectsByStatus: Record<string, ProjectSummary[]>
+  projectsByPriority: Record<string, ProjectSummary[]>
+  totalBudget: number
+  totalSpent: number
+  averageProgress: number
 }
 
 // ==============================================
@@ -77,6 +96,7 @@ export const useProjects = (initialFilters: Partial<ProjectFilters> = {}) => {
     projects: [],
     pagination: DEFAULT_PAGINATION,
     filters: { ...DEFAULT_FILTERS, ...initialFilters },
+    filtersForm: getDefaultProjectFiltersFormData(),
     state: 'loading',
     error: null,
   })
@@ -91,6 +111,55 @@ export const useProjects = (initialFilters: Partial<ProjectFilters> = {}) => {
   const hasError = state.state === 'error'
   const hasNextPage = state.pagination.page < state.pagination.totalPages
   const hasPrevPage = state.pagination.page > 1
+
+  // Check if any filters are applied
+  const hasActiveFilters = useMemo(() => {
+    return !!(
+      state.filters.status ||
+      state.filters.priority ||
+      state.filters.search ||
+      state.filters.location ||
+      state.filters.client ||
+      state.filters.managerId
+    )
+  }, [state.filters])
+
+  // Group projects by status
+  const projectsByStatus = useMemo(() => {
+    return state.projects.reduce((acc, project) => {
+      if (!acc[project.status]) {
+        acc[project.status] = []
+      }
+      acc[project.status].push(project)
+      return acc
+    }, {} as Record<string, ProjectSummary[]>)
+  }, [state.projects])
+
+  // Group projects by priority
+  const projectsByPriority = useMemo(() => {
+    return state.projects.reduce((acc, project) => {
+      if (!acc[project.priority]) {
+        acc[project.priority] = []
+      }
+      acc[project.priority].push(project)
+      return acc
+    }, {} as Record<string, ProjectSummary[]>)
+  }, [state.projects])
+
+  // Calculate totals
+  const totalBudget = useMemo(() => {
+    return state.projects.reduce((sum, project) => sum + (project.budget || 0), 0)
+  }, [state.projects])
+
+  const totalSpent = useMemo(() => {
+    return state.projects.reduce((sum, project) => sum + (project.spent || 0), 0)
+  }, [state.projects])
+
+  const averageProgress = useMemo(() => {
+    if (state.projects.length === 0) return 0
+    const totalProgress = state.projects.reduce((sum, project) => sum + (project.progress || 0), 0)
+    return Math.round(totalProgress / state.projects.length)
+  }, [state.projects])
 
   // ==============================================
   // CLEAR ERROR
@@ -108,28 +177,37 @@ export const useProjects = (initialFilters: Partial<ProjectFilters> = {}) => {
   // ==============================================
   const loadProjects = useCallback(async (newFilters: Partial<ProjectFilters> = {}) => {
     try {
-      const finalFilters = { ...state.filters, ...newFilters }
-      
       setState(prev => ({
         ...prev,
         state: 'loading',
         error: null,
-        filters: finalFilters,
       }))
+
+      const finalFilters = { ...state.filters, ...newFilters }
 
       const response = await projectsApi.getProjects(finalFilters)
 
       if (response.success) {
+        const { projects, pagination } = response.data
+
         setState(prev => ({
           ...prev,
-          projects: response.data.projects,
-          pagination: response.data.pagination,
-          state: response.data.projects.length > 0 ? 'loaded' : 'empty',
+          projects,
+          pagination: {
+            total: pagination.total,
+            page: pagination.page,
+            limit: pagination.limit,
+            totalPages: pagination.totalPages,
+          },
+          filters: finalFilters,
+          state: projects.length > 0 ? 'loaded' : 'empty',
           error: null,
         }))
       } else {
         setState(prev => ({
           ...prev,
+          projects: [],
+          pagination: DEFAULT_PAGINATION,
           state: 'error',
           error: response.message || 'Failed to load projects',
         }))
@@ -138,6 +216,8 @@ export const useProjects = (initialFilters: Partial<ProjectFilters> = {}) => {
       console.error('Error loading projects:', error)
       setState(prev => ({
         ...prev,
+        projects: [],
+        pagination: DEFAULT_PAGINATION,
         state: 'error',
         error: error.message || 'Failed to load projects',
       }))
@@ -152,58 +232,100 @@ export const useProjects = (initialFilters: Partial<ProjectFilters> = {}) => {
   }, [loadProjects])
 
   // ==============================================
-  // UPDATE FILTERS
+  // FILTER MANAGEMENT
   // ==============================================
   const updateFilters = useCallback((newFilters: Partial<ProjectFilters>) => {
-    const updatedFilters = { ...state.filters, ...newFilters }
-    
-    // Reset to first page when filters change (except for pagination changes)
-    if (!('offset' in newFilters) && !('limit' in newFilters)) {
-      updatedFilters.offset = 0
-    }
-
     setState(prev => ({
       ...prev,
-      filters: updatedFilters,
+      filters: { ...prev.filters, ...newFilters },
     }))
+  }, [])
 
-    // Load projects with new filters
-    loadProjects(updatedFilters)
-  }, [state.filters, loadProjects])
+  const updateFiltersForm = useCallback((field: keyof ProjectFiltersFormData, value: any) => {
+    setState(prev => ({
+      ...prev,
+      filtersForm: { ...prev.filtersForm, [field]: value },
+    }))
+  }, [])
 
-  // ==============================================
-  // CLEAR FILTERS
-  // ==============================================
-  const clearFilters = useCallback(() => {
-    const clearedFilters = {
-      limit: state.filters.limit || DEFAULT_FILTERS.limit,
-      offset: 0,
-      sortBy: DEFAULT_FILTERS.sortBy,
-      sortOrder: DEFAULT_FILTERS.sortOrder,
+  const applyFiltersForm = useCallback(() => {
+    const formFilters = state.filtersForm
+    const apiFilters: Partial<ProjectFilters> = {
+      status: formFilters.status,
+      priority: formFilters.priority,
+      search: formFilters.search || undefined,
+      location: formFilters.location || undefined,
+      client: formFilters.client || undefined,
+      managerId: formFilters.managerId,
+      sortBy: formFilters.sortBy,
+      sortOrder: formFilters.sortOrder,
+      offset: 0, // Reset to first page when applying filters
     }
+
+    updateFilters(apiFilters)
+    loadProjects(apiFilters)
+  }, [state.filtersForm, updateFilters, loadProjects])
+
+  const clearFilters = useCallback(() => {
+    const clearedFilters = { ...DEFAULT_FILTERS }
+    const clearedFiltersForm = getDefaultProjectFiltersFormData()
 
     setState(prev => ({
       ...prev,
       filters: clearedFilters,
+      filtersForm: clearedFiltersForm,
     }))
 
     loadProjects(clearedFilters)
-  }, [state.filters.limit, loadProjects])
+  }, [loadProjects])
 
   // ==============================================
-  // PAGINATION HELPERS
+  // PAGINATION
   // ==============================================
   const setPage = useCallback((page: number) => {
-    const newOffset = (page - 1) * (state.filters.limit || DEFAULT_FILTERS.limit!)
+    const newOffset = (page - 1) * state.filters.limit!
     updateFilters({ offset: newOffset })
-  }, [state.filters.limit, updateFilters])
+    loadProjects({ offset: newOffset })
+  }, [state.filters.limit, updateFilters, loadProjects])
 
   const setLimit = useCallback((limit: number) => {
     updateFilters({ 
       limit, 
       offset: 0  // Reset to first page when changing limit
     })
-  }, [updateFilters])
+    loadProjects({ limit, offset: 0 })
+  }, [updateFilters, loadProjects])
+
+  // ==============================================
+  // ENHANCED SEARCH ACTIONS
+  // ==============================================
+  const searchByLocation = useCallback((locationQuery: string) => {
+    updateFiltersForm('location', locationQuery)
+    updateFilters({ location: locationQuery, offset: 0 })
+    loadProjects({ location: locationQuery, offset: 0 })
+  }, [updateFiltersForm, updateFilters, loadProjects])
+
+  const searchByClient = useCallback((clientQuery: string) => {
+    updateFiltersForm('client', clientQuery)
+    updateFilters({ client: clientQuery, offset: 0 })
+    loadProjects({ client: clientQuery, offset: 0 })
+  }, [updateFiltersForm, updateFilters, loadProjects])
+
+  const filterByManager = useCallback((managerId: string | undefined) => {
+    updateFiltersForm('managerId', managerId)
+    updateFilters({ managerId, offset: 0 })
+    loadProjects({ managerId, offset: 0 })
+  }, [updateFiltersForm, updateFilters, loadProjects])
+
+  const sortProjects = useCallback((
+    sortBy: ProjectFilters['sortBy'], 
+    sortOrder: ProjectFilters['sortOrder'] = 'desc'
+  ) => {
+    updateFiltersForm('sortBy', sortBy)
+    updateFiltersForm('sortOrder', sortOrder)
+    updateFilters({ sortBy, sortOrder })
+    loadProjects({ sortBy, sortOrder })
+  }, [updateFiltersForm, updateFilters, loadProjects])
 
   // ==============================================
   // INITIAL LOAD
@@ -220,6 +342,7 @@ export const useProjects = (initialFilters: Partial<ProjectFilters> = {}) => {
     projects: state.projects,
     pagination: state.pagination,
     filters: state.filters,
+    filtersForm: state.filtersForm,
     state: state.state,
     error: state.error,
     
@@ -231,15 +354,29 @@ export const useProjects = (initialFilters: Partial<ProjectFilters> = {}) => {
     hasError,
     hasNextPage,
     hasPrevPage,
+    hasActiveFilters,
+    projectsByStatus,
+    projectsByPriority,
+    totalBudget,
+    totalSpent,
+    averageProgress,
     
     // Actions
     loadProjects,
     refreshProjects,
     updateFilters,
+    updateFiltersForm,
+    applyFiltersForm,
     clearFilters,
     setPage,
     setLimit,
     clearError,
+    
+    // Enhanced search actions
+    searchByLocation,
+    searchByClient,
+    filterByManager,
+    sortProjects,
   } satisfies UseProjectsReturn
 }
 
@@ -256,20 +393,14 @@ export const useProjectStats = () => {
       setIsLoading(true)
       setError(null)
       
-      const statsData = await projectsApi.getProjectStats()
+      const response = await projectsApi.getProjectStats()
       
-      const projectStats: ProjectStats = {
-        total: statsData.total,
-        planning: statsData.byStatus.not_started,
-        active: statsData.byStatus.in_progress,
-        onHold: statsData.byStatus.ahead_of_schedule + statsData.byStatus.behind_schedule,
-        completed: statsData.byStatus.completed,
-        totalBudget: 0, // Will need to be calculated from API
-        totalSpent: 0,  // Will need to be calculated from API
-        averageProgress: 0, // Will need to be calculated from API
+      // Handle direct stats response (no wrapper)
+      if (response && typeof response === 'object' && 'total' in response) {
+        setStats(response as ProjectStats)
+      } else {
+        setError('Invalid response format from stats API')
       }
-      
-      setStats(projectStats)
     } catch (error: any) {
       console.error('Error loading project stats:', error)
       setError(error.message || 'Failed to load project statistics')
@@ -277,6 +408,10 @@ export const useProjectStats = () => {
       setIsLoading(false)
     }
   }, [])
+
+  const refreshStats = useCallback(() => {
+    loadStats()
+  }, [loadStats])
 
   useEffect(() => {
     loadStats()
@@ -286,50 +421,57 @@ export const useProjectStats = () => {
     stats,
     isLoading,
     error,
-    reload: loadStats,
+    refreshStats,
+    hasStats: stats !== null,
     clearError: () => setError(null),
   }
 }
 
 // ==============================================
-// PROJECT NAME AVAILABILITY HOOK
+// PROJECT NAME CHECK HOOK
 // ==============================================
 export const useProjectNameCheck = () => {
   const [isChecking, setIsChecking] = useState(false)
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null)
-  const [lastCheckedName, setLastCheckedName] = useState<string>('')
+  const [lastChecked, setLastChecked] = useState('')
 
   const checkNameAvailability = useCallback(async (name: string) => {
-    if (!name.trim()) {
+    if (!name.trim() || name.length < 2) {
       setIsAvailable(null)
-      setLastCheckedName('')
+      setLastChecked('')
       return
+    }
+
+    if (name === lastChecked) {
+      return // Already checked this name
     }
 
     try {
       setIsChecking(true)
-      setLastCheckedName(name)
       
-      const available = await projectsApi.isProjectNameAvailable(name)
-      setIsAvailable(available)
+      const response = await fetch(`/api/projects/check-name?name=${encodeURIComponent(name)}`)
+      const data = await response.json()
+
+      setIsAvailable(data.available)
+      setLastChecked(name)
     } catch (error) {
       console.error('Error checking name availability:', error)
       setIsAvailable(null)
     } finally {
       setIsChecking(false)
     }
-  }, [])
+  }, [lastChecked])
 
   const reset = useCallback(() => {
-    setIsAvailable(null)
-    setLastCheckedName('')
     setIsChecking(false)
+    setIsAvailable(null)
+    setLastChecked('')
   }, [])
 
   return {
     isChecking,
     isAvailable,
-    lastCheckedName,
+    lastChecked,
     checkNameAvailability,
     reset,
   }

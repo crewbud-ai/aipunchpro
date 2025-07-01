@@ -1,5 +1,5 @@
 // ==============================================
-// src/hooks/projects/use-create-project.ts - Create Project Hook
+// src/hooks/projects/use-create-project.ts - Complete Professional Create Project Hook
 // ==============================================
 
 import { useState, useCallback } from 'react'
@@ -7,12 +7,14 @@ import { useRouter } from 'next/navigation'
 import { projectsApi } from '@/lib/api/projects'
 import { 
   validateCreateProject,
+  transformFormDataToApiData,
+  getDefaultCreateProjectFormData,
   type CreateProjectData,
   type CreateProjectFormData,
   type CreateProjectState,
   type CreateProjectResult,
   type ProjectFormErrors,
-  type ProjectFieldError,
+  type LocationSuggestion,
 } from '@/types/projects'
 
 // ==============================================
@@ -23,6 +25,16 @@ interface UseCreateProjectState {
   result: CreateProjectResult | null
   errors: ProjectFormErrors
   formData: CreateProjectFormData
+  
+  // Location autocomplete state
+  locationSuggestions: LocationSuggestion[]
+  isLoadingLocation: boolean
+  locationError: string | null
+  
+  // Project number state
+  projectNumber: string
+  isLoadingProjectNumber: boolean
+  projectNumberError: string | null
 }
 
 interface UseCreateProjectActions {
@@ -33,6 +45,14 @@ interface UseCreateProjectActions {
   validateForm: () => boolean
   createProject: (data?: CreateProjectData) => Promise<void>
   reset: () => void
+  
+  // Location autocomplete actions
+  searchLocations: (query: string) => Promise<void>
+  selectLocation: (suggestion: LocationSuggestion) => Promise<void>
+  clearLocationSuggestions: () => void
+  
+  // Project number actions
+  generateProjectNumber: () => Promise<void>
 }
 
 interface UseCreateProjectReturn extends UseCreateProjectState, UseCreateProjectActions {
@@ -43,26 +63,7 @@ interface UseCreateProjectReturn extends UseCreateProjectState, UseCreateProject
   isIdle: boolean
   hasErrors: boolean
   canSubmit: boolean
-}
-
-// ==============================================
-// DEFAULT FORM DATA
-// ==============================================
-const DEFAULT_FORM_DATA: CreateProjectFormData = {
-  name: '',
-  description: '',
-  projectNumber: '',
-  status: 'not_started',
-  priority: 'medium',
-  budget: undefined,
-  startDate: '',
-  endDate: '',
-  estimatedHours: undefined,
-  location: '',
-  address: '',
-  clientName: '',
-  clientContact: '',
-  tags: [],
+  hasLocationSuggestions: boolean
 }
 
 // ==============================================
@@ -78,7 +79,13 @@ export const useCreateProject = () => {
     state: 'idle',
     result: null,
     errors: {},
-    formData: { ...DEFAULT_FORM_DATA },
+    formData: getDefaultCreateProjectFormData(),
+    locationSuggestions: [],
+    isLoadingLocation: false,
+    locationError: null,
+    projectNumber: '',
+    isLoadingProjectNumber: false,
+    projectNumberError: null,
   })
 
   // ==============================================
@@ -89,7 +96,12 @@ export const useCreateProject = () => {
   const isError = state.state === 'error'
   const isIdle = state.state === 'idle'
   const hasErrors = Object.keys(state.errors).length > 0
-  const canSubmit = state.formData.name.trim().length > 0 && !isLoading
+  const canSubmit = Boolean(
+    state.formData.name.trim().length > 0 && 
+    !isLoading && 
+    state.formData.selectedLocation
+  )
+  const hasLocationSuggestions = state.locationSuggestions.length > 0
 
   // ==============================================
   // FORM DATA MANAGEMENT
@@ -128,6 +140,146 @@ export const useCreateProject = () => {
   }, [])
 
   // ==============================================
+  // PROJECT NUMBER GENERATION
+  // ==============================================
+  const generateProjectNumber = useCallback(async () => {
+    try {
+      setState(prev => ({
+        ...prev,
+        isLoadingProjectNumber: true,
+        projectNumberError: null,
+      }))
+
+      const response = await projectsApi.getNextProjectNumber()
+      
+      if (response.success && response.nextNumber) {
+        setState(prev => ({
+          ...prev,
+          projectNumber: response.nextNumber!,
+          formData: { ...prev.formData, projectNumber: response.nextNumber! },
+          isLoadingProjectNumber: false,
+        }))
+      } else {
+        setState(prev => ({
+          ...prev,
+          projectNumberError: response.message || 'Failed to generate project number',
+          isLoadingProjectNumber: false,
+        }))
+      }
+    } catch (error: any) {
+      console.error('Error generating project number:', error)
+      setState(prev => ({
+        ...prev,
+        projectNumberError: 'Failed to generate project number',
+        isLoadingProjectNumber: false,
+      }))
+    }
+  }, [])
+
+  // ==============================================
+  // LOCATION AUTOCOMPLETE
+  // ==============================================
+  const searchLocations = useCallback(async (query: string) => {
+    if (query.length < 3) {
+      setState(prev => ({
+        ...prev,
+        locationSuggestions: [],
+        locationError: null,
+      }))
+      return
+    }
+
+    try {
+      setState(prev => ({
+        ...prev,
+        isLoadingLocation: true,
+        locationError: null,
+      }))
+
+      const response = await projectsApi.getLocationSuggestions(query)
+
+      if (response.success) {
+        setState(prev => ({
+          ...prev,
+          locationSuggestions: response.suggestions,
+          isLoadingLocation: false,
+        }))
+      } else {
+        setState(prev => ({
+          ...prev,
+          locationSuggestions: [],
+          isLoadingLocation: false,
+          locationError: response.message || 'Failed to search locations',
+        }))
+      }
+    } catch (error: any) {
+      console.error('Error searching locations:', error)
+      setState(prev => ({
+        ...prev,
+        locationSuggestions: [],
+        isLoadingLocation: false,
+        locationError: 'Failed to search locations',
+      }))
+    }
+  }, [])
+
+  const selectLocation = useCallback(async (suggestion: LocationSuggestion) => {
+    try {
+      setState(prev => ({
+        ...prev,
+        isLoadingLocation: true,
+        locationError: null,
+      }))
+
+      const response = await projectsApi.getLocationDetails(suggestion.place_id)
+
+      if (response.success) {
+        const place = response.place
+        
+        updateFormDataBulk({
+          locationSearch: suggestion.description,
+          selectedLocation: {
+            address: place.formatted_address,
+            displayName: place.name || suggestion.structured_formatting.main_text,
+            coordinates: {
+              lat: place.geometry.location.lat,
+              lng: place.geometry.location.lng,
+            },
+            placeId: suggestion.place_id,
+          },
+        })
+
+        setState(prev => ({
+          ...prev,
+          locationSuggestions: [],
+          isLoadingLocation: false,
+        }))
+      } else {
+        setState(prev => ({
+          ...prev,
+          isLoadingLocation: false,
+          locationError: response.message || 'Failed to get location details',
+        }))
+      }
+    } catch (error: any) {
+      console.error('Error selecting location:', error)
+      setState(prev => ({
+        ...prev,
+        isLoadingLocation: false,
+        locationError: 'Failed to get location details',
+      }))
+    }
+  }, [updateFormDataBulk])
+
+  const clearLocationSuggestions = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      locationSuggestions: [],
+      locationError: null,
+    }))
+  }, [])
+
+  // ==============================================
   // FORM VALIDATION
   // ==============================================
   const validateForm = useCallback(() => {
@@ -135,8 +287,9 @@ export const useCreateProject = () => {
     
     if (!validation.success) {
       const newErrors: ProjectFormErrors = {}
-      validation.errors.forEach((error: ProjectFieldError) => {
-        newErrors[error.field as keyof ProjectFormErrors] = error.message
+      validation.error.errors.forEach((error: any) => {
+        const fieldPath = error.path.join('.')
+        newErrors[fieldPath as keyof ProjectFormErrors] = error.message
       })
       
       setState(prev => ({
@@ -157,38 +310,45 @@ export const useCreateProject = () => {
   // CREATE PROJECT
   // ==============================================
   const createProject = useCallback(async (data?: CreateProjectData) => {
-    const projectData = data || state.formData
-    
-    // Validate form if using form data
-    if (!data && !validateForm()) {
-      return
-    }
-
     try {
       setState(prev => ({
         ...prev,
         state: 'loading',
         errors: {},
       }))
-      
+
+      // Use provided data or transform form data
+      const projectData = data || transformFormDataToApiData(state.formData)
+
+      // Validate data before sending
+      const validation = validateCreateProject(projectData)
+      if (!validation.success) {
+        const newErrors: ProjectFormErrors = {}
+        validation.error.errors.forEach((error: any) => {
+          const fieldPath = error.path.join('.')
+          newErrors[fieldPath as keyof ProjectFormErrors] = error.message
+        })
+        
+        setState(prev => ({
+          ...prev,
+          state: 'error',
+          errors: newErrors,
+        }))
+        return
+      }
+
       const response = await projectsApi.createProject(projectData)
-      
-      setState(prev => ({
-        ...prev,
-        result: response,
-      }))
-      
+
       if (response.success) {
         setState(prev => ({
           ...prev,
           state: 'success',
+          result: response,
+          errors: {},
         }))
-        
-        // Navigate to the new project after a brief delay for UX
-        setTimeout(() => {
-          router.push(`/dashboard/projects/${response.data.project.id}`)
-        }, 1000)
-        
+
+        // Navigate to the new project
+        router.push(`/dashboard/projects/${response.data.project.id}`)
       } else {
         setState(prev => ({
           ...prev,
@@ -197,49 +357,31 @@ export const useCreateProject = () => {
         }))
       }
     } catch (error: any) {
-      console.error('Create project error:', error)
+      console.error('Error creating project:', error)
       
       setState(prev => ({
         ...prev,
         state: 'error',
+        errors: { general: error.message || 'Failed to create project' },
       }))
-      
-      // Handle different error types
-      if (error.status === 400 && error.details) {
-        // Validation errors from API
-        const newErrors: ProjectFormErrors = {}
-        error.details.forEach((detail: ProjectFieldError) => {
-          newErrors[detail.field as keyof ProjectFormErrors] = detail.message
-        })
-        setState(prev => ({
-          ...prev,
-          errors: newErrors,
-        }))
-      } else if (error.status === 409) {
-        // Duplicate name error
-        setState(prev => ({
-          ...prev,
-          errors: { name: error.message || 'A project with this name already exists' },
-        }))
-      } else {
-        // General error
-        setState(prev => ({
-          ...prev,
-          errors: { general: error.message || 'Failed to create project' },
-        }))
-      }
     }
-  }, [state.formData, validateForm, router])
+  }, [state.formData, router])
 
   // ==============================================
-  // RESET FORM
+  // RESET
   // ==============================================
   const reset = useCallback(() => {
     setState({
       state: 'idle',
       result: null,
       errors: {},
-      formData: { ...DEFAULT_FORM_DATA },
+      formData: getDefaultCreateProjectFormData(),
+      locationSuggestions: [],
+      isLoadingLocation: false,
+      locationError: null,
+      projectNumber: '',
+      isLoadingProjectNumber: false,
+      projectNumberError: null,
     })
   }, [])
 
@@ -252,6 +394,12 @@ export const useCreateProject = () => {
     result: state.result,
     errors: state.errors,
     formData: state.formData,
+    locationSuggestions: state.locationSuggestions,
+    isLoadingLocation: state.isLoadingLocation,
+    locationError: state.locationError,
+    projectNumber: state.projectNumber,
+    isLoadingProjectNumber: state.isLoadingProjectNumber,
+    projectNumberError: state.projectNumberError,
     
     // Computed properties
     isLoading,
@@ -260,6 +408,7 @@ export const useCreateProject = () => {
     isIdle,
     hasErrors,
     canSubmit,
+    hasLocationSuggestions,
     
     // Actions
     updateFormData,
@@ -269,5 +418,13 @@ export const useCreateProject = () => {
     validateForm,
     createProject,
     reset,
+    
+    // Location actions
+    searchLocations,
+    selectLocation,
+    clearLocationSuggestions,
+    
+    // Project number actions
+    generateProjectNumber,
   } satisfies UseCreateProjectReturn
 }

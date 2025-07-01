@@ -1,5 +1,5 @@
 // ==============================================
-// src/lib/api/projects.ts - Projects API Service
+// src/lib/api/projects.ts - Complete Projects API Service
 // ==============================================
 
 import { toast } from '@/hooks/use-toast'
@@ -21,6 +21,11 @@ import type {
   GetProjectsResult,
   GetProjectResult,
   DeleteProjectResult,
+  
+  // Location Types
+  LocationSuggestion,
+  PlacesAutocompleteResponse,
+  PlacesDetailsResponse,
 } from '@/types/projects'
 
 // ==============================================
@@ -110,6 +115,9 @@ export const projectsApi = {
             if (filters.status) searchParams.append('status', filters.status)
             if (filters.priority) searchParams.append('priority', filters.priority)
             if (filters.search) searchParams.append('search', filters.search)
+            if (filters.location) searchParams.append('location', filters.location)
+            if (filters.client) searchParams.append('client', filters.client)
+            if (filters.managerId) searchParams.append('managerId', filters.managerId)
             if (filters.sortBy) searchParams.append('sortBy', filters.sortBy)
             if (filters.sortOrder) searchParams.append('sortOrder', filters.sortOrder)
             if (filters.limit) searchParams.append('limit', filters.limit.toString())
@@ -218,7 +226,7 @@ export const projectsApi = {
             // Show success toast
             toast({
                 title: "Project Created",
-                description: response.message || `${data.name} has been created successfully.`,
+                description: response.message || "Project has been created successfully.",
             })
 
             // Show additional notification if provided
@@ -271,15 +279,21 @@ export const projectsApi = {
     },
 
     // ==============================================
-    // UPDATE PROJECT
+    // UPDATE PROJECT (with proper ID handling)
     // ==============================================
-    async updateProject(data: UpdateProjectData): Promise<UpdateProjectResult> {
+    async updateProject(id: string, updates: Partial<UpdateProjectData>): Promise<UpdateProjectResult> {
         try {
-            if (!data.id || data.id.length !== 36) {
+            if (!id || id.length !== 36) {
                 throw new ApiError(400, 'Invalid project ID')
             }
 
-            const response = await apiCall<UpdateProjectResult>(`/api/projects/${data.id}`, {
+            // Ensure the ID is included in the updates
+            const data: UpdateProjectData = {
+                id,
+                ...updates
+            }
+
+            const response = await apiCall<UpdateProjectResult>(`/api/projects/${id}`, {
                 method: 'PUT',
                 body: JSON.stringify(data),
             })
@@ -416,19 +430,101 @@ export const projectsApi = {
     },
 
     // ==============================================
+    // PLACES API INTEGRATION
+    // ==============================================
+    
+    // Get location suggestions
+    async getLocationSuggestions(query: string): Promise<PlacesAutocompleteResponse> {
+        try {
+            if (query.length < 3) {
+                return {
+                    success: true,
+                    suggestions: [],
+                    message: 'Query too short'
+                }
+            }
+
+            const response = await apiCall<PlacesAutocompleteResponse>(
+                `/api/places/autocomplete?input=${encodeURIComponent(query)}`,
+                { method: 'GET' }
+            )
+
+            return response
+
+        } catch (error) {
+            if (error instanceof ApiError) {
+                console.error('Location suggestions error:', error)
+                // Don't show toast for location suggestions - handle in UI
+                throw error
+            }
+            
+            throw new ApiError(0, 'Failed to get location suggestions')
+        }
+    },
+
+    // Get location details
+    async getLocationDetails(placeId: string): Promise<PlacesDetailsResponse> {
+        try {
+            const response = await apiCall<PlacesDetailsResponse>(
+                '/api/places/details',
+                {
+                    method: 'POST',
+                    body: JSON.stringify({ place_id: placeId }),
+                }
+            )
+
+            return response
+
+        } catch (error) {
+            if (error instanceof ApiError) {
+                console.error('Location details error:', error)
+                throw error
+            }
+            
+            throw new ApiError(0, 'Failed to get location details')
+        }
+    },
+
+    // ==============================================
+    // PROJECT NUMBER GENERATION
+    // ==============================================
+    async getNextProjectNumber(): Promise<{ success: boolean; nextNumber?: string; message?: string }> {
+        try {
+            const response = await apiCall<{ success: boolean; nextNumber: string; message: string }>('/api/projects/next-number', {
+                method: 'GET',
+            })
+
+            return response
+        } catch (error) {
+            if (error instanceof ApiError) {
+                console.error('Project number generation error:', error)
+                return {
+                    success: false,
+                    message: error.message || 'Failed to generate project number'
+                }
+            }
+            
+            return {
+                success: false,
+                message: 'Failed to generate project number'
+            }
+        }
+    },
+
+    // ==============================================
     // UTILITY METHODS
     // ==============================================
     
     // Check if project name is available
     async isProjectNameAvailable(name: string): Promise<boolean> {
         try {
-            // This would typically be a separate endpoint, but we can use the search functionality
+            // Use the search functionality to check for exact matches
             const response = await this.getProjects({ 
                 search: name,
                 limit: 1 
             })
             
-            // Check if exact match exists
+            // Check if exact match exists (case-insensitive)
             const exactMatch = response.data.projects.find(
                 project => project.name.toLowerCase() === name.toLowerCase()
             )
@@ -446,6 +542,11 @@ export const projectsApi = {
         total: number
         byStatus: Record<string, number>
         byPriority: Record<string, number>
+        totalBudget: number
+        totalSpent: number
+        averageProgress: number
+        activeProjects: number
+        upcomingDeadlines: number
     }> {
         try {
             // Get all projects to calculate stats
@@ -455,31 +556,108 @@ export const projectsApi = {
             const stats = {
                 total: projects.length,
                 byStatus: {
-                    planning: 0,
-                    active: 0,
+                    not_started: 0,
+                    in_progress: 0,
+                    on_track: 0,
+                    ahead_of_schedule: 0,
+                    behind_schedule: 0,
                     on_hold: 0,
                     completed: 0,
+                    cancelled: 0,
                 },
                 byPriority: {
                     low: 0,
                     medium: 0,
                     high: 0,
+                    urgent: 0,
                 },
+                totalBudget: 0,
+                totalSpent: 0,
+                averageProgress: 0,
+                activeProjects: 0,
+                upcomingDeadlines: 0,
             }
 
+            let totalProgress = 0
+            const now = new Date()
+            const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+
             projects.forEach(project => {
-                stats.byStatus[project.status]++
-                stats.byPriority[project.priority]++
+                // Count by status
+                if (stats.byStatus[project.status] !== undefined) {
+                    stats.byStatus[project.status]++
+                }
+
+                // Count by priority
+                if (stats.byPriority[project.priority] !== undefined) {
+                    stats.byPriority[project.priority]++
+                }
+
+                // Sum budget and spent
+                stats.totalBudget += project.budget || 0
+                stats.totalSpent += project.spent || 0
+
+                // Calculate progress
+                totalProgress += project.progress || 0
+
+                // Count active projects
+                if (['in_progress', 'on_track', 'ahead_of_schedule', 'behind_schedule'].includes(project.status)) {
+                    stats.activeProjects++
+                }
+
+                // Count upcoming deadlines
+                if (project.endDate) {
+                    const deadline = new Date(project.endDate)
+                    if (deadline >= now && deadline <= nextWeek) {
+                        stats.upcomingDeadlines++
+                    }
+                }
             })
+
+            // Calculate average progress
+            stats.averageProgress = projects.length > 0 ? Math.round(totalProgress / projects.length) : 0
 
             return stats
         } catch (error) {
             console.error('Error getting project stats:', error)
             return {
                 total: 0,
-                byStatus: { planning: 0, active: 0, on_hold: 0, completed: 0 },
-                byPriority: { low: 0, medium: 0, high: 0 },
+                byStatus: {
+                    not_started: 0,
+                    in_progress: 0,
+                    on_track: 0,
+                    ahead_of_schedule: 0,
+                    behind_schedule: 0,
+                    on_hold: 0,
+                    completed: 0,
+                    cancelled: 0,
+                },
+                byPriority: { low: 0, medium: 0, high: 0, urgent: 0 },
+                totalBudget: 0,
+                totalSpent: 0,
+                averageProgress: 0,
+                activeProjects: 0,
+                upcomingDeadlines: 0,
             }
         }
+    },
+
+    // ==============================================
+    // CONVENIENCE METHODS FOR QUICK UPDATES
+    // ==============================================
+    
+    // Update just the project status
+    async updateProjectStatus(id: string, status: Project['status'], notes?: string): Promise<UpdateProjectResult> {
+        return this.updateProject(id, { status })
+    },
+
+    // Update just the project progress
+    async updateProjectProgress(id: string, progress: number, notes?: string): Promise<UpdateProjectResult> {
+        return this.updateProject(id, { progress })
+    },
+
+    // Update just the project priority
+    async updateProjectPriority(id: string, priority: Project['priority']): Promise<UpdateProjectResult> {
+        return this.updateProject(id, { priority })
     },
 }
