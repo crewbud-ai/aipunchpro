@@ -22,18 +22,16 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_VERSION: z.string().default('1.0.0'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   
+  // Google Maps & Places API Configuration (Optional)
+  GOOGLE_PLACES_API_KEY: z.string().optional(),
+  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: z.string().optional(),
+  
   // Business Configuration
   CLIENT_NAME: z.string().optional(),
   CLIENT_EMAIL: z.string().email().optional(),
   DEFAULT_TRIAL_DAYS: z.string().transform(Number).default('14'),
   MAX_USERS_TRIAL: z.string().transform(Number).default('10'),
   MAX_PROJECTS_TRIAL: z.string().transform(Number).default('5'),
-  
-  // Optional Future Integrations
-//   OPENAI_API_KEY: z.string().optional(),
-//   OPENAI_MODEL: z.string().default('gpt-4'),
-//   STRIPE_SECRET_KEY: z.string().optional(),
-//   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
   
   // Development
   DATABASE_URL: z.string().optional(),
@@ -74,6 +72,11 @@ export function checkEnvironment() {
     missing.forEach(key => console.error(`  - ${key}`))
     console.error('\n📝 Please check your .env.local file')
     process.exit(1)
+  }
+  
+  // Check optional Google API keys
+  if (!process.env.GOOGLE_PLACES_API_KEY) {
+    console.warn('⚠️  Google Places API key not configured - location autocomplete will use fallback data')
   }
   
   console.log('✅ Environment variables validated successfully')

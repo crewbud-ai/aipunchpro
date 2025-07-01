@@ -1,5 +1,5 @@
 // ==============================================
-// src/app/api/projects/[id]/route.ts - Individual Project API Routes
+// src/app/api/projects/[id]/route.ts - Updated Individual Project API Routes
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -8,6 +8,7 @@ import {
   formatProjectErrors 
 } from '@/lib/validations/projects/project'
 import { ProjectDatabaseService } from '@/lib/database/services/projects'
+import { createProjectLocation, createProjectClient } from '@/lib/database/schema/projects'
 
 // ==============================================
 // GET /api/projects/[id] - Get Single Project
@@ -49,8 +50,8 @@ export async function GET(
     // Create service instance
     const projectService = new ProjectDatabaseService(true, false)
 
-    // Get project with related data
-    const project = await projectService.getProjectById(projectId, companyId)
+    // Get project with related data using enhanced method
+    const project = await projectService.getProjectByIdEnhanced(projectId, companyId)
 
     if (!project) {
       return NextResponse.json(
@@ -66,7 +67,7 @@ export async function GET(
     // Get project files
     const files = await projectService.getProjectFiles(projectId)
 
-    // Return project data
+    // Return project data with enhanced structure
     return NextResponse.json(
       {
         success: true,
@@ -84,13 +85,16 @@ export async function GET(
             progress: project.progress,
             startDate: project.start_date,
             endDate: project.end_date,
+            actualStartDate: project.actual_start_date,
+            actualEndDate: project.actual_end_date,
             estimatedHours: project.estimated_hours,
             actualHours: project.actual_hours,
-            location: project.location,
-            address: project.address,
-            clientName: project.client_name,
-            clientContact: project.client_contact,
-            tags: project.tags,
+            
+            // Enhanced JSONB fields
+            location: project.location || null,
+            client: project.client || null,
+            
+            tags: project.tags || [],
             createdAt: project.created_at,
             updatedAt: project.updated_at,
             
@@ -232,11 +236,58 @@ export async function PUT(
       }
     }
 
-    // Update project
-    const updatedProject = await projectService.updateProject(
+    // Prepare enhanced update data
+    const enhancedUpdateData: any = {
+      name: updateData.name,
+      description: updateData.description,
+      projectNumber: updateData.projectNumber,
+      status: updateData.status,
+      priority: updateData.priority,
+      budget: updateData.budget,
+      spent: updateData.spent,
+      progress: updateData.progress,
+      startDate: updateData.startDate,
+      endDate: updateData.endDate,
+      actualStartDate: updateData.actualStartDate,
+      actualEndDate: updateData.actualEndDate,
+      estimatedHours: updateData.estimatedHours,
+      actualHours: updateData.actualHours,
+      projectManagerId: updateData.projectManagerId,
+    }
+
+    // Handle location updates
+    if (updateData.location || updateData.selectedLocation) {
+      if (updateData.location && typeof updateData.location === 'object') {
+        enhancedUpdateData.location = updateData.location
+      } else if (updateData.selectedLocation) {
+        enhancedUpdateData.location = createProjectLocation(
+          updateData.selectedLocation.address,
+          updateData.selectedLocation.coordinates,
+          updateData.selectedLocation.placeId,
+          updateData.selectedLocation.displayName
+        )
+      }
+    }
+
+    // Handle client updates
+    if (updateData.client || updateData.clientName || updateData.clientEmail || updateData.clientPhone) {
+      if (updateData.client && typeof updateData.client === 'object') {
+        enhancedUpdateData.client = updateData.client
+      } else {
+        enhancedUpdateData.client = createProjectClient(
+          updateData.clientName,
+          updateData.clientEmail,
+          updateData.clientPhone,
+          updateData.clientContactPerson
+        )
+      }
+    }
+
+    // Update project using enhanced method
+    const updatedProject = await projectService.updateProjectEnhanced(
       projectId, 
       companyId, 
-      updateData
+      enhancedUpdateData
     )
 
     // Return success response
@@ -257,12 +308,15 @@ export async function PUT(
             progress: updatedProject.progress,
             startDate: updatedProject.start_date,
             endDate: updatedProject.end_date,
+            actualStartDate: updatedProject.actual_start_date,
+            actualEndDate: updatedProject.actual_end_date,
             estimatedHours: updatedProject.estimated_hours,
             actualHours: updatedProject.actual_hours,
+            
+            // Enhanced JSONB fields
             location: updatedProject.location,
-            address: updatedProject.address,
-            clientName: updatedProject.client_name,
-            clientContact: updatedProject.client_contact,
+            client: updatedProject.client,
+            
             tags: updatedProject.tags,
             updatedAt: updatedProject.updated_at,
           },
@@ -438,12 +492,12 @@ export async function PATCH(
     // Handle different patch actions
     switch (action) {
       case 'update_status':
-        if (!status || !['planning', 'active', 'on_hold', 'completed'].includes(status)) {
+        if (!status || !['not_started', 'in_progress', 'on_track', 'ahead_of_schedule', 'behind_schedule', 'on_hold', 'completed', 'cancelled'].includes(status)) {
           return NextResponse.json(
             {
               success: false,
               error: 'Invalid status',
-              message: 'Status must be one of: planning, active, on_hold, completed',
+              message: 'Status must be one of: not_started, in_progress, on_track, ahead_of_schedule, behind_schedule, on_hold, completed, cancelled',
             },
             { status: 400 }
           )

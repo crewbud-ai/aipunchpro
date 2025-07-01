@@ -1,25 +1,26 @@
 // ==============================================
-// src/app/api/projects/route.ts - Projects API Routes
+// src/app/api/projects/route.ts - Clean Projects API Routes for New Schema
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
 import { 
   validateCreateProject, 
   validateGetProjects,
-  formatProjectErrors 
+  formatProjectErrors,
 } from '@/lib/validations/projects/project'
 import { ProjectDatabaseService } from '@/lib/database/services/projects'
+import { createProjectLocation, createProjectClient, ProjectClient, ProjectLocation } from '@/lib/database/schema/projects'
 
 // ==============================================
 // GET /api/projects - Get All Projects for Company
 // ==============================================
 export async function GET(request: NextRequest) {
   try {
-    // Get user info from middleware (set in headers)
+    // Get user info from middleware
     const userId = request.headers.get('x-user-id')
-    const userEmail = request.headers.get('x-user-email')
+    const companyId = request.headers.get('x-company-id')
     
-    if (!userId) {
+    if (!userId || !companyId) {
       return NextResponse.json(
         {
           success: false,
@@ -30,10 +31,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get company ID from user (we'll need to fetch this)
-    const projectService = new ProjectDatabaseService(true, false)
-    
-    // Parse query parameters - handle empty/null values
+    // Parse query parameters
     const url = new URL(request.url)
     const queryParams = {
       status: url.searchParams.get('status'),
@@ -43,12 +41,14 @@ export async function GET(request: NextRequest) {
       search: url.searchParams.get('search'),
       sortBy: url.searchParams.get('sortBy'),
       sortOrder: url.searchParams.get('sortOrder'),
+      managerId: url.searchParams.get('managerId'),
+      location: url.searchParams.get('location'),
+      client: url.searchParams.get('client'),
     }
 
-    // Validate query parameters - but allow empty object
+    // Validate query parameters
     const validation = validateGetProjects(queryParams)
     if (!validation.success) {
-      console.error('Validation error:', validation.error)
       return NextResponse.json(
         {
           success: false,
@@ -59,23 +59,53 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // TODO: Get company ID from user session/token
-    // For now, we'll need to fetch user info to get company_id
-    const companyId = request.headers.get('x-company-id') // This should be set by middleware
-
-    if (!companyId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Company not found',
-          message: 'Unable to determine company context.',
-        },
-        { status: 400 }
-      )
-    }
+    // Create service instance
+    const projectService = new ProjectDatabaseService(true, false)
 
     // Get projects with pagination and filtering
     const result = await projectService.getProjectsByCompany(companyId, validation.data)
+
+    // Transform projects to clean structure
+    const transformedProjects = result.projects.map(project => ({
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      projectNumber: project.project_number,
+      status: project.status,
+      priority: project.priority,
+      budget: project.budget,
+      spent: project.spent,
+      progress: project.progress,
+      startDate: project.start_date,
+      endDate: project.end_date,
+      actualStartDate: project.actual_start_date,
+      actualEndDate: project.actual_end_date,
+      estimatedHours: project.estimated_hours,
+      actualHours: project.actual_hours,
+      
+      // JSONB fields
+      location: project.location || null,
+      client: project.client || null,
+      
+      tags: project.tags || [],
+      createdAt: project.created_at,
+      updatedAt: project.updated_at,
+      
+      // Team information
+      projectManager: project.project_manager ? {
+        id: project.project_manager.id,
+        firstName: project.project_manager.first_name,
+        lastName: project.project_manager.last_name,
+        email: project.project_manager.email,
+      } : null,
+      
+      creator: project.creator ? {
+        id: project.creator.id,
+        firstName: project.creator.first_name,
+        lastName: project.creator.last_name,
+        email: project.creator.email,
+      } : null,
+    }))
 
     // Calculate pagination info
     const limit = validation.data.limit || 50
@@ -87,7 +117,7 @@ export async function GET(request: NextRequest) {
         success: true,
         message: 'Projects retrieved successfully',
         data: {
-          projects: result.projects,
+          projects: transformedProjects,
           pagination: {
             total: result.total,
             limit,
@@ -136,7 +166,7 @@ export async function POST(request: NextRequest) {
     // Parse request body
     const body = await request.json()
     
-    // Validate input data
+    // Validate input data directly
     const validation = validateCreateProject(body)
     if (!validation.success) {
       return NextResponse.json(
@@ -171,27 +201,60 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create project
-    const newProject = await projectService.createProject({
+    // Auto-generate project number if not provided
+    let projectNumber = projectData.projectNumber
+    if (!projectNumber) {
+      projectNumber = await projectService.getNextProjectNumber(companyId)
+    }
+
+    // Prepare location JSONB data
+    let locationData: ProjectLocation | undefined = undefined
+    if (projectData.location) {
+      // Direct location object provided
+      locationData = projectData.location
+    } else if (projectData.selectedLocation) {
+      // Transform selectedLocation from form
+      locationData = createProjectLocation(
+        projectData.selectedLocation.address,
+        projectData.selectedLocation.coordinates,
+        projectData.selectedLocation.placeId,
+        projectData.selectedLocation.displayName
+      )
+    }
+
+    // Prepare client JSONB data  
+    let clientData: ProjectClient | undefined = undefined
+    if (projectData.client) {
+      // Direct client object provided
+      clientData = projectData.client
+    } else if (projectData.clientName || projectData.clientEmail || projectData.clientPhone) {
+      // Transform client form fields
+      clientData = createProjectClient(
+        projectData.clientName,
+        projectData.clientEmail,
+        projectData.clientPhone,
+        projectData.clientContactPerson
+      )
+    }
+
+    // Create project using enhanced method
+    const newProject = await projectService.createProjectEnhanced({
       companyId,
       name: projectData.name,
       description: projectData.description,
-      projectNumber: projectData.projectNumber,
-      status: projectData.status,
-      priority: projectData.priority,
+      projectNumber,
+      status: projectData.status || 'not_started',
+      priority: projectData.priority || 'medium',
       budget: projectData.budget,
       startDate: projectData.startDate,
       endDate: projectData.endDate,
       estimatedHours: projectData.estimatedHours,
-      location: projectData.location,
-      address: projectData.address,
-      clientName: projectData.clientName,
-      clientContact: projectData.clientContact,
+      location: locationData,
+      client: clientData,
       createdBy: userId,
-      tags: projectData.tags,
     })
 
-    // Return success response
+    // Return clean success response
     return NextResponse.json(
       {
         success: true,
@@ -209,13 +272,16 @@ export async function POST(request: NextRequest) {
             progress: newProject.progress,
             startDate: newProject.start_date,
             endDate: newProject.end_date,
+            actualStartDate: newProject.actual_start_date,
+            actualEndDate: newProject.actual_end_date,
             estimatedHours: newProject.estimated_hours,
             actualHours: newProject.actual_hours,
+            
+            // Clean JSONB fields
             location: newProject.location,
-            address: newProject.address,
-            clientName: newProject.client_name,
-            clientContact: newProject.client_contact,
-            tags: newProject.tags,
+            client: newProject.client,
+            
+            tags: newProject.tags || [],
             createdAt: newProject.created_at,
             updatedAt: newProject.updated_at,
           },
