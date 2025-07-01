@@ -25,8 +25,8 @@ const baseProjectSchema = z.object({
     .optional(),
   
   status: z
-    .enum(['planning', 'active', 'on_hold', 'completed'])
-    .default('planning'),
+    .enum(['not_started', 'in_progress', 'on_track', 'ahead_of_schedule', 'behind_schedule', 'completed'])
+    .default('not_started'),
   
   priority: z
     .enum(['low', 'medium', 'high'])
@@ -131,8 +131,8 @@ export const updateProjectSchema = baseProjectSchema.partial().extend({
 export const getProjectsSchema = z.object({
   status: z
     .string()
-    .refine(val => ['planning', 'active', 'on_hold', 'completed'].includes(val), 'Invalid status')
-    .transform(val => val as 'planning' | 'active' | 'on_hold' | 'completed')
+    .refine(val => ['not_started', 'in_progress', 'on_track', 'ahead_of_schedule', 'behind_schedule', 'completed'].includes(val), 'Invalid status')
+    .transform(val => val as 'not_started' | 'in_progress' | 'on_track' | 'ahead_of_schedule' | 'behind_schedule' | 'completed')
     .optional()
     .nullable(),
   
