@@ -305,6 +305,45 @@ export interface LocationDetails {
 }
 
 // ==============================================
+// LOCATION SUGGESTION TYPES FOR FREE VERSION (for Places API)
+// ==============================================
+export interface LocationSuggestionFree {
+  place_id: string
+  description: string
+  structured_formatting: {
+    main_text: string
+    secondary_text: string
+  }
+  types: string[]
+  
+  // Add optional coordinates for free version (Nominatim) support
+  coordinates?: {
+    lat: number
+    lng: number
+  }
+  
+  // Add optional address components for additional data
+  address_components?: any
+}
+
+export interface LocationDetailsFree {
+  place_id: string
+  name: string
+  formatted_address: string
+  geometry: {
+    location: {
+      lat: number
+      lng: number
+    }
+  }
+  address_components: Array<{
+    long_name: string
+    short_name: string
+    types: string[]
+  }>
+}
+
+// ==============================================
 // PLACES API RESPONSE TYPES
 // ==============================================
 export interface PlacesAutocompleteResponse {

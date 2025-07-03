@@ -60,8 +60,8 @@ export default function CreateProjectPage() {
     locationSuggestions,
     isLoadingLocation,
     locationError,
-    searchLocations,
-    selectLocation,
+    searchLocationsFree,
+    selectLocationFree,
     clearLocationSuggestions,
     hasLocationSuggestions,
     
@@ -102,13 +102,13 @@ export default function CreateProjectPage() {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (formData.locationSearch && formData.locationSearch.length > 2) {
-        searchLocations(formData.locationSearch)
+        searchLocationsFree(formData.locationSearch)
       } else {
         clearLocationSuggestions()
       }
     }, 300)
     return () => clearTimeout(timeoutId)
-  }, [formData.locationSearch, searchLocations, clearLocationSuggestions])
+  }, [formData.locationSearch, searchLocationsFree, clearLocationSuggestions])
 
   // ==============================================
   // COMPUTED VALUES
@@ -163,7 +163,7 @@ export default function CreateProjectPage() {
   }
 
   const handleLocationSelect = async (suggestion: any) => {
-    await selectLocation(suggestion)
+    await selectLocationFree(suggestion)
   }
 
   const handleLocationClear = () => {

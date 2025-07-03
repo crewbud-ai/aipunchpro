@@ -22,48 +22,61 @@ import { users } from './users';
 // ==============================================
 export const projectMembers = pgTable('project_members', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
-  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   
-  // User Reference (optional for non-system team members)
-  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  // User Reference (all team members are system users now)
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   
-  // Non-system team member info (for MVP approach)
-  name: varchar('name', { length: 255 }),
-  email: varchar('email', { length: 255 }),
-  phone: varchar('phone', { length: 50 }),
-  isSystemUser: boolean('is_system_user').default(false),
+  // Project-Specific Role
+  role: varchar('role', { length: 100 }).notNull().default('member'),
+  // Role options: 'project_manager', 'foreman', 'supervisor', 'member', 'subcontractor', 'inspector'
   
-  // Role & Rates
-  role: varchar('role', { length: 100 }), // electrician, plumber, foreman, etc.
+  // Project-Specific Rates (can override user's default rates)
   hourlyRate: decimal('hourly_rate', { precision: 8, scale: 2 }),
   overtimeRate: decimal('overtime_rate', { precision: 8, scale: 2 }),
   
-  // Permissions (for future system users)
-  canEdit: boolean('can_edit').default(false),
-  canManageTasks: boolean('can_manage_tasks').default(false),
-  canViewFinancials: boolean('can_view_financials').default(false),
-  
-  // Contact & Emergency Info
-  emergencyContact: text('emergency_contact'),
-  notes: text('notes'),
+  // Assignment Details
+  assignedBy: uuid('assigned_by').references(() => users.id), // Who added this person to project
+  notes: text('notes'), // Project-specific notes about this team member
   
   // Status & Timeline
   isActive: boolean('is_active').default(true),
-  joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow(),
+  joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow().notNull(),
   leftAt: timestamp('left_at', { withTimezone: true }),
   
   // Timestamps
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
-  // Unique constraint for system users
+  // Unique constraint: one user can only have one active role per project
   projectUserUnique: unique('project_user_unique').on(table.projectId, table.userId),
   
-  // Indexes
+  // Performance Indexes
   projectIdIdx: index('idx_project_members_project_id').on(table.projectId),
   userIdIdx: index('idx_project_members_user_id').on(table.userId),
   roleIdx: index('idx_project_members_role').on(table.role),
   isActiveIdx: index('idx_project_members_is_active').on(table.isActive),
-  isSystemUserIdx: index('idx_project_members_is_system_user').on(table.isSystemUser),
   joinedAtIdx: index('idx_project_members_joined_at').on(table.joinedAt),
+  assignedByIdx: index('idx_project_members_assigned_by').on(table.assignedBy),
+  
+  // Composite indexes for common queries
+  projectRoleIdx: index('idx_project_members_project_role').on(table.projectId, table.role),
+  projectActiveIdx: index('idx_project_members_project_active').on(table.projectId, table.isActive),
+  userActiveIdx: index('idx_project_members_user_active').on(table.userId, table.isActive),
 }));
+
+
+// ==============================================
+// PROJECT ROLE CONSTANTS
+// ==============================================
+export const PROJECT_ROLES = [
+  'project_manager',
+  'foreman', 
+  'supervisor',
+  'member',
+  'subcontractor',
+  'inspector',
+  'client'
+] as const;
+
+export type ProjectRole = typeof PROJECT_ROLES[number];

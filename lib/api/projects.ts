@@ -4,28 +4,29 @@
 
 import { toast } from '@/hooks/use-toast'
 import type {
-  // Core Types
-  Project,
-  ProjectSummary,
-  ProjectFilters,
-  
-  // Create Types
-  CreateProjectData,
-  CreateProjectResult,
-  
-  // Update Types
-  UpdateProjectData,
-  UpdateProjectResult,
-  
-  // Query Types
-  GetProjectsResult,
-  GetProjectResult,
-  DeleteProjectResult,
-  
-  // Location Types
-  LocationSuggestion,
-  PlacesAutocompleteResponse,
-  PlacesDetailsResponse,
+    // Core Types
+    Project,
+    ProjectSummary,
+    ProjectFilters,
+
+    // Create Types
+    CreateProjectData,
+    CreateProjectResult,
+
+    // Update Types
+    UpdateProjectData,
+    UpdateProjectResult,
+
+    // Query Types
+    GetProjectsResult,
+    GetProjectResult,
+    DeleteProjectResult,
+
+    // Location Types
+    LocationSuggestion,
+    PlacesAutocompleteResponse,
+    PlacesDetailsResponse,
+    LocationDetails,
 } from '@/types/projects'
 
 // ==============================================
@@ -111,7 +112,7 @@ export const projectsApi = {
         try {
             // Build query parameters
             const searchParams = new URLSearchParams()
-            
+
             if (filters.status) searchParams.append('status', filters.status)
             if (filters.priority) searchParams.append('priority', filters.priority)
             if (filters.search) searchParams.append('search', filters.search)
@@ -150,7 +151,7 @@ export const projectsApi = {
                 })
                 throw error
             }
-            
+
             const networkError = new ApiError(0, 'Failed to load projects')
             toast({
                 title: "Network Error",
@@ -202,7 +203,7 @@ export const projectsApi = {
                 }
                 throw error
             }
-            
+
             const networkError = new ApiError(0, 'Failed to load project')
             toast({
                 title: "Network Error",
@@ -267,7 +268,7 @@ export const projectsApi = {
                 }
                 throw error
             }
-            
+
             const networkError = new ApiError(0, 'Failed to create project')
             toast({
                 title: "Network Error",
@@ -350,7 +351,7 @@ export const projectsApi = {
                 }
                 throw error
             }
-            
+
             const networkError = new ApiError(0, 'Failed to update project')
             toast({
                 title: "Network Error",
@@ -418,7 +419,7 @@ export const projectsApi = {
                 }
                 throw error
             }
-            
+
             const networkError = new ApiError(0, 'Failed to delete project')
             toast({
                 title: "Network Error",
@@ -432,7 +433,7 @@ export const projectsApi = {
     // ==============================================
     // PLACES API INTEGRATION
     // ==============================================
-    
+
     // Get location suggestions
     async getLocationSuggestions(query: string): Promise<PlacesAutocompleteResponse> {
         try {
@@ -457,7 +458,7 @@ export const projectsApi = {
                 // Don't show toast for location suggestions - handle in UI
                 throw error
             }
-            
+
             throw new ApiError(0, 'Failed to get location suggestions')
         }
     },
@@ -480,8 +481,121 @@ export const projectsApi = {
                 console.error('Location details error:', error)
                 throw error
             }
-            
+
             throw new ApiError(0, 'Failed to get location details')
+        }
+    },
+
+
+    // ==============================================
+    // FREE PLACES API INTEGRATION (Nominatim)
+    // ==============================================
+
+    // Get location suggestions using free Nominatim API
+    async getLocationSuggestionsFree(query: string): Promise<PlacesAutocompleteResponse> {
+        try {
+            if (query.length < 3) {
+                return {
+                    success: true,
+                    suggestions: [],
+                    message: 'Query too short'
+                }
+            }
+
+            const response = await apiCall<PlacesAutocompleteResponse>(
+                `/api/places/autocomplete-free?input=${encodeURIComponent(query)}`,
+                { method: 'GET' }
+            )
+
+            return response
+
+        } catch (error) {
+            if (error instanceof ApiError) {
+                console.error('Free location suggestions error:', error)
+                // Don't show toast for location suggestions - handle in UI
+                throw error
+            }
+
+            throw new ApiError(0, 'Failed to get location suggestions')
+        }
+    },
+
+    // Get location details for free version (simplified since coordinates come with suggestions)
+    async getLocationDetailsFree(placeId: string): Promise<PlacesDetailsResponse> {
+        try {
+            // For Nominatim, we often don't need a separate details call since coordinates 
+            // are included in the autocomplete response. This method is mainly for 
+            // compatibility with the existing hook structure.
+
+            // Extract the actual place_id (remove nominatim_ prefix if present)
+            const actualPlaceId = placeId.replace('nominatim_', '')
+
+            // Make a reverse geocoding call to get full details if needed
+            const nominatimResponse = await fetch(
+                `https://nominatim.openstreetmap.org/details.php?place_id=${actualPlaceId}&format=json&addressdetails=1`,
+                {
+                    headers: {
+                        'User-Agent': 'ProjectManagementApp/1.0 (Contact: dev@yourcompany.com)'
+                    }
+                }
+            )
+
+            if (!nominatimResponse.ok) {
+                throw new Error('Failed to get location details from Nominatim')
+            }
+
+            const data = await nominatimResponse.json()
+
+            // Transform to expected format with proper type casting
+            const place: LocationDetails = {
+                place_id: placeId,
+                name: (data.localname || data.names?.name || data.addresstags?.name || 'Unknown location') as string,
+                formatted_address: data.addresstags ?
+                    [
+                        data.addresstags['addr:housenumber'],
+                        data.addresstags['addr:street'],
+                        data.addresstags['addr:city'],
+                        data.addresstags['addr:state'],
+                        data.addresstags['addr:postcode']
+                    ].filter(Boolean).join(', ') :
+                    `${data.lat}, ${data.lon}`,
+                geometry: {
+                    location: {
+                        lat: parseFloat(data.lat),
+                        lng: parseFloat(data.lon)
+                    }
+                },
+                address_components: data.addresstags ?
+                    Object.entries(data.addresstags).map(([key, value]) => ({
+                        long_name: String(value || ''), // Cast to string
+                        short_name: String(value || ''), // Cast to string  
+                        types: [key]
+                    })) : []
+            }
+
+            return {
+                success: true,
+                place,
+                message: 'Location details retrieved successfully'
+            }
+
+        } catch (error) {
+            console.error('Free location details error:', error)
+
+            // Return a fallback response - better than failing completely
+            return {
+                success: true, // Still return success so the UI doesn't break
+                place: {
+                    place_id: placeId,
+                    name: 'Selected Location',
+                    formatted_address: 'Location selected (details not available)',
+                    geometry: {
+                        location: { lat: 0, lng: 0 }
+                    },
+                    address_components: []
+                },
+                message: 'Location selected, detailed information not available'
+            }
         }
     },
 
@@ -503,7 +617,7 @@ export const projectsApi = {
                     message: error.message || 'Failed to generate project number'
                 }
             }
-            
+
             return {
                 success: false,
                 message: 'Failed to generate project number'
@@ -514,21 +628,21 @@ export const projectsApi = {
     // ==============================================
     // UTILITY METHODS
     // ==============================================
-    
+
     // Check if project name is available
     async isProjectNameAvailable(name: string): Promise<boolean> {
         try {
             // Use the search functionality to check for exact matches
-            const response = await this.getProjects({ 
+            const response = await this.getProjects({
                 search: name,
-                limit: 1 
+                limit: 1
             })
-            
+
             // Check if exact match exists (case-insensitive)
             const exactMatch = response.data.projects.find(
                 project => project.name.toLowerCase() === name.toLowerCase()
             )
-            
+
             return !exactMatch
         } catch (error) {
             // If there's an error checking availability, assume it's not available for safety
@@ -645,7 +759,7 @@ export const projectsApi = {
     // ==============================================
     // CONVENIENCE METHODS FOR QUICK UPDATES
     // ==============================================
-    
+
     // Update just the project status
     async updateProjectStatus(id: string, status: Project['status'], notes?: string): Promise<UpdateProjectResult> {
         return this.updateProject(id, { status })

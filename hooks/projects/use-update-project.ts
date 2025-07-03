@@ -4,7 +4,7 @@
 
 import { useState, useCallback } from 'react'
 import { projectsApi } from '@/lib/api/projects'
-import { 
+import {
   validateUpdateProject,
   transformUpdateFormDataToApiData,
   projectToUpdateFormData,
@@ -16,6 +16,7 @@ import {
   type UpdateProjectResult,
   type ProjectFormErrors,
   type LocationSuggestion,
+  LocationSuggestionFree,
 } from '@/types/projects'
 
 // ==============================================
@@ -28,7 +29,7 @@ interface UseUpdateProjectState {
   formData: UpdateProjectFormData
   originalProject: Project | null
   hasChanges: boolean
-  
+
   // Location autocomplete state
   locationSuggestions: LocationSuggestion[]
   isLoadingLocation: boolean
@@ -45,12 +46,17 @@ interface UseUpdateProjectActions {
   updateProject: (data?: UpdateProjectData) => Promise<void>
   resetForm: () => void
   reset: () => void
-  
+
   // Location autocomplete actions
   searchLocations: (query: string) => Promise<void>
   selectLocation: (suggestion: LocationSuggestion) => Promise<void>
   clearLocationSuggestions: () => void
-  
+
+  // FREE Location autocomplete actions (Nominatim)
+  searchLocationsFree: (query: string) => Promise<void>
+  selectLocationFree: (suggestion: LocationSuggestionFree) => Promise<void>
+
+
   // Name availability checking (excluding current project)
   checkNameAvailability: (name: string, currentProjectId: string) => Promise<void>
 }
@@ -135,7 +141,7 @@ export const useUpdateProject = () => {
   // ==============================================
   const initializeForm = useCallback((project: Project) => {
     const formData = projectToUpdateFormData(project)
-    
+
     setState(prev => ({
       ...prev,
       formData,
@@ -157,7 +163,7 @@ export const useUpdateProject = () => {
     setState(prev => {
       const newFormData = { ...prev.formData, [field]: value }
       const newHasChanges = prev.originalProject ? hasFormChanges(newFormData, prev.originalProject) : false
-      
+
       return {
         ...prev,
         formData: newFormData,
@@ -172,7 +178,7 @@ export const useUpdateProject = () => {
     setState(prev => {
       const newFormData = { ...prev.formData, ...data }
       const newHasChanges = prev.originalProject ? hasFormChanges(newFormData, prev.originalProject) : false
-      
+
       return {
         ...prev,
         formData: newFormData,
@@ -203,21 +209,21 @@ export const useUpdateProject = () => {
   // ==============================================
   const validateForm = useCallback(() => {
     const validation = validateUpdateProject(state.formData)
-    
+
     if (!validation.success) {
       const newErrors: ProjectFormErrors = {}
       validation.error.errors.forEach((error: any) => {
         const fieldPath = error.path.join('.')
         newErrors[fieldPath as keyof ProjectFormErrors] = error.message
       })
-      
+
       setState(prev => ({
         ...prev,
         errors: newErrors,
       }))
       return false
     }
-    
+
     setState(prev => ({
       ...prev,
       errors: {},
@@ -285,7 +291,7 @@ export const useUpdateProject = () => {
 
       if (response.success) {
         const place = response.place
-        
+
         updateFormDataBulk({
           locationSearch: suggestion.description,
           selectedLocation: {
@@ -321,6 +327,127 @@ export const useUpdateProject = () => {
     }
   }, [updateFormDataBulk])
 
+  // ==============================================
+  // FREE LOCATION AUTOCOMPLETE (for development)
+  // ==============================================
+  const searchLocationsFree = useCallback(async (query: string) => {
+    if (query.length < 3) {
+      setState(prev => ({
+        ...prev,
+        locationSuggestions: [],
+        locationError: null,
+      }))
+      return
+    }
+
+    try {
+      setState(prev => ({
+        ...prev,
+        isLoadingLocation: true,
+        locationError: null,
+      }))
+
+      // Use FREE version for development
+      const response = await projectsApi.getLocationSuggestionsFree(query)
+
+      if (response.success) {
+        setState(prev => ({
+          ...prev,
+          locationSuggestions: response.suggestions,
+          isLoadingLocation: false,
+        }))
+      } else {
+        setState(prev => ({
+          ...prev,
+          locationSuggestions: [],
+          isLoadingLocation: false,
+          locationError: response.message || 'Failed to search locations',
+        }))
+      }
+    } catch (error: any) {
+      console.error('Error searching locations (free):', error)
+      setState(prev => ({
+        ...prev,
+        locationSuggestions: [],
+        isLoadingLocation: false,
+        locationError: 'Failed to search locations',
+      }))
+    }
+  }, [])
+
+  const selectLocationFree = useCallback(async (suggestion: LocationSuggestionFree) => {
+    try {
+      setState(prev => ({
+        ...prev,
+        isLoadingLocation: true,
+        locationError: null,
+      }))
+
+      // For Nominatim suggestions, coordinates are already included
+      if (suggestion.coordinates) {
+        // Use coordinates directly from suggestion (faster for Nominatim)
+        updateFormDataBulk({
+          locationSearch: suggestion.description,
+          selectedLocation: {
+            address: suggestion.description,
+            displayName: suggestion.structured_formatting.main_text,
+            coordinates: {
+              lat: suggestion.coordinates.lat,
+              lng: suggestion.coordinates.lng,
+            },
+            placeId: suggestion.place_id,
+          },
+        })
+
+        setState(prev => ({
+          ...prev,
+          locationSuggestions: [],
+          isLoadingLocation: false,
+        }))
+      } else {
+        // Fallback to details API call (use FREE version)
+        const response = await projectsApi.getLocationDetailsFree(suggestion.place_id)
+
+        if (response.success) {
+          const place = response.place
+
+          updateFormDataBulk({
+            locationSearch: suggestion.description,
+            selectedLocation: {
+              address: place.formatted_address,
+              displayName: place.name || suggestion.structured_formatting.main_text,
+              coordinates: {
+                lat: place.geometry.location.lat,
+                lng: place.geometry.location.lng,
+              },
+              placeId: suggestion.place_id,
+            },
+          })
+
+          setState(prev => ({
+            ...prev,
+            locationSuggestions: [],
+            isLoadingLocation: false,
+          }))
+        } else {
+          setState(prev => ({
+            ...prev,
+            isLoadingLocation: false,
+            locationError: response.message || 'Failed to get location details',
+          }))
+        }
+      }
+    } catch (error: any) {
+      console.error('Error selecting location (free):', error)
+      setState(prev => ({
+        ...prev,
+        isLoadingLocation: false,
+        locationError: 'Failed to get location details',
+      }))
+    }
+  }, [updateFormDataBulk])
+
+
   const clearLocationSuggestions = useCallback(() => {
     setState(prev => ({
       ...prev,
@@ -351,18 +478,18 @@ export const useUpdateProject = () => {
 
     try {
       updateFormData('isCheckingName', true)
-      
+
       // Get projects with this name
-      const response = await projectsApi.getProjects({ 
+      const response = await projectsApi.getProjects({
         search: name,
         limit: 10 // Get a few to check for exact matches
       })
-      
+
       // Check if exact match exists (excluding current project)
       const exactMatch = response.data.projects.find(
         project => project.name.toLowerCase() === name.toLowerCase() && project.id !== currentProjectId
       )
-      
+
       const isAvailable = !exactMatch
 
       updateFormDataBulk({
@@ -374,9 +501,9 @@ export const useUpdateProject = () => {
       if (!isAvailable) {
         setState(prev => ({
           ...prev,
-          errors: { 
-            ...prev.errors, 
-            name: 'A project with this name already exists' 
+          errors: {
+            ...prev.errors,
+            name: 'A project with this name already exists'
           },
         }))
       }
@@ -420,7 +547,7 @@ export const useUpdateProject = () => {
           const fieldPath = error.path.join('.')
           newErrors[fieldPath as keyof ProjectFormErrors] = error.message
         })
-        
+
         setState(prev => ({
           ...prev,
           state: 'error',
@@ -433,7 +560,7 @@ export const useUpdateProject = () => {
 
       if (response.success) {
         const updatedProject = response.data.project
-        
+
         setState(prev => ({
           ...prev,
           state: 'success',
@@ -452,7 +579,7 @@ export const useUpdateProject = () => {
       }
     } catch (error: any) {
       console.error('Error updating project:', error)
-      
+
       setState(prev => ({
         ...prev,
         state: 'error',
@@ -506,7 +633,7 @@ export const useUpdateProject = () => {
     locationSuggestions: state.locationSuggestions,
     isLoadingLocation: state.isLoadingLocation,
     locationError: state.locationError,
-    
+
     // Computed properties
     isLoading,
     isSuccess,
@@ -516,7 +643,7 @@ export const useUpdateProject = () => {
     canSubmit,
     isInitialized,
     hasLocationSuggestions,
-    
+
     // Actions
     initializeForm,
     updateFormData,
@@ -527,12 +654,16 @@ export const useUpdateProject = () => {
     updateProject,
     resetForm,
     reset,
-    
+
     // Location actions
     searchLocations,
     selectLocation,
     clearLocationSuggestions,
-    
+
+    // FREE Location actions (Nominatim - for development)
+    searchLocationsFree,
+    selectLocationFree,
+
     // Name checking
     checkNameAvailability,
   } satisfies UseUpdateProjectReturn

@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
     // Get Google API key from environment
     const apiKey = process.env.GOOGLE_PLACES_API_KEY
 
+    console.log(apiKey, 'apiKey')
+
     if (!apiKey) {
       console.error('Google Places API key not configured')
       return NextResponse.json(

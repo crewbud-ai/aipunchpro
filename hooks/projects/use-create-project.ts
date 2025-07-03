@@ -5,7 +5,7 @@
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { projectsApi } from '@/lib/api/projects'
-import { 
+import {
   validateCreateProject,
   transformFormDataToApiData,
   getDefaultCreateProjectFormData,
@@ -15,6 +15,7 @@ import {
   type CreateProjectResult,
   type ProjectFormErrors,
   type LocationSuggestion,
+  LocationSuggestionFree,
 } from '@/types/projects'
 
 // ==============================================
@@ -25,12 +26,12 @@ interface UseCreateProjectState {
   result: CreateProjectResult | null
   errors: ProjectFormErrors
   formData: CreateProjectFormData
-  
+
   // Location autocomplete state
   locationSuggestions: LocationSuggestion[]
   isLoadingLocation: boolean
   locationError: string | null
-  
+
   // Project number state
   projectNumber: string
   isLoadingProjectNumber: boolean
@@ -45,12 +46,16 @@ interface UseCreateProjectActions {
   validateForm: () => boolean
   createProject: (data?: CreateProjectData) => Promise<void>
   reset: () => void
-  
+
   // Location autocomplete actions
   searchLocations: (query: string) => Promise<void>
   selectLocation: (suggestion: LocationSuggestion) => Promise<void>
   clearLocationSuggestions: () => void
-  
+
+  // FREE Location autocomplete actions (Nominatim)
+  searchLocationsFree: (query: string) => Promise<void>
+  selectLocationFree: (suggestion: LocationSuggestionFree) => Promise<void>
+
   // Project number actions
   generateProjectNumber: () => Promise<void>
 }
@@ -97,8 +102,8 @@ export const useCreateProject = () => {
   const isIdle = state.state === 'idle'
   const hasErrors = Object.keys(state.errors).length > 0
   const canSubmit = Boolean(
-    state.formData.name.trim().length > 0 && 
-    !isLoading && 
+    state.formData.name.trim().length > 0 &&
+    !isLoading &&
     state.formData.selectedLocation
   )
   const hasLocationSuggestions = state.locationSuggestions.length > 0
@@ -151,7 +156,7 @@ export const useCreateProject = () => {
       }))
 
       const response = await projectsApi.getNextProjectNumber()
-      
+
       if (response.success && response.nextNumber) {
         setState(prev => ({
           ...prev,
@@ -223,7 +228,7 @@ export const useCreateProject = () => {
     }
   }, [])
 
-  const selectLocation = useCallback(async (suggestion: LocationSuggestion) => {
+    const selectLocation = useCallback(async (suggestion: LocationSuggestion) => {
     try {
       setState(prev => ({
         ...prev,
@@ -235,7 +240,7 @@ export const useCreateProject = () => {
 
       if (response.success) {
         const place = response.place
-        
+
         updateFormDataBulk({
           locationSearch: suggestion.description,
           selectedLocation: {
@@ -271,6 +276,126 @@ export const useCreateProject = () => {
     }
   }, [updateFormDataBulk])
 
+  // ==============================================
+  // FREE LOCATION AUTOCOMPLETE (for development)
+  // ==============================================
+  const searchLocationsFree = useCallback(async (query: string) => {
+    if (query.length < 3) {
+      setState(prev => ({
+        ...prev,
+        locationSuggestions: [],
+        locationError: null,
+      }))
+      return
+    }
+
+    try {
+      setState(prev => ({
+        ...prev,
+        isLoadingLocation: true,
+        locationError: null,
+      }))
+
+      // Use FREE version for development
+      const response = await projectsApi.getLocationSuggestionsFree(query)
+
+      if (response.success) {
+        setState(prev => ({
+          ...prev,
+          locationSuggestions: response.suggestions,
+          isLoadingLocation: false,
+        }))
+      } else {
+        setState(prev => ({
+          ...prev,
+          locationSuggestions: [],
+          isLoadingLocation: false,
+          locationError: response.message || 'Failed to search locations',
+        }))
+      }
+    } catch (error: any) {
+      console.error('Error searching locations (free):', error)
+      setState(prev => ({
+        ...prev,
+        locationSuggestions: [],
+        isLoadingLocation: false,
+        locationError: 'Failed to search locations',
+      }))
+    }
+  }, [])
+
+  const selectLocationFree = useCallback(async (suggestion: LocationSuggestionFree) => {
+    try {
+      setState(prev => ({
+        ...prev,
+        isLoadingLocation: true,
+        locationError: null,
+      }))
+
+      // For Nominatim suggestions, coordinates are already included
+      if (suggestion.coordinates) {
+        // Use coordinates directly from suggestion (faster for Nominatim)
+        updateFormDataBulk({
+          locationSearch: suggestion.description,
+          selectedLocation: {
+            address: suggestion.description,
+            displayName: suggestion.structured_formatting.main_text,
+            coordinates: {
+              lat: suggestion.coordinates.lat,
+              lng: suggestion.coordinates.lng,
+            },
+            placeId: suggestion.place_id,
+          },
+        })
+
+        setState(prev => ({
+          ...prev,
+          locationSuggestions: [],
+          isLoadingLocation: false,
+        }))
+      } else {
+        // Fallback to details API call (use FREE version)
+        const response = await projectsApi.getLocationDetailsFree(suggestion.place_id)
+
+        if (response.success) {
+          const place = response.place
+
+          updateFormDataBulk({
+            locationSearch: suggestion.description,
+            selectedLocation: {
+              address: place.formatted_address,
+              displayName: place.name || suggestion.structured_formatting.main_text,
+              coordinates: {
+                lat: place.geometry.location.lat,
+                lng: place.geometry.location.lng,
+              },
+              placeId: suggestion.place_id,
+            },
+          })
+
+          setState(prev => ({
+            ...prev,
+            locationSuggestions: [],
+            isLoadingLocation: false,
+          }))
+        } else {
+          setState(prev => ({
+            ...prev,
+            isLoadingLocation: false,
+            locationError: response.message || 'Failed to get location details',
+          }))
+        }
+      }
+    } catch (error: any) {
+      console.error('Error selecting location (free):', error)
+      setState(prev => ({
+        ...prev,
+        isLoadingLocation: false,
+        locationError: 'Failed to get location details',
+      }))
+    }
+  }, [updateFormDataBulk])
+
   const clearLocationSuggestions = useCallback(() => {
     setState(prev => ({
       ...prev,
@@ -284,21 +409,21 @@ export const useCreateProject = () => {
   // ==============================================
   const validateForm = useCallback(() => {
     const validation = validateCreateProject(state.formData)
-    
+
     if (!validation.success) {
       const newErrors: ProjectFormErrors = {}
       validation.error.errors.forEach((error: any) => {
         const fieldPath = error.path.join('.')
         newErrors[fieldPath as keyof ProjectFormErrors] = error.message
       })
-      
+
       setState(prev => ({
         ...prev,
         errors: newErrors,
       }))
       return false
     }
-    
+
     setState(prev => ({
       ...prev,
       errors: {},
@@ -328,7 +453,7 @@ export const useCreateProject = () => {
           const fieldPath = error.path.join('.')
           newErrors[fieldPath as keyof ProjectFormErrors] = error.message
         })
-        
+
         setState(prev => ({
           ...prev,
           state: 'error',
@@ -358,7 +483,7 @@ export const useCreateProject = () => {
       }
     } catch (error: any) {
       console.error('Error creating project:', error)
-      
+
       setState(prev => ({
         ...prev,
         state: 'error',
@@ -400,7 +525,7 @@ export const useCreateProject = () => {
     projectNumber: state.projectNumber,
     isLoadingProjectNumber: state.isLoadingProjectNumber,
     projectNumberError: state.projectNumberError,
-    
+
     // Computed properties
     isLoading,
     isSuccess,
@@ -409,7 +534,7 @@ export const useCreateProject = () => {
     hasErrors,
     canSubmit,
     hasLocationSuggestions,
-    
+
     // Actions
     updateFormData,
     updateFormDataBulk,
@@ -418,12 +543,16 @@ export const useCreateProject = () => {
     validateForm,
     createProject,
     reset,
-    
+
     // Location actions
     searchLocations,
     selectLocation,
     clearLocationSuggestions,
-    
+
+    // FREE Location actions (Nominatim - for development)
+    selectLocationFree,
+    searchLocationsFree,
+
     // Project number actions
     generateProjectNumber,
   } satisfies UseCreateProjectReturn
