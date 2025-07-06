@@ -13,6 +13,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import {
   Building2,
   Calendar,
   Users,
@@ -28,6 +33,16 @@ import {
   LogOut,
   User,
   Loader2,
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  FileText,
+  UserPlus,
+  CalendarPlus,
+  ListPlus,
+  Calculator,
+  Cog,
+  ShieldCheck,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -35,15 +50,280 @@ import { cn } from "@/lib/utils"
 import { Suspense } from "react"
 import { useDashboard } from "@/hooks/dashboard/use-dashboard"
 
+// Import permissions system
+import { canViewMenuItem, hasPermission, getCurrentPermissions } from "@/lib/permissions"
+
+// Navigation structure with permissions and submenus
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: Home },
-  { name: "Projects", href: "/dashboard/projects", icon: Building2 },
-  { name: "Schedule", href: "/dashboard/schedule", icon: Calendar },
-  { name: "Team", href: "/dashboard/team", icon: Users },
-  { name: "Punchlist", href: "/dashboard/punchlist", icon: ClipboardList },
-  { name: "Payroll", href: "/dashboard/payroll", icon: DollarSign },
-  { name: "AI Assistant", href: "/dashboard/ai", icon: Bot },
+  { 
+    name: "Dashboard", 
+    href: "/dashboard", 
+    icon: Home,
+    show: () => true, // Dashboard always visible
+  },
+  { 
+    name: "Projects", 
+    href: "/dashboard/projects", 
+    icon: Building2,
+    show: () => hasPermission('projects', 'view') || hasPermission('projects', 'viewAll'),
+    subItems: [
+      {
+        name: "New Project",
+        href: "/dashboard/projects/new",
+        icon: Plus,
+        show: () => hasPermission('projects', 'create'),
+      },
+      {
+        name: "All Projects",
+        href: "/dashboard/projects",
+        icon: FileText,
+        show: () => hasPermission('projects', 'view') || hasPermission('projects', 'viewAll'),
+      },
+    ]
+  },
+  { 
+    name: "Schedule", 
+    href: "/dashboard/schedule", 
+    icon: Calendar,
+    show: () => hasPermission('schedule', 'view'),
+    subItems: [
+      {
+        name: "Add Event",
+        href: "/dashboard/schedule/new",
+        icon: CalendarPlus,
+        show: () => hasPermission('schedule', 'create'),
+      },
+      {
+        name: "View Schedule",
+        href: "/dashboard/schedule",
+        icon: Calendar,
+        show: () => hasPermission('schedule', 'view'),
+      },
+    ]
+  },
+  { 
+    name: "Team", 
+    href: "/dashboard/team", 
+    icon: Users,
+    show: () => hasPermission('team', 'view'),
+    subItems: [
+      {
+        name: "Add Member",
+        href: "/dashboard/team/new",
+        icon: UserPlus,
+        show: () => hasPermission('team', 'add'),
+      },
+      {
+        name: "Team Members",
+        href: "/dashboard/team",
+        icon: Users,
+        show: () => hasPermission('team', 'view'),
+      },
+    ]
+  },
+  { 
+    name: "Punchlist", 
+    href: "/dashboard/punchlist", 
+    icon: ClipboardList,
+    show: () => hasPermission('punchlist', 'view'),
+    subItems: [
+      {
+        name: "Create Task",
+        href: "/dashboard/punchlist/new",
+        icon: ListPlus,
+        show: () => hasPermission('punchlist', 'create'),
+      },
+      {
+        name: "View Tasks",
+        href: "/dashboard/punchlist",
+        icon: ClipboardList,
+        show: () => hasPermission('punchlist', 'view'),
+      },
+    ]
+  },
+  { 
+    name: "Payroll", 
+    href: "/dashboard/payroll", 
+    icon: DollarSign,
+    show: () => hasPermission('financials', 'view'),
+    subItems: [
+      {
+        name: "View Payroll",
+        href: "/dashboard/payroll",
+        icon: DollarSign,
+        show: () => hasPermission('financials', 'view'),
+      },
+      {
+        name: "Calculate Pay",
+        href: "/dashboard/payroll/calculate",
+        icon: Calculator,
+        show: () => hasPermission('financials', 'edit'),
+      },
+    ]
+  },
+  { 
+    name: "AI Assistant", 
+    href: "/dashboard/ai", 
+    icon: Bot,
+    show: () => true, // AI Assistant available to all
+  },
 ]
+
+// Settings menu items (separate from main nav)
+// const settingsNavigation = [
+//   {
+//     name: "Company Settings",
+//     href: "/dashboard/settings",
+//     icon: Cog,
+//     show: () => hasPermission('admin', 'companySettings'),
+//   },
+//   {
+//     name: "User Management",
+//     href: "/dashboard/settings/users",
+//     icon: Users,
+//     show: () => hasPermission('admin', 'manageUsers'),
+//   },
+//   {
+//     name: "Roles & Permissions",
+//     href: "/dashboard/settings/roles",
+//     icon: ShieldCheck,
+//     show: () => hasPermission('admin', 'manageUsers'),
+//   },
+// ]
+
+// Sidebar navigation component
+function SidebarNavigation({ isMobile = false, onItemClick }: { isMobile?: boolean, onItemClick?: () => void }) {
+  const pathname = usePathname()
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null)
+
+  // Filter navigation items based on permissions
+  const visibleNavItems = navigation.filter(item => {
+    const canShow = item.show()
+    // Debug logging
+    console.log(`Menu item "${item.name}": ${canShow}`)
+    return canShow
+  })
+
+  // Debug permissions state
+  console.log('Current permissions in layout:', getCurrentPermissions())
+
+  // Filter settings items based on permissions
+  // const visibleSettingsItems = settingsNavigation.filter(item => item.show())
+
+  const handleSubmenuToggle = (itemName: string) => {
+    setOpenSubmenu(openSubmenu === itemName ? null : itemName)
+  }
+
+  const isItemActive = (href: string) => {
+    return pathname === href || pathname.startsWith(href + '/')
+  }
+
+  const hasVisibleSubItems = (item: any) => {
+    return item.subItems?.some((subItem: any) => subItem.show()) || false
+  }
+
+  return (
+    <nav className="flex-1 space-y-1 px-2 py-4">
+      {visibleNavItems.map((item) => {
+        const hasSubItems = hasVisibleSubItems(item)
+        const isActive = isItemActive(item.href)
+        const isSubmenuOpen = openSubmenu === item.name
+
+        if (hasSubItems) {
+          // Render collapsible menu item with subitems
+          return (
+            <Collapsible key={item.name} open={isSubmenuOpen} onOpenChange={() => handleSubmenuToggle(item.name)}>
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className={cn(
+                    "w-full justify-between text-left font-medium",
+                    isActive
+                      ? "bg-orange-100 text-orange-900"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  )}
+                >
+                  <div className="flex items-center">
+                    <item.icon className="mr-3 h-5 w-5" />
+                    {item.name}
+                  </div>
+                  {isSubmenuOpen ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="ml-6 mt-1 space-y-1">
+                {item.subItems?.filter((subItem: any) => subItem.show()).map((subItem: any) => (
+                  <Link
+                    key={subItem.name}
+                    href={subItem.href}
+                    className={cn(
+                      "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                      pathname === subItem.href
+                        ? "bg-orange-100 text-orange-900"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    )}
+                    onClick={onItemClick}
+                  >
+                    <subItem.icon className="mr-3 h-4 w-4" />
+                    {subItem.name}
+                  </Link>
+                ))}
+              </CollapsibleContent>
+            </Collapsible>
+          )
+        } else {
+          // Render regular menu item
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={cn(
+                "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                isActive
+                  ? "bg-orange-100 text-orange-900"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              )}
+              onClick={onItemClick}
+            >
+              <item.icon className="mr-3 h-5 w-5" />
+              {item.name}
+            </Link>
+          )
+        }
+      })}
+
+      {/* Settings section - only show if user has any settings permissions */}
+      {/* {visibleSettingsItems.length > 0 && (
+        <>
+          <div className="mt-8 mb-2">
+            <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Settings
+            </h3>
+          </div>
+          {visibleSettingsItems.map((item) => (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={cn(
+                "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                isItemActive(item.href)
+                  ? "bg-orange-100 text-orange-900"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              )}
+              onClick={onItemClick}
+            >
+              <item.icon className="mr-3 h-5 w-5" />
+              {item.name}
+            </Link>
+          ))}
+        </>
+      )} */}
+    </nav>
+  )
+}
 
 export default function DashboardLayout({
   children,
@@ -129,24 +409,8 @@ export default function DashboardLayout({
               </div>
             )}
             
-            <nav className="flex-1 space-y-1 px-2 py-4">
-              {navigation.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
-                    pathname === item.href
-                      ? "bg-orange-100 text-orange-900"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                  )}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <item.icon className="mr-3 h-6 w-6" />
-                  {item.name}
-                </Link>
-              ))}
-            </nav>
+            {/* Mobile Navigation */}
+            <SidebarNavigation isMobile={true} onItemClick={() => setSidebarOpen(false)} />
           </div>
         </div>
       )}
@@ -172,23 +436,8 @@ export default function DashboardLayout({
             </div>
           )}
           
-          <nav className="flex-1 space-y-1 px-2 py-4">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={cn(
-                  "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
-                  pathname === item.href
-                    ? "bg-orange-100 text-orange-900"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                )}
-              >
-                <item.icon className="mr-3 h-6 w-6" />
-                {item.name}
-              </Link>
-            ))}
-          </nav>
+          {/* Desktop Navigation */}
+          <SidebarNavigation />
         </div>
       </div>
 
@@ -244,10 +493,13 @@ export default function DashboardLayout({
                     <span>Profile</span>
                   </DropdownMenuItem>
                   
-                  {/* <DropdownMenuItem onClick={goToSettings} className="cursor-pointer">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                  </DropdownMenuItem> */}
+                  {/* Settings dropdown - only show if user has settings permissions */}
+                  {hasPermission('admin', 'companySettings') && (
+                    <DropdownMenuItem onClick={goToSettings} className="cursor-pointer">
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Settings</span>
+                    </DropdownMenuItem>
+                  )}
                   
                   <DropdownMenuSeparator />
                   

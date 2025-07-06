@@ -3,6 +3,7 @@
 // ==============================================
 
 import { toast } from '@/hooks/use-toast'
+import { type UserPermissions } from '@/lib/database/schema/users'
 
 // ==============================================
 // API CLIENT CONFIGURATION
@@ -143,6 +144,7 @@ export interface LoginResponse {
             firstName: string
             lastName: string
             role: string
+            permissions: UserPermissions
             phone?: string
             emailVerified: boolean
             lastLoginAt: string
@@ -268,6 +270,7 @@ export interface GetProfileResponse {
             lastName: string
             phone?: string
             role: string
+            permissions: UserPermissions
             emailVerified: boolean
             lastLoginAt?: string
             createdAt: string
@@ -300,6 +303,7 @@ export interface UpdateProfileResponse {
             lastName: string
             phone?: string
             role: string
+            permissions: UserPermissions
             emailVerified: boolean
             lastLoginAt?: string
             createdAt: string
@@ -676,6 +680,7 @@ export const authApi = {
         try {
             const response = await apiCall<GetProfileResponse>('/api/user/profile', {
                 method: 'GET',
+                credentials: 'include'
             })
 
             return response

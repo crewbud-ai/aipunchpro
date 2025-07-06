@@ -2,7 +2,8 @@
 // src/types/login.ts - Login Types & Validation
 // ==============================================
 
-import { z } from 'zod'
+import { z } from 'zod';
+import { type UserPermissions } from '@/lib/database/schema/users'
 
 // ==============================================
 // LOGIN INTERFACES
@@ -24,6 +25,7 @@ export interface LoginResult {
       firstName: string
       lastName: string
       role: string
+      permissions: UserPermissions
       phone?: string
       emailVerified: boolean
       lastLoginAt: string

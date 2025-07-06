@@ -5,15 +5,16 @@
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { authApi } from '@/lib/api/auth'
-import { 
-  type LoginState, 
+import {
+  type LoginState,
   type LoginResult,
   type LoginData,
   type LoginFormData,
   type LoginErrors,
   validateLoginForm,
   LOGIN_MESSAGES
-} from '@/types/auth/login'
+} from '@/types/auth/login';
+import { initializePermissions } from '@/lib/permissions';
 
 export const useLogin = () => {
   const router = useRouter()
@@ -50,7 +51,7 @@ export const useLogin = () => {
   // Validate form
   const validateForm = useCallback(() => {
     const validation = validateLoginForm(formData)
-    
+
     if (!validation.success) {
       const newErrors: LoginErrors = {}
       validation.errors.forEach(error => {
@@ -59,7 +60,7 @@ export const useLogin = () => {
       setErrors(newErrors)
       return false
     }
-    
+
     setErrors({})
     return true
   }, [formData])
@@ -67,7 +68,7 @@ export const useLogin = () => {
   // Login function
   const login = useCallback(async (data?: LoginData) => {
     const loginData = data || formData
-    
+
     // Validate form if using form data
     if (!data && !validateForm()) {
       return
@@ -76,20 +77,35 @@ export const useLogin = () => {
     try {
       setState('loading')
       clearErrors()
-      
+
       const response = await authApi.login({
         email: loginData.email,
         password: loginData.password,
         rememberMe: loginData.rememberMe,
       })
-      
+
       setResult(response)
-      
+
       if (response.success) {
         setState('success')
-        
-        // 🍪 Cookies are automatically set by the API!
-        // No need to manually store tokens - the HTTP-only cookie handles security
+
+        if (response.data?.user) {
+          // 🔥 IMPORTANT: Store the full user object including permissions
+          localStorage.setItem('user', JSON.stringify(response.data.user))
+        }
+
+        // Store company data
+        if (response.data?.company) {
+          localStorage.setItem('company', JSON.stringify(response.data.company))
+        }
+
+        // 🔥 Initialize permissions after successful login
+        if (response.data?.user && response.data?.company) {
+          initializePermissions({
+            user: response.data.user,
+            company: response.data.company
+          })
+        }
         
         // Optional: Store non-sensitive user data in localStorage for quick access
         if (response.data?.user) {
@@ -99,28 +115,29 @@ export const useLogin = () => {
             firstName: response.data.user.firstName,
             lastName: response.data.user.lastName,
             role: response.data.user.role,
+            permissions: response.data.user.permissions
           }))
         }
-        
+
         // Store company data
         if (response.data?.company) {
           localStorage.setItem('company', JSON.stringify(response.data.company))
         }
-        
+
         // Redirect with a slight delay for UX
         setTimeout(() => {
           router.push('/dashboard')
           router.refresh() // Force refresh to trigger middleware
         }, 1000)
-        
+
       } else {
         // Handle different error types based on your API
         // Cast response to handle both LoginResponse and error response structures
         const errorResponse = response as any
         const errorMessage = response.message || errorResponse.error || 'Login failed'
-        
-        if (errorMessage.toLowerCase().includes('email') && 
-            errorMessage.toLowerCase().includes('verify')) {
+
+        if (errorMessage.toLowerCase().includes('email') &&
+          errorMessage.toLowerCase().includes('verify')) {
           setState('email-unverified')
         } else {
           setState('error')
@@ -129,40 +146,40 @@ export const useLogin = () => {
       }
     } catch (error: any) {
       console.error('Login error:', error)
-      
+
       setState('error')
-      
+
       // Handle HTTP error responses from your API
       if (error?.response?.data) {
         const apiError = error.response.data
         const errorMessage = apiError.message || apiError.error || 'Login failed'
-        
+
         // Handle specific error types based on your API
         if (apiError.error === 'EMAIL_NOT_VERIFIED') {
           setState('email-unverified')
-          setErrors({ 
+          setErrors({
             general: errorMessage
           })
         } else if (apiError.error === 'INVALID_CREDENTIALS') {
-          setErrors({ 
-            general: 'Invalid email or password. Please try again.' 
+          setErrors({
+            general: 'Invalid email or password. Please try again.'
           })
         } else if (error?.response?.status === 429) {
-          setErrors({ 
-            general: 'Too many login attempts. Please try again later.' 
+          setErrors({
+            general: 'Too many login attempts. Please try again later.'
           })
         } else {
-          setErrors({ 
+          setErrors({
             general: errorMessage
           })
         }
       } else {
         // Handle network or other errors
-        setErrors({ 
-          general: error?.message || 'Login failed. Please try again.' 
+        setErrors({
+          general: error?.message || 'Login failed. Please try again.'
         })
       }
-      
+
       setResult({
         success: false,
         message: error?.response?.data?.message || error?.message || 'Login failed',
@@ -227,7 +244,7 @@ export const useLogin = () => {
     result,
     errors,
     formData,
-    
+
     // Computed values
     isLoading: state === 'loading',
     isSuccess: state === 'success',
@@ -236,7 +253,7 @@ export const useLogin = () => {
     hasErrors: Object.keys(errors).length > 0,
     canLogin: formData.email.trim() !== '' && formData.password.trim() !== '' && state !== 'loading',
     message: getCurrentMessage(),
-    
+
     // Actions
     login,
     updateFormData,
@@ -245,7 +262,7 @@ export const useLogin = () => {
     validateForm,
     resetForm,
     resendVerificationEmail,
-    
+
     // Navigation
     goToSignup,
     goToForgotPassword,

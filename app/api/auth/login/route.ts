@@ -135,6 +135,7 @@ export async function POST(request: NextRequest) {
           firstName: user.first_name,
           lastName: user.last_name,
           role: user.role,
+          permissions: user.permissions,
           phone: user.phone,
           emailVerified: user.email_verified,
           lastLoginAt: new Date().toISOString(),
@@ -181,6 +182,7 @@ export async function POST(request: NextRequest) {
       firstName: user.first_name,
       lastName: user.last_name,
       role: user.role,
+      permissions: user.permissions,
       companyId: company.id,
       companyName: company.name,
     }), {

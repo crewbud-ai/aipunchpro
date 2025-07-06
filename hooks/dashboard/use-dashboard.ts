@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { authApi } from '@/lib/api/auth'
+import { initializePermissions, clearPermissions } from '@/lib/permissions'
 
 // ==============================================
 // INTERFACES
@@ -51,12 +52,18 @@ export const useDashboard = () => {
       const companyData = localStorage.getItem('company')
 
       if (userData && companyData) {
+        const user = JSON.parse(userData)
+        const company = JSON.parse(companyData)
+
         setState(prev => ({
           ...prev,
           user: JSON.parse(userData),
           company: JSON.parse(companyData),
           isLoading: false,
         }))
+
+        initializePermissions({ user, company })
+
       } else {
         // If no data in localStorage, user might need to re-login
         setState(prev => ({ ...prev, isLoading: false }))
@@ -74,11 +81,13 @@ export const useDashboard = () => {
     try {
       // Call logout API to invalidate session and clear cookies
       await authApi.logout()
-      
+
+      clearPermissions()
+
       // Only clear localStorage after successful API call
       localStorage.removeItem('user')
       localStorage.removeItem('company')
-      
+
       // Clear state
       setState({
         user: null,
@@ -90,15 +99,15 @@ export const useDashboard = () => {
       // Redirect to login
       router.push('/auth/login')
       router.refresh() // Force refresh to trigger middleware
-      
+
     } catch (error) {
       console.error('Logout error:', error)
-      
+
       // Even if API fails, still clear localStorage and redirect
       // This ensures user is logged out from the frontend
       localStorage.removeItem('user')
       localStorage.removeItem('company')
-      
+
       setState({
         user: null,
         company: null,
@@ -115,27 +124,27 @@ export const useDashboard = () => {
   // Get user initials for avatar
   const getUserInitials = useCallback(() => {
     if (!state.user) return 'U'
-    
+
     const firstInitial = state.user.firstName?.[0]?.toUpperCase() || ''
     const lastInitial = state.user.lastName?.[0]?.toUpperCase() || ''
-    
+
     return firstInitial + lastInitial || state.user.email?.[0]?.toUpperCase() || 'U'
   }, [state.user])
 
   // Get user full name
   const getUserFullName = useCallback(() => {
     if (!state.user) return 'User'
-    
+
     const firstName = state.user.firstName || ''
     const lastName = state.user.lastName || ''
-    
+
     return `${firstName} ${lastName}`.trim() || state.user.email || 'User'
   }, [state.user])
 
   // Get user role display
   const getUserRoleDisplay = useCallback(() => {
     if (!state.user?.role) return 'User'
-    
+
     // Convert role to display format
     return state.user.role
       .split('_')
@@ -169,13 +178,13 @@ export const useDashboard = () => {
     company: state.company,
     isLoading: state.isLoading,
     isSigningOut: state.isSigningOut,
-    
+
     // Computed values
     isAuthenticated: isAuthenticated(),
     userInitials: getUserInitials(),
     userFullName: getUserFullName(),
     userRoleDisplay: getUserRoleDisplay(),
-    
+
     // Actions
     signOut,
     loadUserData,

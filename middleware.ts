@@ -1,5 +1,5 @@
 // ==============================================
-// src/middleware.ts - Cookie-Based Authentication Middleware
+// src/middleware.ts - Cookie-Based Authentication Middleware with User Data Logging
 // ==============================================
 
 import { NextResponse } from 'next/server'
@@ -32,7 +32,7 @@ const publicRoutes = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  
+
   // Skip middleware for static files and specific API routes
   if (
     pathname.startsWith('/_next') ||
@@ -47,11 +47,11 @@ export async function middleware(request: NextRequest) {
   const sessionToken = request.cookies.get('sessionToken')?.value
 
   // Check if route requires authentication
-  const isProtectedRoute = protectedRoutes.some(route => 
+  const isProtectedRoute = protectedRoutes.some(route =>
     pathname.startsWith(route)
   )
-  
-  const isPublicRoute = publicRoutes.some(route => 
+
+  const isPublicRoute = publicRoutes.some(route =>
     pathname === route || pathname.startsWith(route)
   )
 
@@ -67,31 +67,36 @@ export async function middleware(request: NextRequest) {
     try {
       const authService = new AuthDatabaseService(true, false)
       const sessionValidation = await authService.validateSession(sessionToken)
-      
+
       if (!sessionValidation.success) {
         console.log('Invalid session:', sessionValidation.error)
-        
+
         // Invalid session - clear cookies
-        const response = isProtectedRoute 
+        const response = isProtectedRoute
           ? NextResponse.redirect(new URL('/auth/login', request.url))
           : NextResponse.next()
-        
+
         response.cookies.delete('sessionToken')
         response.cookies.delete('userInfo')
         return response
       }
 
-      // Valid session - add user info to request headers for API routes
+      // Valid session - add info to request headers
       if (sessionValidation.data) {
         const requestHeaders = new Headers(request.headers)
         requestHeaders.set('x-user-id', sessionValidation.data.userId)
         requestHeaders.set('x-session-id', sessionValidation.data.sessionId)
-        
+
         // Extract user info from session data
         if (sessionValidation.data.user?.role) {
           requestHeaders.set('x-user-role', sessionValidation.data.user.role)
         }
-        
+
+        // Find this section and make sure you have the permissions header
+        if (sessionValidation.data.user?.permissions) {
+          requestHeaders.set('x-user-permissions', JSON.stringify(sessionValidation.data.user.permissions))
+        }
+
         if (sessionValidation.data.user?.email) {
           requestHeaders.set('x-user-email', sessionValidation.data.user.email)
         }
@@ -106,11 +111,20 @@ export async function middleware(request: NextRequest) {
           requestHeaders.set('x-user-name', `${sessionValidation.data.user.first_name} ${sessionValidation.data.user.last_name}`)
         }
 
+        // 🔐 ADD PERMISSIONS TO HEADERS (for permission checking in API routes)
+        if (sessionValidation.data.user?.permissions) {
+          let permissionsString = sessionValidation.data.user.permissions
+          if (typeof permissionsString === 'object') {
+            permissionsString = JSON.stringify(permissionsString)
+          }
+          requestHeaders.set('x-user-permissions', permissionsString)
+        }
+
         // If authenticated user tries to access auth pages, redirect to dashboard
         if (pathname.startsWith('/auth/') && !pathname.includes('logout')) {
           return NextResponse.redirect(new URL('/dashboard', request.url))
         }
-        
+
         return NextResponse.next({
           request: {
             headers: requestHeaders,
@@ -120,12 +134,12 @@ export async function middleware(request: NextRequest) {
 
     } catch (error) {
       console.error('Session validation error in middleware:', error)
-      
+
       // On error, clear cookies and continue
-      const response = isProtectedRoute 
+      const response = isProtectedRoute
         ? NextResponse.redirect(new URL('/auth/login', request.url))
         : NextResponse.next()
-        
+
       response.cookies.delete('sessionToken')
       response.cookies.delete('userInfo')
       return response
