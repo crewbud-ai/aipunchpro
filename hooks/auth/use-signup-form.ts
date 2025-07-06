@@ -88,9 +88,12 @@ export const useSignupForm = () => {
           lastName: formData.lastName,
           email: formData.email,
           password: formData.password,
+          role: 'super_admin',
           phone: formData.phone || undefined,
         },
       }
+
+      console.log(signupData, 'signupData')
 
       const response = await authApi.signup(signupData)
       

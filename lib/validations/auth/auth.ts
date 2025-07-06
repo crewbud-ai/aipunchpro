@@ -24,13 +24,13 @@ export const companySignupSchema = z.object({
     industry: z
         .enum([
             'general-construction',
-            'residential',
-            'commercial',
-            'industrial',
-            'civil',
-            'electrical',
-            'plumbing',
-            'hvac',
+            'residential-construction',
+            'commercial-construction',
+            'industrial-construction',
+            'civil-engineering',
+            'electrical-construction',
+            'plumbing-construction',
+            'hvac-construction',
             'roofing',
             'other'
         ])

@@ -123,15 +123,15 @@ export const getInitialFormData = (): SignupFormData => ({
 // ==============================================
 export const industryOptions = [
   { value: "general-construction", label: "General Construction" },
-  { value: "residential", label: "Residential Construction" },
-  { value: "commercial", label: "Commercial Construction" },
-  { value: "industrial", label: "Industrial Construction" },
-  { value: "civil", label: "Civil Engineering" },
-  { value: "electrical", label: "Electrical Contracting" },
-  { value: "plumbing", label: "Plumbing Contracting" },
-  { value: "hvac", label: "HVAC Contracting" },
+  { value: "residential-construction", label: "Residential Construction" },
+  { value: "commercial-construction", label: "Commercial Construction" },
+  { value: "industrial-construction", label: "Industrial Construction" },
+  { value: "civil-engineering", label: "Civil Engineering" },
+  { value: "electrical-construction", label: "Electrical Contracting" },
+  { value: "plumbing-construction", label: "Plumbing Contracting" },
+  { value: "hvac-construction", label: "HVAC Contracting" },
   { value: "roofing", label: "Roofing" },
-  { value: "other", label: "Other" },
+  { value: "other", label: "Other" }, 
 ]
 
 export const companySizeOptions = [

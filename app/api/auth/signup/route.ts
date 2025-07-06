@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       email: user.email,
       first_name: user.firstName,
       last_name: user.lastName,
-      role: 'super_admin', // First user is always admin
+      role: user.role,
       phone: user.phone || null,
       password: user.password
     })
