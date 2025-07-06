@@ -5,6 +5,7 @@
 import { createServerClient, createAdminClient } from '@/lib/supabase/server'
 import { createBrowserClient } from '@/lib/supabase/client'
 import bcrypt from 'bcryptjs'
+import { DEFAULT_PERMISSIONS } from '../schema'
 
 export class AuthDatabaseService {
   private supabaseClient: ReturnType<typeof createServerClient>
@@ -67,12 +68,17 @@ export class AuthDatabaseService {
     phone?: string | null
     password?: string // Add password field for future use
   }) {
+
+    // Get permissions based on role
+    const permissions = DEFAULT_PERMISSIONS[data.role] || DEFAULT_PERMISSIONS['member']
+
     const userData: any = {
       company_id: data.company_id,
       email: data.email,
       first_name: data.first_name,
       last_name: data.last_name,
       role: data.role,
+      permissions: permissions,
       phone: data.phone || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -120,6 +126,7 @@ export class AuthDatabaseService {
         password_hash,
         email_verified,
         role,
+        permissions,
         phone,
         last_login_at,
         created_at,
@@ -152,6 +159,7 @@ export class AuthDatabaseService {
         last_name,
         phone,
         role,
+        permissions,
         email_verified,
         last_login_at,
         created_at,
@@ -761,6 +769,7 @@ export class AuthDatabaseService {
         last_name,
         phone,
         role,
+        permissions,
         email_verified,
         last_login_at,
         created_at,
@@ -782,6 +791,7 @@ export class AuthDatabaseService {
         last_name,
         phone,
         role,
+        permissions,
         email_verified,
         last_login_at,
         created_at,
@@ -958,6 +968,7 @@ export class AuthDatabaseService {
         first_name,
         last_name,
         role,
+        permissions,
         email_verified
       `)
       .eq('id', userId)
