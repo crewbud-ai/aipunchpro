@@ -602,9 +602,9 @@ export const projectsApi = {
     // ==============================================
     // PROJECT NUMBER GENERATION
     // ==============================================
-    async getNextProjectNumber(): Promise<{ success: boolean; nextNumber?: string; message?: string }> {
+    async getNextProjectNumber(): Promise<{ success: boolean; projectNumber?: string; message?: string }> {
         try {
-            const response = await apiCall<{ success: boolean; nextNumber: string; message: string }>('/api/projects/next-number', {
+            const response = await apiCall<{ success: boolean; projectNumber: string; message: string }>('/api/projects/next-number', {
                 method: 'GET',
             })
 

@@ -157,26 +157,30 @@ export const useCreateProject = () => {
 
       const response = await projectsApi.getNextProjectNumber()
 
-      if (response.success && response.nextNumber) {
+      console.log('Project number API response:', response) // Debug log
+
+      // FIXED: Check for response.projectNumber instead of response.nextNumber
+      if (response.success && response.projectNumber) {
         setState(prev => ({
           ...prev,
-          projectNumber: response.nextNumber!,
-          formData: { ...prev.formData, projectNumber: response.nextNumber! },
+          projectNumber: response.projectNumber!, // Use projectNumber field
+          formData: { ...prev.formData, projectNumber: response.projectNumber! },
           isLoadingProjectNumber: false,
+          projectNumberError: null,
         }))
       } else {
         setState(prev => ({
           ...prev,
-          projectNumberError: response.message || 'Failed to generate project number',
           isLoadingProjectNumber: false,
+          projectNumberError: response.message || 'Failed to generate project number',
         }))
       }
     } catch (error: any) {
       console.error('Error generating project number:', error)
       setState(prev => ({
         ...prev,
-        projectNumberError: 'Failed to generate project number',
         isLoadingProjectNumber: false,
+        projectNumberError: error.message || 'Failed to generate project number',
       }))
     }
   }, [])
@@ -228,7 +232,7 @@ export const useCreateProject = () => {
     }
   }, [])
 
-    const selectLocation = useCallback(async (suggestion: LocationSuggestion) => {
+  const selectLocation = useCallback(async (suggestion: LocationSuggestion) => {
     try {
       setState(prev => ({
         ...prev,
@@ -250,7 +254,8 @@ export const useCreateProject = () => {
               lat: place.geometry.location.lat,
               lng: place.geometry.location.lng,
             },
-            placeId: suggestion.place_id,
+            // FIXED: Ensure placeId is always a string
+            placeId: String(suggestion.place_id),
           },
         })
 
@@ -344,7 +349,8 @@ export const useCreateProject = () => {
               lat: suggestion.coordinates.lat,
               lng: suggestion.coordinates.lng,
             },
-            placeId: suggestion.place_id,
+            // FIXED: Ensure placeId is always a string
+            placeId: String(suggestion.place_id),
           },
         })
 
@@ -369,7 +375,8 @@ export const useCreateProject = () => {
                 lat: place.geometry.location.lat,
                 lng: place.geometry.location.lng,
               },
-              placeId: suggestion.place_id,
+              // FIXED: Ensure placeId is always a string
+              placeId: String(suggestion.place_id),
             },
           })
 

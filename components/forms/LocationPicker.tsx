@@ -1,5 +1,5 @@
 // ==============================================
-// src/components/form/LocationPicker.tsx - Professional Location Picker Component
+// src/components/forms/LocationPicker.tsx - Professional Location Picker Component (Updated)
 // ==============================================
 
 'use client'
@@ -15,7 +15,8 @@ import {
   AlertCircle, 
   CheckCircle,
   X,
-  Navigation
+  Navigation,
+  Check
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -48,6 +49,7 @@ interface LocationPickerProps {
   required?: boolean
   disabled?: boolean
   className?: string
+  hideSelectedLocationDetails?: boolean // NEW: Option to hide detailed location display
   
   // Suggestions from hook
   suggestions: LocationSuggestion[]
@@ -72,6 +74,7 @@ export const LocationPicker = ({
   required = false,
   disabled = false,
   className,
+  hideSelectedLocationDetails = false, // NEW: Default to false for backward compatibility
   
   // From hook
   suggestions,
@@ -265,8 +268,8 @@ export const LocationPicker = ({
         )}
       </div>
 
-      {/* Selected Location Display */}
-      {value && (
+      {/* UPDATED: Conditional location display based on hideSelectedLocationDetails */}
+      {value && !hideSelectedLocationDetails && (
         <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
           <div className="flex items-start gap-3">
             <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
@@ -296,6 +299,23 @@ export const LocationPicker = ({
         </div>
       )}
 
+      {/* NEW: Simple confirmation for selected location when details are hidden */}
+      {value && hideSelectedLocationDetails && (
+        <div className="mt-3 flex items-center gap-2 text-sm text-green-600">
+          <Check className="h-3 w-3" />
+          <span>Location selected: {value.displayName}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleClear}
+            className="ml-auto text-green-600 hover:text-green-800 h-auto p-1"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
+
       {/* Error Message */}
       {error && (
         <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
@@ -304,7 +324,7 @@ export const LocationPicker = ({
         </p>
       )}
 
-      {/* Hint Text */}
+      {/* UPDATED: Hide hint text when details are hidden and location is selected */}
       {!value && !error && (
         <p className="text-sm text-gray-500 mt-2">
           Start typing to search for addresses, or click <Navigation className="h-3 w-3 inline" /> to use your current location

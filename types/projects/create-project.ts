@@ -235,7 +235,22 @@ const baseCreateProjectSchema = z.object({
   clientEmail: z.string().email('Invalid email address').max(255, 'Email too long').optional(),
   clientPhone: z.string().regex(/^\+1\d{10}$/, 'Phone must be in format +1XXXXXXXXXX').optional(),
   clientContactPerson: z.string().max(255, 'Contact person name too long').optional(),
-  clientWebsite: z.string().url('Invalid website URL').max(500, 'Website URL too long').optional(),
+  clientWebsite: z
+  .string()
+  .optional()
+  .refine((val) => {
+    // If empty, undefined, or just whitespace, it's valid (optional)
+    if (!val || val.trim() === '') return true
+    // If has content, must be valid URL
+    try {
+      new URL(val)
+      return val.length <= 500 // Also check max length
+    } catch {
+      return false
+    }
+  }, {
+    message: 'Invalid website URL or URL too long (max 500 characters)'
+  }),
   clientNotes: z.string().max(1000, 'Client notes too long').optional(),
 })
 

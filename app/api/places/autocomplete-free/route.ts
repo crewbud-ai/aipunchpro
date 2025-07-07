@@ -1,6 +1,5 @@
-// ==============================================
-// src/app/api/places/autocomplete-free/route.ts - Free Nominatim Autocomplete API
-// ==============================================
+// Alternative API route using OpenStreetMap Nominatim (completely free)
+// Create: /api/places/autocomplete-free/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -29,11 +28,10 @@ export async function GET(request: NextRequest) {
         `format=json&` +
         `addressdetails=1&` +
         `countrycodes=${countrycode}&` +
-        `limit=8&` +
-        `dedupe=1`,
+        `limit=5`,
         {
           headers: {
-            'User-Agent': 'ProjectManagementApp/1.0 (Contact: your-email@example.com)' // Nominatim requires a User-Agent
+            'User-Agent': 'YourAppName/1.0' // Nominatim requires a User-Agent
           }
         }
       )
@@ -45,51 +43,21 @@ export async function GET(request: NextRequest) {
       }
 
       // Transform Nominatim response to match Google Places format
-      const suggestions = nominatimData.map((place: any) => {
-        // Create a more readable main text
-        let mainText = ''
-        let secondaryText = ''
-
-        if (place.address) {
-          // Build main text from address components
-          const addressParts = []
-          if (place.address.house_number) addressParts.push(place.address.house_number)
-          if (place.address.road) addressParts.push(place.address.road)
-          
-          mainText = addressParts.length > 0 
-            ? addressParts.join(' ')
-            : place.name || place.display_name.split(',')[0]
-
-          // Build secondary text
-          const secondaryParts = []
-          if (place.address.city || place.address.town || place.address.village) {
-            secondaryParts.push(place.address.city || place.address.town || place.address.village)
-          }
-          if (place.address.state) secondaryParts.push(place.address.state)
-          if (place.address.postcode) secondaryParts.push(place.address.postcode)
-          
-          secondaryText = secondaryParts.join(', ')
-        } else {
-          const parts = place.display_name.split(',')
-          mainText = parts[0] || place.name || 'Unknown location'
-          secondaryText = parts.slice(1).join(',').trim()
+      const suggestions = nominatimData.map((place: any) => ({
+        place_id: place.place_id,
+        description: place.display_name,
+        structured_formatting: {
+          main_text: place.address?.house_number && place.address?.road 
+            ? `${place.address.house_number} ${place.address.road}`
+            : place.address?.road || place.name || place.display_name.split(',')[0],
+          secondary_text: place.display_name.split(',').slice(1).join(',').trim(),
+        },
+        types: ['geocode'],
+        coordinates: {
+          lat: parseFloat(place.lat),
+          lng: parseFloat(place.lon)
         }
-
-        return {
-          place_id: `nominatim_${place.place_id}`,
-          description: place.display_name,
-          structured_formatting: {
-            main_text: mainText,
-            secondary_text: secondaryText,
-          },
-          types: ['geocode'],
-          coordinates: {
-            lat: parseFloat(place.lat),
-            lng: parseFloat(place.lon)
-          },
-          address_components: place.address || {}
-        }
-      })
+      }))
 
       return NextResponse.json(
         {
@@ -124,28 +92,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
-}
-
-// ==============================================
-// ALLOWED METHODS
-// ==============================================
-export async function POST() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  )
-}
-
-export async function PUT() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  )
-}
-
-export async function DELETE() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  )
 }
