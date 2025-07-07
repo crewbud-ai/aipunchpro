@@ -82,6 +82,7 @@ export class ProjectDatabaseService {
     estimatedHours?: number
     location?: ProjectLocation
     client?: ProjectClient
+    tags?: string[]
     createdBy: string
   }) {
     // Auto-generate project number if not provided
@@ -111,7 +112,7 @@ export class ProjectDatabaseService {
         location: data.location,
         client: data.client,
         created_by: data.createdBy,
-        tags: [],
+        tags: data.tags || [],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }])
@@ -273,6 +274,7 @@ export class ProjectDatabaseService {
       actualHours?: number
       location?: ProjectLocation
       client?: ProjectClient
+      tags?: string[]
       projectManagerId?: string
       foremanId?: string
     }
@@ -298,6 +300,7 @@ export class ProjectDatabaseService {
     if (data.actualHours !== undefined) updateData.actual_hours = data.actualHours
     if (data.location !== undefined) updateData.location = data.location
     if (data.client !== undefined) updateData.client = data.client
+    if (data.tags !== undefined) updateData.tags = data.tags
     if (data.projectManagerId !== undefined) updateData.project_manager_id = data.projectManagerId
     if (data.foremanId !== undefined) updateData.foreman_id = data.foremanId
 

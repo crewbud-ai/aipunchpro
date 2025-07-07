@@ -1,5 +1,5 @@
 // ==============================================
-// src/app/api/projects/[id]/route.ts - Updated Individual Project API Routes
+// src/app/api/projects/[id]/route.ts - FIXED for Tags Support
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -50,7 +50,7 @@ export async function GET(
     // Create service instance
     const projectService = new ProjectDatabaseService(true, false)
 
-    // Get project with related data using enhanced method
+    // FIXED: Use the correct method name
     const project = await projectService.getProjectByIdEnhanced(projectId, companyId)
 
     if (!project) {
@@ -252,7 +252,9 @@ export async function PUT(
       actualEndDate: updateData.actualEndDate,
       estimatedHours: updateData.estimatedHours,
       actualHours: updateData.actualHours,
+      tags: updateData.tags,  // FIXED: Include tags in update data
       projectManagerId: updateData.projectManagerId,
+      foremanId: updateData.foremanId,  // FIXED: Include foremanId
     }
 
     // Handle location updates
@@ -278,12 +280,14 @@ export async function PUT(
           updateData.clientName,
           updateData.clientEmail,
           updateData.clientPhone,
-          updateData.clientContactPerson
+          updateData.clientContactPerson,
+          updateData.clientWebsite,  // FIXED: Include website
+          updateData.clientNotes     // FIXED: Include notes
         )
       }
     }
 
-    // Update project using enhanced method
+    // FIXED: Update project using the correct method name
     const updatedProject = await projectService.updateProjectEnhanced(
       projectId, 
       companyId, 
@@ -317,7 +321,7 @@ export async function PUT(
             location: updatedProject.location,
             client: updatedProject.client,
             
-            tags: updatedProject.tags,
+            tags: updatedProject.tags || [],  // FIXED: Ensure tags are included
             updatedAt: updatedProject.updated_at,
           },
         },

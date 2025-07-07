@@ -10,17 +10,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { 
-  ArrowLeft, 
-  Edit, 
-  Trash2, 
-  Calendar, 
-  DollarSign, 
-  MapPin, 
-  Building2, 
-  Users, 
-  Clock, 
-  FileText, 
+import {
+  ArrowLeft,
+  Edit,
+  Trash2,
+  Calendar,
+  DollarSign,
+  MapPin,
+  Building2,
+  Users,
+  Clock,
+  FileText,
   Camera,
   Phone,
   Mail,
@@ -55,6 +55,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Loader2 } from "lucide-react"
+import { useDeleteProject } from "@/hooks/projects/use-delete-project"
 
 export default function ProjectPage() {
   const params = useParams()
@@ -62,6 +64,7 @@ export default function ProjectPage() {
   const projectId = params.id as string
   const [activeTab, setActiveTab] = useState("overview")
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+
 
   const {
     project,
@@ -82,6 +85,13 @@ export default function ProjectPage() {
     displayClient,
     clientContactInfo,
   } = useProject(projectId)
+
+  const {
+    isLoading: isDeleting,
+    isSuccess: isDeleteSuccess,
+    deleteProject,
+    reset: resetDelete,
+  } = useDeleteProject()
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -149,13 +159,14 @@ export default function ProjectPage() {
   }
 
   const handleDeleteProject = async () => {
-    try {
-      // TODO: Implement delete project functionality
-      console.log('Deleting project:', projectId)
-      setShowDeleteDialog(false)
-      router.push('/dashboard/projects')
-    } catch (error) {
-      console.error('Failed to delete project:', error)
+    if (!projectId) return
+    await deleteProject(projectId)
+    setShowDeleteDialog(false)
+  }
+  const handleDeleteDialogClose = () => {
+    setShowDeleteDialog(false)
+    if (isDeleteSuccess) {
+      resetDelete()
     }
   }
 
@@ -267,7 +278,7 @@ export default function ProjectPage() {
               Edit
             </Button>
           </Link>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -284,8 +295,8 @@ export default function ProjectPage() {
                 Generate Report
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                className="text-red-600"
+              <DropdownMenuItem
+                className="text-red-600 cursor-pointer"
                 onClick={() => setShowDeleteDialog(true)}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
@@ -326,9 +337,9 @@ export default function ProjectPage() {
               of {formatCurrency(project.budget)} budget
             </p>
             <div className="mt-2">
-              <Progress 
-                value={budgetUtilization} 
-                className={isOverBudget ? "progress-destructive" : ""} 
+              <Progress
+                value={budgetUtilization}
+                className={isOverBudget ? "progress-destructive" : ""}
               />
             </div>
             <p className={`text-xs mt-2 ${isOverBudget ? 'text-red-600' : 'text-muted-foreground'}`}>
@@ -345,16 +356,16 @@ export default function ProjectPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {daysUntilDeadline !== null 
-                ? daysUntilDeadline < 0 
+              {daysUntilDeadline !== null
+                ? daysUntilDeadline < 0
                   ? `${Math.abs(daysUntilDeadline)} days`
                   : `${daysUntilDeadline} days`
                 : "No deadline"
               }
             </div>
             <p className="text-xs text-muted-foreground">
-              {daysUntilDeadline !== null 
-                ? daysUntilDeadline < 0 
+              {daysUntilDeadline !== null
+                ? daysUntilDeadline < 0
                   ? "overdue"
                   : "remaining"
                 : "End date not set"
@@ -613,7 +624,7 @@ export default function ProjectPage() {
       </Tabs>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={showDeleteDialog} onOpenChange={handleDeleteDialogClose}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Project</AlertDialogTitle>
@@ -623,12 +634,25 @@ export default function ProjectPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
               onClick={handleDeleteProject}
+              disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700"
             >
-              Delete Project
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : isDeleteSuccess ? (
+                <>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Deleted! Redirecting...
+                </>
+              ) : (
+                'Delete Project'
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

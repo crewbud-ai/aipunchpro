@@ -251,6 +251,7 @@ export async function POST(request: NextRequest) {
       estimatedHours: projectData.estimatedHours,
       location: locationData,
       client: clientData,
+      tags: projectData.tags,
       createdBy: userId,
     })
 

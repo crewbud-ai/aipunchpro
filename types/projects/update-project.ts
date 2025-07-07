@@ -24,11 +24,11 @@ export interface UpdateProjectData {
   actualEndDate?: string
   estimatedHours?: number
   actualHours?: number
-  
+
   // Enhanced location and client data
   location?: ProjectLocation
   client?: ProjectClient
-  
+
   // Alternative: form-specific location selection
   selectedLocation?: {
     address: string
@@ -36,7 +36,7 @@ export interface UpdateProjectData {
     coordinates?: { lat: number; lng: number }
     placeId?: string
   }
-  
+
   // Alternative: form-specific client fields (will be transformed to client object)
   clientName?: string
   clientEmail?: string
@@ -44,7 +44,7 @@ export interface UpdateProjectData {
   clientContactPerson?: string
   clientWebsite?: string
   clientNotes?: string
-  
+
   tags?: string[]
   projectManagerId?: string
   foremanId?: string
@@ -64,7 +64,7 @@ export interface UpdateProjectResult {
 // ==============================================
 // UPDATE PROJECT STATE
 // ==============================================
-export type UpdateProjectState = 
+export type UpdateProjectState =
   | 'idle'           // Initial state
   | 'loading'        // Updating project
   | 'success'        // Project updated
@@ -75,7 +75,7 @@ export type UpdateProjectState =
 // ==============================================
 export interface UpdateProjectFormData {
   id: string
-  
+
   // Basic project info
   name: string
   description: string
@@ -91,7 +91,7 @@ export interface UpdateProjectFormData {
   actualEndDate: string
   estimatedHours?: number
   actualHours?: number
-  
+
   // Location form fields
   locationSearch: string  // For autocomplete input
   selectedLocation?: {
@@ -100,7 +100,7 @@ export interface UpdateProjectFormData {
     coordinates?: { lat: number; lng: number }
     placeId?: string
   }
-  
+
   // Client form fields (individual inputs)
   clientName: string
   clientEmail: string
@@ -108,14 +108,14 @@ export interface UpdateProjectFormData {
   clientContactPerson: string
   clientWebsite: string
   clientNotes: string
-  
+
   // Team assignments
   projectManagerId?: string
   foremanId?: string
-  
+
   // Additional fields
   tags: string[]
-  
+
   // UI state helpers
   isCheckingName?: boolean
   isNameAvailable?: boolean
@@ -174,79 +174,112 @@ const clientSchema = z.object({
 // ==============================================
 const baseUpdateProjectSchema = z.object({
   id: z.string().uuid('Invalid project ID'),
-  
+
   name: z
     .string()
     .min(1, 'Project name is required')
     .max(255, 'Project name must be less than 255 characters')
     .trim()
     .optional(),
-  
+
   description: z
     .string()
     .max(1000, 'Description must be less than 1000 characters')
     .optional(),
-  
+
   projectNumber: z
     .string()
     .max(100, 'Project number must be less than 100 characters')
     .optional(),
-  
+
   status: z
     .enum([
-      'not_started', 
-      'in_progress', 
-      'on_track', 
-      'ahead_of_schedule', 
-      'behind_schedule', 
-      'on_hold', 
-      'completed', 
+      'not_started',
+      'in_progress',
+      'on_track',
+      'ahead_of_schedule',
+      'behind_schedule',
+      'on_hold',
+      'completed',
       'cancelled'
     ])
     .optional(),
-  
+
   priority: z
     .enum(['low', 'medium', 'high', 'urgent'])
     .optional(),
-  
+
   budget: z
     .number()
     .min(0, 'Budget cannot be negative')
     .max(999999999999.99, 'Budget is too large')
     .optional(),
-  
+
   spent: z
     .number()
     .min(0, 'Spent amount cannot be negative')
     .max(999999999999.99, 'Spent amount is too large')
     .optional(),
-  
+
   progress: z
     .number()
     .min(0, 'Progress cannot be less than 0')
     .max(100, 'Progress cannot be more than 100')
     .optional(),
 
+  // FIXED: Better date handling that allows empty strings
   startDate: z
     .string()
-    .date('Invalid start date')
-    .optional(),
-  
+    .optional()
+    .refine((val) => {
+      if (!val || val.trim() === '') return true // Allow empty
+      try {
+        const date = new Date(val)
+        return !isNaN(date.getTime()) // Check if valid date
+      } catch {
+        return false
+      }
+    }, 'Invalid start date'),
+
   endDate: z
     .string()
-    .date('Invalid end date')
-    .optional(),
+    .optional()
+    .refine((val) => {
+      if (!val || val.trim() === '') return true // Allow empty
+      try {
+        const date = new Date(val)
+        return !isNaN(date.getTime()) // Check if valid date
+      } catch {
+        return false
+      }
+    }, 'Invalid end date'),
 
   actualStartDate: z
     .string()
-    .date('Invalid actual start date')
-    .optional(),
+    .optional()
+    .refine((val) => {
+      if (!val || val.trim() === '') return true // Allow empty
+      try {
+        const date = new Date(val)
+        return !isNaN(date.getTime()) // Check if valid date
+      } catch {
+        return false
+      }
+    }, 'Invalid actual start date'),
 
   actualEndDate: z
     .string()
-    .date('Invalid actual end date')
-    .optional(),
-  
+    .optional()
+    .refine((val) => {
+      if (!val || val.trim() === '') return true // Allow empty
+      try {
+        const date = new Date(val)
+        return !isNaN(date.getTime()) // Check if valid date
+      } catch {
+        return false
+      }
+    }, 'Invalid actual end date'),
+
   estimatedHours: z
     .number()
     .min(0, 'Estimated hours cannot be negative')
@@ -268,11 +301,11 @@ const baseUpdateProjectSchema = z.object({
     .string()
     .uuid('Invalid foreman ID')
     .optional(),
-  
+
   // Enhanced JSONB fields
   location: locationSchema,
   client: clientSchema,
-  
+
   tags: z
     .array(z.string().max(50, 'Tag too long'))
     .max(10, 'Maximum 10 tags allowed')
@@ -295,7 +328,22 @@ const baseUpdateProjectSchema = z.object({
   clientEmail: z.string().email('Invalid email address').max(255, 'Email too long').optional(),
   clientPhone: z.string().regex(/^\+1\d{10}$/, 'Phone must be in format +1XXXXXXXXXX').optional(),
   clientContactPerson: z.string().max(255, 'Contact person name too long').optional(),
-  clientWebsite: z.string().url('Invalid website URL').max(500, 'Website URL too long').optional(),
+  clientWebsite: z
+    .string()
+    .optional()
+    .refine((val) => {
+      // If empty, undefined, or just whitespace, it's valid (optional)
+      if (!val || val.trim() === '') return true
+      // If has content, must be valid URL
+      try {
+        new URL(val)
+        return val.length <= 500 // Also check max length
+      } catch {
+        return false
+      }
+    }, {
+      message: 'Invalid website URL or URL too long (max 500 characters)'
+    }),
   clientNotes: z.string().max(1000, 'Client notes too long').optional(),
 })
 
@@ -303,8 +351,8 @@ const baseUpdateProjectSchema = z.object({
 // UPDATE PROJECT VALIDATION SCHEMA (with refinements)
 // ==============================================
 export const updateProjectSchema = baseUpdateProjectSchema.refine((data) => {
-  // Validate planned date logic
-  if (data.startDate && data.endDate) {
+  // Validate planned date logic - only if both dates are provided and not empty
+  if (data.startDate && data.startDate.trim() !== '' && data.endDate && data.endDate.trim() !== '') {
     return new Date(data.startDate) <= new Date(data.endDate)
   }
   return true
@@ -312,8 +360,8 @@ export const updateProjectSchema = baseUpdateProjectSchema.refine((data) => {
   message: 'End date must be after start date',
   path: ['endDate'],
 }).refine((data) => {
-  // Validate actual date logic
-  if (data.actualStartDate && data.actualEndDate) {
+  // Validate actual date logic - only if both dates are provided and not empty
+  if (data.actualStartDate && data.actualStartDate.trim() !== '' && data.actualEndDate && data.actualEndDate.trim() !== '') {
     return new Date(data.actualStartDate) <= new Date(data.actualEndDate)
   }
   return true
@@ -344,37 +392,36 @@ export const updateProjectSchema = baseUpdateProjectSchema.refine((data) => {
   message: 'Client contact information (email or phone) is required when client name is provided',
   path: ['clientEmail'],
 })
-
 // ==============================================
 // PROJECT FILTERS VALIDATION SCHEMA
 // ==============================================
 export const projectFiltersSchema = z.object({
   status: z
     .enum([
-      'not_started', 
-      'in_progress', 
-      'on_track', 
-      'ahead_of_schedule', 
-      'behind_schedule', 
-      'on_hold', 
-      'completed', 
+      'not_started',
+      'in_progress',
+      'on_track',
+      'ahead_of_schedule',
+      'behind_schedule',
+      'on_hold',
+      'completed',
       'cancelled'
     ])
     .optional(),
-  
+
   priority: z
     .enum(['low', 'medium', 'high', 'urgent'])
     .optional(),
-  
+
   search: z.string().optional(),
   location: z.string().optional(),
   client: z.string().optional(),
   managerId: z.string().uuid('Invalid manager ID').optional(),
-  
+
   sortBy: z
     .enum(['name', 'created_at', 'start_date', 'progress', 'priority', 'status'])
     .default('created_at'),
-  
+
   sortOrder: z
     .enum(['asc', 'desc'])
     .default('desc'),
@@ -416,10 +463,13 @@ export function transformUpdateFormDataToApiData(formData: UpdateProjectFormData
     budget: formData.budget,
     spent: formData.spent,
     progress: formData.progress,
-    startDate: formData.startDate,
-    endDate: formData.endDate,
-    actualStartDate: formData.actualStartDate,
-    actualEndDate: formData.actualEndDate,
+
+    // FIXED: Handle empty date strings by converting them to undefined
+    startDate: formData.startDate && formData.startDate.trim() !== '' ? formData.startDate : undefined,
+    endDate: formData.endDate && formData.endDate.trim() !== '' ? formData.endDate : undefined,
+    actualStartDate: formData.actualStartDate && formData.actualStartDate.trim() !== '' ? formData.actualStartDate : undefined,
+    actualEndDate: formData.actualEndDate && formData.actualEndDate.trim() !== '' ? formData.actualEndDate : undefined,
+
     estimatedHours: formData.estimatedHours,
     actualHours: formData.actualHours,
     tags: formData.tags,
@@ -447,10 +497,10 @@ export function transformUpdateFormDataToApiData(formData: UpdateProjectFormData
       contactPerson: formData.clientContactPerson || undefined,
       website: formData.clientWebsite || undefined,
       notes: formData.clientNotes || undefined,
-      preferredContact: 
+      preferredContact:
         formData.clientEmail && formData.clientPhone ? 'both' :
-        formData.clientEmail ? 'email' :
-        formData.clientPhone ? 'phone' : undefined
+          formData.clientEmail ? 'email' :
+            formData.clientPhone ? 'phone' : undefined
     }
   }
 
@@ -477,7 +527,7 @@ export function projectToUpdateFormData(project: Project): UpdateProjectFormData
     actualEndDate: project.actualEndDate || '',
     estimatedHours: project.estimatedHours,
     actualHours: project.actualHours,
-    
+
     // Location handling
     locationSearch: project.location?.displayName || project.location?.address || '',
     selectedLocation: project.location ? {
@@ -486,7 +536,7 @@ export function projectToUpdateFormData(project: Project): UpdateProjectFormData
       coordinates: project.location.coordinates,
       placeId: project.location.placeId,
     } : undefined,
-    
+
     // Client handling
     clientName: project.client?.name || '',
     clientEmail: project.client?.email || '',
@@ -494,11 +544,11 @@ export function projectToUpdateFormData(project: Project): UpdateProjectFormData
     clientContactPerson: project.client?.contactPerson || '',
     clientWebsite: project.client?.website || '',
     clientNotes: project.client?.notes || '',
-    
+
     // Team assignments
     projectManagerId: project.projectManagerId,
     foremanId: project.foremanId,
-    
+
     tags: project.tags || [],
   }
 }
@@ -507,11 +557,11 @@ export function projectToUpdateFormData(project: Project): UpdateProjectFormData
  * Check if form data has changes compared to original project
  */
 export function hasFormChanges(
-  current: UpdateProjectFormData, 
+  current: UpdateProjectFormData,
   original: Project
 ): boolean {
   const originalForm = projectToUpdateFormData(original)
-  
+
   // Compare all fields
   return (
     current.name !== originalForm.name ||
@@ -530,11 +580,11 @@ export function hasFormChanges(
     current.actualHours !== originalForm.actualHours ||
     current.projectManagerId !== originalForm.projectManagerId ||
     current.foremanId !== originalForm.foremanId ||
-    
+
     // Location comparison
     current.locationSearch !== originalForm.locationSearch ||
     JSON.stringify(current.selectedLocation) !== JSON.stringify(originalForm.selectedLocation) ||
-    
+
     // Client comparison
     current.clientName !== originalForm.clientName ||
     current.clientEmail !== originalForm.clientEmail ||
@@ -542,7 +592,7 @@ export function hasFormChanges(
     current.clientContactPerson !== originalForm.clientContactPerson ||
     current.clientWebsite !== originalForm.clientWebsite ||
     current.clientNotes !== originalForm.clientNotes ||
-    
+
     // Tags comparison
     JSON.stringify(current.tags) !== JSON.stringify(originalForm.tags)
   )
