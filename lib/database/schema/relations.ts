@@ -89,16 +89,16 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
     references: [users.id],
     relationName: 'creator',
   }),
-  projectManager: one(users, {
-    fields: [projects.projectManagerId],
-    references: [users.id],
-    relationName: 'projectManager',
-  }),
-  foreman: one(users, {
-    fields: [projects.foremanId],
-    references: [users.id],
-    relationName: 'foreman',
-  }),
+  // projectManager: one(users, {
+  //   fields: [projects.projectManagerId],
+  //   references: [users.id],
+  //   relationName: 'projectManager',
+  // }),
+  // foreman: one(users, {
+  //   fields: [projects.foremanId],
+  //   references: [users.id],
+  //   relationName: 'foreman',
+  // }),
   
   // Related entities
   members: many(projectMembers),

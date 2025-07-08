@@ -55,15 +55,15 @@ import { canViewMenuItem, hasPermission, getCurrentPermissions } from "@/lib/per
 
 // Navigation structure with permissions and submenus
 const navigation = [
-  { 
-    name: "Dashboard", 
-    href: "/dashboard", 
+  {
+    name: "Dashboard",
+    href: "/dashboard",
     icon: Home,
     show: () => true, // Dashboard always visible
   },
-  { 
-    name: "Projects", 
-    href: "/dashboard/projects", 
+  {
+    name: "Projects",
+    href: "/dashboard/projects",
     icon: Building2,
     show: () => hasPermission('projects', 'view') || hasPermission('projects', 'viewAll'),
     subItems: [
@@ -81,9 +81,9 @@ const navigation = [
       },
     ]
   },
-  { 
-    name: "Schedule", 
-    href: "/dashboard/schedule", 
+  {
+    name: "Schedule",
+    href: "/dashboard/schedule",
     icon: Calendar,
     show: () => hasPermission('schedule', 'view'),
     subItems: [
@@ -101,9 +101,9 @@ const navigation = [
       },
     ]
   },
-  { 
-    name: "Team", 
-    href: "/dashboard/team", 
+  {
+    name: "Team",
+    href: "/dashboard/team",
     icon: Users,
     show: () => hasPermission('team', 'view'),
     subItems: [
@@ -121,9 +121,9 @@ const navigation = [
       },
     ]
   },
-  { 
-    name: "Punchlist", 
-    href: "/dashboard/punchlist", 
+  {
+    name: "Punchlist",
+    href: "/dashboard/punchlist",
     icon: ClipboardList,
     show: () => hasPermission('punchlist', 'view'),
     subItems: [
@@ -141,9 +141,9 @@ const navigation = [
       },
     ]
   },
-  { 
-    name: "Payroll", 
-    href: "/dashboard/payroll", 
+  {
+    name: "Payroll",
+    href: "/dashboard/payroll",
     icon: DollarSign,
     show: () => hasPermission('financials', 'view'),
     subItems: [
@@ -161,9 +161,9 @@ const navigation = [
       },
     ]
   },
-  { 
-    name: "AI Assistant", 
-    href: "/dashboard/ai", 
+  {
+    name: "AI Assistant",
+    href: "/dashboard/ai",
     icon: Bot,
     show: () => true, // AI Assistant available to all
   },
@@ -215,7 +215,13 @@ function SidebarNavigation({ isMobile = false, onItemClick }: { isMobile?: boole
   }
 
   const isItemActive = (href: string) => {
-    return pathname === href || pathname.startsWith(href + '/')
+    // Special case for dashboard - only active on exact match
+    if (href === "/dashboard") {
+      return pathname === href
+    }
+
+    // For other routes, check exact match or if it's a parent route
+    return pathname === href || (pathname.startsWith(href + '/') && href !== "/dashboard")
   }
 
   const hasVisibleSubItems = (item: any) => {
@@ -332,7 +338,7 @@ export default function DashboardLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
-  
+
   const {
     user,
     company,
@@ -371,8 +377,8 @@ export default function DashboardLayout({
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600">Authentication required</p>
-          <Link 
-            href="/auth/login" 
+          <Link
+            href="/auth/login"
             className="text-orange-600 hover:text-orange-500 underline"
           >
             Please log in
@@ -398,7 +404,7 @@ export default function DashboardLayout({
                 <X className="h-6 w-6" />
               </Button>
             </div>
-            
+
             {/* Company info in mobile sidebar */}
             {company && (
               <div className="px-4 py-2 border-b border-gray-200">
@@ -408,7 +414,7 @@ export default function DashboardLayout({
                 )}
               </div>
             )}
-            
+
             {/* Mobile Navigation */}
             <SidebarNavigation isMobile={true} onItemClick={() => setSidebarOpen(false)} />
           </div>
@@ -422,7 +428,7 @@ export default function DashboardLayout({
             <Building2 className="h-8 w-8 text-orange-600" />
             <span className="ml-2 text-xl font-bold text-gray-900">CrewBudAI</span>
           </div>
-          
+
           {/* Company info in desktop sidebar */}
           {company && (
             <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
@@ -435,7 +441,7 @@ export default function DashboardLayout({
               )}
             </div>
           )}
-          
+
           {/* Desktop Navigation */}
           <SidebarNavigation />
         </div>
@@ -487,12 +493,12 @@ export default function DashboardLayout({
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  
+
                   <DropdownMenuItem onClick={goToProfile} className="cursor-pointer">
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
                   </DropdownMenuItem>
-                  
+
                   {/* Settings dropdown - only show if user has settings permissions */}
                   {hasPermission('admin', 'companySettings') && (
                     <DropdownMenuItem onClick={goToSettings} className="cursor-pointer">
@@ -500,10 +506,10 @@ export default function DashboardLayout({
                       <span>Settings</span>
                     </DropdownMenuItem>
                   )}
-                  
+
                   <DropdownMenuSeparator />
-                  
-                  <DropdownMenuItem 
+
+                  <DropdownMenuItem
                     onClick={handleSignOut}
                     disabled={isSigningOut}
                     className="text-red-600 focus:text-red-600 cursor-pointer"

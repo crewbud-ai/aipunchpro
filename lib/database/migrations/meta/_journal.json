@@ -50,6 +50,13 @@
       "when": 1751541189828,
       "tag": "0006_pale_ikaris",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1752003009812,
+      "tag": "0007_broken_cardiac",
+      "breakpoints": true
     }
   ]
 }

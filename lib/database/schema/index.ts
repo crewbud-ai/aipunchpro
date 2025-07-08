@@ -105,6 +105,30 @@ export type Notification = typeof notifications.$inferSelect;
 export type NewNotification = typeof notifications.$inferInsert;
 
 // ==============================================
+// TEAM MANAGEMENT SPECIFIC TYPES
+// ==============================================
+
+// Team member with project assignment details (for /dashboard/teams listing)
+export type TeamMemberWithProjects = User & {
+  activeProjectCount: number;
+  assignmentStatus: 'not_assigned' | 'assigned' | 'inactive';
+  currentProjects: Array<{
+    id: string;
+    name: string;
+    status: 'active' | 'inactive';
+    joinedAt: Date;
+    hourlyRate?: number;
+    notes?: string;
+  }>;
+};
+
+// Project with team member count (for project listings)
+export type ProjectWithTeam = Project & {
+  members?: ProjectMemberWithUser[];
+  memberCount: number;
+};
+
+// ==============================================
 // UTILITY TYPES FOR COMPLEX QUERIES
 // ==============================================
 
