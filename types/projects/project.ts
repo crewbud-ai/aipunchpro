@@ -107,7 +107,14 @@ export interface ProjectSummary {
   updatedAt: string
   
   // Basic team info for list view
-  projectManager?: {
+  // projectManager?: {
+  //   id: string
+  //   firstName: string
+  //   lastName: string
+  // }
+
+  // Keep creator reference since that still exists
+  creator?: {
     id: string
     firstName: string
     lastName: string
@@ -123,7 +130,7 @@ export interface ProjectFilters {
   search?: string
   location?: string  // Search by location
   client?: string    // Search by client
-  managerId?: string // Filter by project manager
+  // managerId?: string // Filter by project manager
   sortBy?: 'name' | 'created_at' | 'start_date' | 'progress' | 'priority' | 'status'
   sortOrder?: 'asc' | 'desc'
   limit?: number
@@ -165,7 +172,7 @@ export interface GetProjectsResult {
       search?: string
       location?: string
       client?: string
-      managerId?: string
+      // managerId?: string
       sortBy?: string
       sortOrder?: 'asc' | 'desc'
     }

@@ -45,7 +45,7 @@ interface UseProjectsActions {
   // Enhanced search actions
   searchByLocation: (locationQuery: string) => void
   searchByClient: (clientQuery: string) => void
-  filterByManager: (managerId: string | undefined) => void
+  // filterByManager: (managerId: string | undefined) => void
   sortProjects: (sortBy: ProjectFilters['sortBy'], sortOrder?: ProjectFilters['sortOrder']) => void
 }
 
@@ -119,8 +119,8 @@ export const useProjects = (initialFilters: Partial<ProjectFilters> = {}) => {
       state.filters.priority ||
       state.filters.search ||
       state.filters.location ||
-      state.filters.client ||
-      state.filters.managerId
+      state.filters.client
+      // state.filters.managerId
     )
   }, [state.filters])
 
@@ -256,7 +256,7 @@ export const useProjects = (initialFilters: Partial<ProjectFilters> = {}) => {
       search: formFilters.search || undefined,
       location: formFilters.location || undefined,
       client: formFilters.client || undefined,
-      managerId: formFilters.managerId,
+      // managerId: formFilters.managerId,
       sortBy: formFilters.sortBy,
       sortOrder: formFilters.sortOrder,
       offset: 0, // Reset to first page when applying filters
@@ -311,11 +311,11 @@ export const useProjects = (initialFilters: Partial<ProjectFilters> = {}) => {
     loadProjects({ client: clientQuery, offset: 0 })
   }, [updateFiltersForm, updateFilters, loadProjects])
 
-  const filterByManager = useCallback((managerId: string | undefined) => {
-    updateFiltersForm('managerId', managerId)
-    updateFilters({ managerId, offset: 0 })
-    loadProjects({ managerId, offset: 0 })
-  }, [updateFiltersForm, updateFilters, loadProjects])
+  // const filterByManager = useCallback((managerId: string | undefined) => {
+  //   updateFiltersForm('managerId', managerId)
+  //   updateFilters({ managerId, offset: 0 })
+  //   loadProjects({ managerId, offset: 0 })
+  // }, [updateFiltersForm, updateFilters, loadProjects])
 
   const sortProjects = useCallback((
     sortBy: ProjectFilters['sortBy'], 
@@ -375,7 +375,7 @@ export const useProjects = (initialFilters: Partial<ProjectFilters> = {}) => {
     // Enhanced search actions
     searchByLocation,
     searchByClient,
-    filterByManager,
+    // filterByManager,
     sortProjects,
   } satisfies UseProjectsReturn
 }

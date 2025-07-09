@@ -124,17 +124,12 @@ export class ProjectDatabaseService {
   }
 
   async getProjectByIdEnhanced(projectId: string, companyId: string) {
+    // FIXED: Remove non-existent foreign key references
     const { data: project, error } = await this.supabaseClient
       .from('projects')
       .select(`
         *,
         creator:users!created_by(
-          id,
-          first_name,
-          last_name,
-          email
-        ),
-        project_manager:users!project_manager_id(
           id,
           first_name,
           last_name,
@@ -161,22 +156,16 @@ export class ProjectDatabaseService {
       search?: string
       sortBy?: 'name' | 'created_at' | 'start_date' | 'end_date' | 'progress' | 'status' | 'priority' | 'budget'
       sortOrder?: 'asc' | 'desc'
-      managerId?: string
       location?: string
       client?: string
     } = {}
   ) {
+    // FIXED: Remove non-existent foreign key references
     let query = this.supabaseClient
       .from('projects')
       .select(`
         *,
         creator:users!created_by(
-          id,
-          first_name,
-          last_name,
-          email
-        ),
-        project_manager:users!project_manager_id(
           id,
           first_name,
           last_name,
@@ -192,10 +181,6 @@ export class ProjectDatabaseService {
 
     if (options.priority) {
       query = query.eq('priority', options.priority)
-    }
-
-    if (options.managerId) {
-      query = query.eq('project_manager_id', options.managerId)
     }
 
     if (options.search) {
@@ -275,8 +260,6 @@ export class ProjectDatabaseService {
       location?: ProjectLocation
       client?: ProjectClient
       tags?: string[]
-      projectManagerId?: string
-      foremanId?: string
     }
   ) {
     const updateData: any = {
@@ -301,8 +284,6 @@ export class ProjectDatabaseService {
     if (data.location !== undefined) updateData.location = data.location
     if (data.client !== undefined) updateData.client = data.client
     if (data.tags !== undefined) updateData.tags = data.tags
-    if (data.projectManagerId !== undefined) updateData.project_manager_id = data.projectManagerId
-    if (data.foremanId !== undefined) updateData.foreman_id = data.foremanId
 
     const { data: project, error } = await this.supabaseClient
       .from('projects')
@@ -324,7 +305,21 @@ export class ProjectDatabaseService {
       .eq('company_id', companyId)
 
     if (error) throw error
-    return true
+  }
+
+  async checkProjectExists(projectId: string, companyId: string): Promise<boolean> {
+    const { data, error } = await this.supabaseClient
+      .from('projects')
+      .select('id')
+      .eq('id', projectId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (error && error.code !== 'PGRST116') {
+      throw error
+    }
+
+    return !!data
   }
 
   // ==============================================
@@ -411,46 +406,33 @@ export class ProjectDatabaseService {
   async getProjectStats(companyId: string) {
     const { data: projects, error } = await this.supabaseClient
       .from('projects')
-      .select('status, priority, budget, spent, progress, estimated_hours, actual_hours, start_date, end_date, created_at')
+      .select('status, priority, budget, spent, progress')
       .eq('company_id', companyId)
 
     if (error) throw error
 
-    const statusCounts = {
-      not_started: 0,
-      in_progress: 0,
-      on_track: 0,
-      ahead_of_schedule: 0,
-      behind_schedule: 0,
-      on_hold: 0,
-      completed: 0,
-      cancelled: 0,
-    }
-
-    const priorityCounts = {
-      low: 0,
-      medium: 0,
-      high: 0,
-      urgent: 0,
-    }
-
-    projects.forEach(project => {
-      statusCounts[project.status as keyof typeof statusCounts]++
-      priorityCounts[project.priority as keyof typeof priorityCounts]++
-    })
-
     const stats = {
-      totalProjects: projects.length,
-      byStatus: statusCounts,
-      byPriority: priorityCounts,
-      totalBudget: projects.reduce((sum, p) => sum + (p.budget || 0), 0),
-      totalSpent: projects.reduce((sum, p) => sum + (p.spent || 0), 0),
-      totalEstimatedHours: projects.reduce((sum, p) => sum + (p.estimated_hours || 0), 0),
-      totalActualHours: projects.reduce((sum, p) => sum + (p.actual_hours || 0), 0),
+      total: projects.length,
+      byStatus: {} as Record<string, number>,
+      byPriority: {} as Record<string, number>,
+      totalBudget: 0,
+      totalSpent: 0,
       averageProgress: projects.length > 0
         ? Math.round(projects.reduce((sum, p) => sum + (p.progress || 0), 0) / projects.length)
         : 0,
     }
+
+    projects.forEach(project => {
+      // Count by status
+      stats.byStatus[project.status] = (stats.byStatus[project.status] || 0) + 1
+
+      // Count by priority
+      stats.byPriority[project.priority] = (stats.byPriority[project.priority] || 0) + 1
+
+      // Sum budget and spent
+      stats.totalBudget += project.budget || 0
+      stats.totalSpent += project.spent || 0
+    })
 
     return stats
   }
@@ -514,6 +496,7 @@ export class ProjectDatabaseService {
     }
   }
 
+
   async getBudgetStatsByStatus(companyId: string) {
     const { data: projects, error } = await this.supabaseClient
       .from('projects')
@@ -548,7 +531,8 @@ export class ProjectDatabaseService {
         uploader:users!uploaded_by(
           id,
           first_name,
-          last_name
+          last_name,
+          email
         )
       `)
       .eq('project_id', projectId)
@@ -557,33 +541,15 @@ export class ProjectDatabaseService {
       query = query.eq('folder', folder)
     }
 
-    query = query.order('uploaded_at', { ascending: false })
-
-    const { data: files, error } = await query
+    const { data: files, error } = await query.order('created_at', { ascending: false })
 
     if (error) throw error
-
     return files || []
   }
 
   // ==============================================
   // UTILITY METHODS
   // ==============================================
-
-  async checkProjectExists(projectId: string, companyId: string): Promise<boolean> {
-    const { data, error } = await this.supabaseClient
-      .from('projects')
-      .select('id')
-      .eq('id', projectId)
-      .eq('company_id', companyId)
-      .single()
-
-    if (error && error.code !== 'PGRST116') {
-      throw error
-    }
-
-    return !!data
-  }
 
   async isProjectNameTaken(name: string, companyId: string, excludeProjectId?: string): Promise<boolean> {
     try {
@@ -603,6 +569,47 @@ export class ProjectDatabaseService {
     } catch (error) {
       return false
     }
+  }
+
+  async uploadProjectFile(data: {
+    projectId: string
+    companyId: string
+    fileName: string
+    fileSize: number
+    fileType: string
+    filePath: string
+    folder?: string
+    uploadedBy: string
+  }) {
+    const { data: file, error } = await this.supabaseClient
+      .from('project_files')
+      .insert([{
+        project_id: data.projectId,
+        company_id: data.companyId,
+        file_name: data.fileName,
+        file_size: data.fileSize,
+        file_type: data.fileType,
+        file_path: data.filePath,
+        folder: data.folder,
+        uploaded_by: data.uploadedBy,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }])
+      .select()
+      .single()
+
+    if (error) throw error
+    return file
+  }
+
+  async deleteProjectFile(fileId: string, companyId: string) {
+    const { error } = await this.supabaseClient
+      .from('project_files')
+      .delete()
+      .eq('id', fileId)
+      .eq('company_id', companyId)
+
+    if (error) throw error
   }
 
   // ==============================================

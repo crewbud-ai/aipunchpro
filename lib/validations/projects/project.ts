@@ -317,11 +317,11 @@ export const getProjectsSchema = z.object({
     .optional()
     .nullable(),
 
-  managerId: z
-    .string()
-    .uuid('Invalid manager ID')
-    .optional()
-    .nullable(),
+  // managerId: z
+  //   .string()
+  //   .uuid('Invalid manager ID')
+  //   .optional()
+  //   .nullable(),
 
   location: z
     .string()
@@ -349,7 +349,7 @@ export const getProjectsSchema = z.object({
   search: data.search || undefined,
   sortBy: data.sortBy || undefined,
   sortOrder: data.sortOrder || undefined,
-  managerId: data.managerId || undefined,
+  // managerId: data.managerId || undefined,
   location: data.location || undefined,
   client: data.client || undefined,
   dateRange: data.dateRange || undefined,
