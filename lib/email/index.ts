@@ -10,7 +10,7 @@ export type { EmailResult } from './client'
 export { authEmailService } from './services/auth'
 
 // Team member emails
-// export { teamMemberEmailService } from './services/team-members'
+export { teamMemberEmailService } from './services/team-members'
 
 // Utility functions
 export { 

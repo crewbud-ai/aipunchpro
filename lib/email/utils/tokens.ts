@@ -64,7 +64,7 @@ export function generatePasswordResetUrl(token: string): string {
 }
 
 export function generateLoginUrl(): string {
-  return `${emailConfig.baseUrl}/dashboard`
+  return `${emailConfig.baseUrl}/auth/login`
 }
 
 export function generateDashboardUrl(): string {

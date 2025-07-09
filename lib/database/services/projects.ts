@@ -25,7 +25,7 @@ export class ProjectDatabaseService {
   async getNextProjectNumber(companyId: string): Promise<string> {
     try {
       const currentYear = new Date().getFullYear()
-      
+
       // Find the highest project number for this company and year
       const { data: projects, error } = await this.supabaseClient
         .from('projects')
@@ -45,7 +45,7 @@ export class ProjectDatabaseService {
       if (projects && projects.length > 0) {
         const lastProjectNumber = projects[0].project_number
         const numberMatch = lastProjectNumber.match(/PRJ-\d{4}-(\d{6})$/)
-        
+
         if (numberMatch) {
           const lastNumber = parseInt(numberMatch[1], 10)
           nextNumber = lastNumber + 1
@@ -54,9 +54,9 @@ export class ProjectDatabaseService {
 
       // Format with leading zeros (6 digits)
       const formattedNumber = nextNumber.toString().padStart(6, '0')
-      
+
       return `PRJ-${currentYear}-${formattedNumber}`
-      
+
     } catch (error) {
       console.error('Error generating project number:', error)
       throw error
@@ -447,7 +447,7 @@ export class ProjectDatabaseService {
       totalSpent: projects.reduce((sum, p) => sum + (p.spent || 0), 0),
       totalEstimatedHours: projects.reduce((sum, p) => sum + (p.estimated_hours || 0), 0),
       totalActualHours: projects.reduce((sum, p) => sum + (p.actual_hours || 0), 0),
-      averageProgress: projects.length > 0 
+      averageProgress: projects.length > 0
         ? Math.round(projects.reduce((sum, p) => sum + (p.progress || 0), 0) / projects.length)
         : 0,
     }
@@ -465,10 +465,10 @@ export class ProjectDatabaseService {
     if (error) throw error
 
     // Filter projects that have coordinates
-    return (projects || []).filter(project => 
-      project.location && 
-      project.location.coordinates && 
-      project.location.coordinates.lat && 
+    return (projects || []).filter(project =>
+      project.location &&
+      project.location.coordinates &&
+      project.location.coordinates.lat &&
       project.location.coordinates.lng
     )
   }
@@ -499,7 +499,7 @@ export class ProjectDatabaseService {
     })
 
     const topClients = Object.entries(clientCounts)
-      .sort(([,a], [,b]) => b - a)
+      .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
       .map(([name, count]) => ({ name, count }))
 
@@ -571,18 +571,18 @@ export class ProjectDatabaseService {
   // ==============================================
 
   async checkProjectExists(projectId: string, companyId: string): Promise<boolean> {
-    try {
-      const { data, error } = await this.supabaseClient
-        .from('projects')
-        .select('id')
-        .eq('id', projectId)
-        .eq('company_id', companyId)
-        .single()
+    const { data, error } = await this.supabaseClient
+      .from('projects')
+      .select('id')
+      .eq('id', projectId)
+      .eq('company_id', companyId)
+      .single()
 
-      return !error && !!data
-    } catch (error) {
-      return false
+    if (error && error.code !== 'PGRST116') {
+      throw error
     }
+
+    return !!data
   }
 
   async isProjectNameTaken(name: string, companyId: string, excludeProjectId?: string): Promise<boolean> {

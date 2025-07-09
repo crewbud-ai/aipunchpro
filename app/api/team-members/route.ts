@@ -1,15 +1,19 @@
 // ==============================================
-// src/app/api/team-members/route.ts - Team Members API Routes
+// src/app/api/team-members/route.ts - Team Members API Routes (Updated with Email Integration)
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { 
-  validateCreateTeamMember, 
+import {
+  validateCreateTeamMember,
   validateGetTeamMembers,
   formatTeamMemberErrors,
 } from '@/lib/validations/team/team-member'
 import { TeamMemberDatabaseService } from '@/lib/database/services/team-members'
+import { AuthDatabaseService } from '@/lib/database/services/auth'
+import { ProjectDatabaseService } from '@/lib/database/services/projects'
 import { calculateTeamMemberStatus } from '@/lib/database/schema/project-members'
+import { teamMemberEmailService } from '@/lib/email/services/team-members'
+import { generateSecurePassword, generateLoginUrl, generateDashboardUrl } from '@/lib/email/utils/tokens'
 
 // ==============================================
 // GET /api/team-members - Get All Team Members for Company
@@ -19,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Get user info from middleware
     const userId = request.headers.get('x-user-id')
     const companyId = request.headers.get('x-company-id')
-    
+
     if (!userId || !companyId) {
       return NextResponse.json(
         {
@@ -78,56 +82,57 @@ export async function GET(request: NextRequest) {
       }[validation.data.sortBy] as any : undefined
     }
 
-    // Get team members with pagination and filtering
+    // Get team members from database
     const result = await teamService.getTeamMembersByCompany(companyId, serviceOptions)
 
-    // Transform team members to clean structure with calculated assignment status
-    const transformedTeamMembers = result.teamMembers.map(user => {
-      const activeProjects = user.project_memberships?.filter((pm: any) => pm.status === 'active') || []
-      const assignmentStatus = calculateTeamMemberStatus(user.is_active, activeProjects.length)
+    // Transform team members for frontend
+    const transformedTeamMembers = result.teamMembers.map((tm: any) => ({
+      id: tm.id,
+      firstName: tm.first_name,
+      lastName: tm.last_name,
+      email: tm.email,
+      phone: tm.phone,
+      role: tm.role,
+      jobTitle: tm.job_title,
+      tradeSpecialty: tm.trade_specialty,
+      hourlyRate: tm.hourly_rate,
+      overtimeRate: tm.overtime_rate,
+      startDate: tm.start_date,
+      certifications: tm.certifications,
+      emergencyContactName: tm.emergency_contact_name,
+      emergencyContactPhone: tm.emergency_contact_phone,
+      isActive: tm.is_active,
+      createdAt: tm.created_at,
+      updatedAt: tm.updated_at,
 
-      const currentProjects = activeProjects.map((pm: any) => ({
-        id: pm.project.id,
-        name: pm.project.name,
-        status: pm.status,
+      // Project assignments
+      currentProjects: tm.project_memberships?.filter((pm: any) => pm.status === 'active').map((pm: any) => ({
+        id: pm.project?.id,
+        name: pm.project?.name,
+        status: pm.project?.status,
+        priority: pm.project?.priority,
+        role: pm.role,
+        hourlyRate: pm.hourly_rate,
+        overtimeRate: pm.overtime_rate,
         joinedAt: pm.joined_at,
-      }))
+      })) || [],
 
-      return {
-        id: user.id,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        email: user.email,
-        phone: user.phone,
-        role: user.role,
-        jobTitle: user.job_title,
-        tradeSpecialty: user.trade_specialty,
-        hourlyRate: user.hourly_rate,
-        overtimeRate: user.overtime_rate,
-        startDate: user.start_date,
-        certifications: user.certifications,
-        emergencyContactName: user.emergency_contact_name,
-        emergencyContactPhone: user.emergency_contact_phone,
-        isActive: user.is_active,
-        createdAt: user.created_at,
-        updatedAt: user.updated_at,
-        
-        // Calculated fields
-        assignmentStatus,
-        activeProjectCount: activeProjects.length,
-        currentProjects,
-      }
-    })
+      // Calculate assignment status
+      assignmentStatus: calculateTeamMemberStatus(tm.is_active, tm.project_memberships?.filter((pm: any) => pm.status === 'active').length || 0),
+      activeProjectCount: tm.project_memberships?.filter((pm: any) => pm.status === 'active').length || 0,
+    }))
 
-    // Apply assignment status filter if specified (post-query since it's calculated)
+    // Apply frontend filters if needed
     let filteredTeamMembers = transformedTeamMembers
+
+    // Filter by assignment status (post-query filtering)
     if (validation.data.assignmentStatus) {
       filteredTeamMembers = transformedTeamMembers.filter(tm => tm.assignmentStatus === validation.data.assignmentStatus)
     }
 
     // Apply project filter if specified (post-query)
     if (validation.data.projectId) {
-      filteredTeamMembers = transformedTeamMembers.filter(tm => 
+      filteredTeamMembers = transformedTeamMembers.filter(tm =>
         tm.currentProjects.some((p: any) => p.id === validation.data.projectId)
       )
     }
@@ -169,14 +174,14 @@ export async function GET(request: NextRequest) {
 }
 
 // ==============================================
-// POST /api/team-members - Create New Team Member
+// POST /api/team-members - Create New Team Member (Updated with Email)
 // ==============================================
 export async function POST(request: NextRequest) {
   try {
     // Get user info from middleware
     const userId = request.headers.get('x-user-id')
     const companyId = request.headers.get('x-company-id')
-    
+
     if (!userId || !companyId) {
       return NextResponse.json(
         {
@@ -190,7 +195,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    
+
     // Validate input data
     const validation = validateCreateTeamMember(body)
     if (!validation.success) {
@@ -206,12 +211,14 @@ export async function POST(request: NextRequest) {
 
     const teamMemberData = validation.data
 
-    // Create service instance
+    // Create service instances
     const teamService = new TeamMemberDatabaseService(true, false)
+    const authService = new AuthDatabaseService(true, false)
+    const projectService = new ProjectDatabaseService(true, false)
 
     // Check if email already exists for this company
     const emailExists = await teamService.isEmailTaken(
-      teamMemberData.email, 
+      teamMemberData.email,
       companyId
     )
 
@@ -226,11 +233,48 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Get company details for email
+    const company = await authService.getCompanyById(companyId)
+    if (!company) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Company not found',
+          message: 'Company information could not be retrieved.',
+        },
+        { status: 404 }
+      )
+    }
+
+    // Generate temporary password
+    const temporaryPassword = generateSecurePassword()
+
     let newUser: any
     let projectAssignment: any = null
+    let projectDetails: any = null
 
     // Check if creating with project assignment
     if (teamMemberData.projectId) {
+      // Get basic project details using the helper method
+      try {
+        projectDetails = await teamService.getBasicProjectInfo(teamMemberData.projectId, companyId)
+
+        if (!projectDetails) {
+          return NextResponse.json({
+            success: false,
+            error: 'Project not found',
+            message: 'The specified project could not be found.',
+          }, { status: 404 })
+        }
+      } catch (error) {
+        console.error('Error fetching project details:', error)
+        return NextResponse.json({
+          success: false,
+          error: 'Project not found',
+          message: 'The specified project could not be found.',
+        }, { status: 404 })
+      }
+
       // Create team member with project assignment
       const result = await teamService.createTeamMemberWithProjectAssignment({
         companyId,
@@ -248,7 +292,8 @@ export async function POST(request: NextRequest) {
         emergencyContactName: teamMemberData.emergencyContactName,
         emergencyContactPhone: teamMemberData.emergencyContactPhone,
         isActive: teamMemberData.isActive !== undefined ? teamMemberData.isActive : true,
-        
+        temporaryPassword,  // PASS THE PASSWORD TO DATABASE
+
         // Project assignment data
         projectId: teamMemberData.projectId,
         projectHourlyRate: teamMemberData.projectHourlyRate,
@@ -261,7 +306,7 @@ export async function POST(request: NextRequest) {
       newUser = result.user
       projectAssignment = result.projectAssignment
     } else {
-      // Create team member only
+      // Create team member only (no project assignment)
       newUser = await teamService.createTeamMember({
         companyId,
         firstName: teamMemberData.firstName,
@@ -278,7 +323,30 @@ export async function POST(request: NextRequest) {
         emergencyContactName: teamMemberData.emergencyContactName,
         emergencyContactPhone: teamMemberData.emergencyContactPhone,
         isActive: teamMemberData.isActive !== undefined ? teamMemberData.isActive : true,
+        temporaryPassword,  // PASS THE PASSWORD TO DATABASE
       })
+    }
+
+    // ==============================================
+    // SEND WELCOME EMAIL
+    // ==============================================
+    try {
+      await teamMemberEmailService.sendWelcomeEmail({
+        email: newUser.email,
+        firstName: newUser.first_name,
+        lastName: newUser.last_name,
+        companyName: company.name,
+        role: newUser.role,
+        temporaryPassword,
+        loginUrl: generateLoginUrl(),
+        projectAssignment: projectDetails ? {
+          projectName: projectDetails.name,
+          notes: projectAssignment?.notes,
+        } : undefined,
+      })
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError)
+      // Don't fail the entire request if email fails
     }
 
     // Calculate assignment status
@@ -323,13 +391,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Build success message
-    const message = projectAssignment 
+    const message = projectAssignment
       ? 'Team member created successfully and assigned to project'
       : 'Team member created successfully'
 
     const notifications = projectAssignment
-      ? { message: 'Team member has been created and assigned to the project. They can now access project tasks and resources.' }
-      : { message: 'Team member has been created and is ready to be assigned to projects.' }
+      ? {
+        message: `Team member has been created and assigned to the project. They will receive a welcome email with login instructions.`
+      }
+      : {
+        message: `Team member has been created and is ready to be assigned to projects. They will receive a welcome email with login instructions.`
+      }
 
     return NextResponse.json(
       {

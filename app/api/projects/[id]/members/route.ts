@@ -1,5 +1,5 @@
 // ==============================================
-// src/app/api/projects/[id]/members/route.ts - Project Team Assignment API Routes
+// src/app/api/projects/[id]/members/route.ts - Project Member Assignment API Routes (Corrected)
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -9,6 +9,9 @@ import {
 } from '@/lib/validations/team/team-member'
 import { TeamMemberDatabaseService } from '@/lib/database/services/team-members'
 import { ProjectDatabaseService } from '@/lib/database/services/projects'
+import { AuthDatabaseService } from '@/lib/database/services/auth'
+import { teamMemberEmailService } from '@/lib/email/services/team-members'
+import { generateDashboardUrl } from '@/lib/email/utils/tokens'
 
 // ==============================================
 // GET /api/projects/[id]/members - Get Project Team Members
@@ -96,31 +99,13 @@ export async function GET(
       effectiveOvertimeRate: assignment.overtime_rate || assignment.user.overtime_rate,
     }))
 
-    // Get available team members (not assigned to this project)
-    const availableTeamMembers = await teamService.getAvailableTeamMembers(companyId, projectId)
-
-    const transformedAvailableMembers = availableTeamMembers.map((user: any) => ({
-      id: user.id,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      email: user.email,
-      role: user.role,
-      jobTitle: user.job_title,
-      tradeSpecialty: user.trade_specialty,
-      hourlyRate: user.hourly_rate,
-      overtimeRate: user.overtime_rate,
-      isActive: user.is_active,
-    }))
-
     return NextResponse.json(
       {
         success: true,
         message: 'Project team members retrieved successfully',
         data: {
           projectTeamMembers: transformedTeamMembers,
-          availableTeamMembers: transformedAvailableMembers,
           totalAssigned: transformedTeamMembers.length,
-          totalAvailable: transformedAvailableMembers.length,
         },
       },
       { status: 200 }
@@ -141,7 +126,7 @@ export async function GET(
 }
 
 // ==============================================
-// POST /api/projects/[id]/members - Assign Team Member to Project
+// POST /api/projects/[id]/members - Assign Team Member to Project (Updated with Email)
 // ==============================================
 export async function POST(
   request: NextRequest,
@@ -178,9 +163,21 @@ export async function POST(
 
     // Parse request body
     const body = await request.json()
-    
+    const teamMemberId = body.userId
+
+    if (!teamMemberId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid request',
+          message: 'Team member ID is required.',
+        },
+        { status: 400 }
+      )
+    }
+
     // Add projectId to validation data
-    const validationData = { ...body, projectId }
+    const validationData = { ...body, projectId, userId: teamMemberId }
 
     // Validate input data
     const validation = validateProjectAssignment(validationData)
@@ -200,6 +197,7 @@ export async function POST(
     // Create service instances
     const projectService = new ProjectDatabaseService(true, false)
     const teamService = new TeamMemberDatabaseService(true, false)
+    const authService = new AuthDatabaseService(true, false)
 
     // Check if project exists and belongs to company
     const projectExists = await projectService.checkProjectExists(projectId, companyId)
@@ -215,7 +213,7 @@ export async function POST(
     }
 
     // Check if team member exists and belongs to company
-    const teamMemberExists = await teamService.checkTeamMemberExists(assignmentData.userId, companyId)
+    const teamMemberExists = await teamService.checkTeamMemberExists(teamMemberId, companyId)
     if (!teamMemberExists) {
       return NextResponse.json(
         {
@@ -229,7 +227,7 @@ export async function POST(
 
     // Assign team member to project
     const projectAssignment = await teamService.assignToProject(
-      assignmentData.userId,
+      teamMemberId,
       projectId,
       companyId,
       {
@@ -242,7 +240,36 @@ export async function POST(
     )
 
     // Get user details for response
-    const teamMember = await teamService.getTeamMemberById(assignmentData.userId, companyId)
+    const teamMember = await teamService.getTeamMemberById(teamMemberId, companyId)
+
+    // ==============================================
+    // SEND PROJECT ASSIGNMENT EMAIL
+    // ==============================================
+    try {
+      // Get detailed information for email
+      const project = await projectService.getProjectByIdEnhanced(projectId, companyId)
+      const company = await authService.getCompanyById(companyId)
+      const assigningUser = await authService.getUserById(userId)
+
+      if (project && company && teamMember) {
+        await teamMemberEmailService.sendProjectAssignmentEmail({
+          email: teamMember.email,
+          firstName: teamMember.first_name,
+          lastName: teamMember.last_name,
+          companyName: company.name,
+          projectName: project.name,
+          projectDescription: project.description,
+          assignedBy: `${assigningUser?.first_name} ${assigningUser?.last_name}` || 'System Administrator',
+          notes: assignmentData.notes,
+          hourlyRate: assignmentData.hourlyRate || teamMember.hourly_rate,
+          startDate: assignmentData.startDate || project.start_date,
+          dashboardUrl: generateDashboardUrl(),
+        })
+      }
+    } catch (emailError) {
+      console.error('Failed to send project assignment email:', emailError)
+      // Don't fail the entire request if email fails
+    }
 
     // Transform response
     const transformedAssignment = {
@@ -281,7 +308,7 @@ export async function POST(
           assignment: transformedAssignment,
         },
         notifications: {
-          message: `${teamMember?.first_name} ${teamMember?.last_name} has been assigned to the project and can now access project tasks and resources.`,
+          message: `${teamMember?.first_name} ${teamMember?.last_name} has been assigned to the project and can now access project tasks and resources. They have been notified via email.`,
         },
       },
       { status: 201 }
@@ -316,7 +343,7 @@ export async function POST(
 }
 
 // ==============================================
-// DELETE /api/projects/[id]/members/[userId] - Remove Team Member from Project
+// DELETE /api/projects/[id]/members - Remove Team Member from Project (Updated with Email)
 // ==============================================
 export async function DELETE(
   request: NextRequest,
@@ -351,9 +378,11 @@ export async function DELETE(
       )
     }
 
-    // Parse userId from query params (since DELETE requests typically don't have body)
+    // Parse userId and reason from query params (since DELETE requests typically don't have body)
     const url = new URL(request.url)
     const teamMemberId = url.searchParams.get('userId')
+    const reason = url.searchParams.get('reason')
+    const lastWorkingDay = url.searchParams.get('lastWorkingDay')
 
     if (!teamMemberId) {
       return NextResponse.json(
@@ -369,6 +398,7 @@ export async function DELETE(
     // Create service instances
     const projectService = new ProjectDatabaseService(true, false)
     const teamService = new TeamMemberDatabaseService(true, false)
+    const authService = new AuthDatabaseService(true, false)
 
     // Check if project exists and belongs to company
     const projectExists = await projectService.checkProjectExists(projectId, companyId)
@@ -402,12 +432,39 @@ export async function DELETE(
     // Remove team member from project
     await teamService.removeFromProject(teamMemberId, projectId, companyId)
 
+    // ==============================================
+    // SEND PROJECT REMOVAL EMAIL
+    // ==============================================
+    try {
+      // Get detailed information for email
+      const project = await projectService.getProjectByIdEnhanced(projectId, companyId)
+      const company = await authService.getCompanyById(companyId)
+      const removingUser = await authService.getUserById(userId)
+
+      if (project && company && teamMember) {
+        await teamMemberEmailService.sendProjectRemovalEmail({
+          email: teamMember.email,
+          firstName: teamMember.first_name,
+          lastName: teamMember.last_name,
+          companyName: company.name,
+          projectName: project.name,
+          removedBy: `${removingUser?.first_name} ${removingUser?.last_name}` || 'System Administrator',
+          reason: reason || 'Project assignment ended',
+          lastWorkingDay: lastWorkingDay || new Date().toISOString(),
+          dashboardUrl: generateDashboardUrl(),
+        })
+      }
+    } catch (emailError) {
+      console.error('Failed to send project removal email:', emailError)
+      // Don't fail the entire request if email fails
+    }
+
     return NextResponse.json(
       {
         success: true,
         message: 'Team member removed from project successfully',
         notifications: {
-          message: `${teamMember?.first_name} ${teamMember?.last_name} has been removed from the project and will no longer have access to project resources.`,
+          message: `${teamMember?.first_name} ${teamMember?.last_name} has been removed from the project and will no longer have access to project resources. They have been notified via email.`,
         },
       },
       { status: 200 }
@@ -428,7 +485,7 @@ export async function DELETE(
 }
 
 // ==============================================
-// PUT /api/projects/[id]/members/[userId] - Update Project Assignment
+// PUT /api/projects/[id]/members - Update Project Assignment
 // ==============================================
 export async function PUT(
   request: NextRequest,
@@ -465,7 +522,7 @@ export async function PUT(
 
     // Parse request body
     const body = await request.json()
-    const teamMemberId = body.userId
+    const { userId: teamMemberId, ...updateData } = body
 
     if (!teamMemberId) {
       return NextResponse.json(
@@ -514,10 +571,10 @@ export async function PUT(
       projectId,
       companyId,
       {
-        hourlyRate: body.hourlyRate,
-        overtimeRate: body.overtimeRate,
-        notes: body.notes,
-        status: body.status,
+        hourlyRate: updateData.hourlyRate,
+        overtimeRate: updateData.overtimeRate,
+        notes: updateData.notes,
+        status: updateData.status,
       }
     )
 
@@ -533,7 +590,6 @@ export async function PUT(
       overtimeRate: updatedAssignment.overtime_rate,
       notes: updatedAssignment.notes,
       joinedAt: updatedAssignment.joined_at,
-      leftAt: updatedAssignment.left_at,
       updatedAt: updatedAssignment.updated_at,
       
       user: {
@@ -561,7 +617,7 @@ export async function PUT(
           assignment: transformedAssignment,
         },
         notifications: {
-          message: `Assignment details for ${teamMember?.first_name} ${teamMember?.last_name} have been updated successfully.`,
+          message: `Project assignment for ${teamMember?.first_name} ${teamMember?.last_name} has been updated successfully.`,
         },
       },
       { status: 200 }

@@ -149,6 +149,19 @@ export class AuthDatabaseService {
     return data
   }
 
+  async getCompanyById(companyId: string) {
+    const { data, error } = await this.supabaseClient
+      .from('companies')
+      .select('*')
+      .eq('id', companyId)
+      .single()
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+      throw error
+    }
+    return data
+  }
+
   async getUserById(userId: string) {
     const { data, error } = await this.supabaseClient
       .from('users')

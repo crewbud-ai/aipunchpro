@@ -1,5 +1,5 @@
 // ==============================================
-// src/app/api/team-members/[id]/route.ts - Individual Team Member API Routes
+// src/app/api/team-members/[id]/route.ts - Individual Team Member API Routes (Updated with Email Integration)
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -8,7 +8,10 @@ import {
   formatTeamMemberErrors,
 } from '@/lib/validations/team/team-member'
 import { TeamMemberDatabaseService } from '@/lib/database/services/team-members'
+import { AuthDatabaseService } from '@/lib/database/services/auth'
 import { calculateTeamMemberStatus } from '@/lib/database/schema/project-members'
+import { teamMemberEmailService } from '@/lib/email/services/team-members'
+import { generateSecurePassword, generateLoginUrl, generateDashboardUrl } from '@/lib/email/utils/tokens'
 
 // ==============================================
 // GET /api/team-members/[id] - Get Specific Team Member Details
@@ -76,41 +79,7 @@ export async function GET(
       )
     }
 
-    // Get project assignments history
-    const projectAssignments = await teamService.getProjectAssignments(teamMemberId, companyId)
-
-    // Calculate assignment status and project info
-    const activeProjects = teamMember.project_memberships?.filter((pm: any) => pm.status === 'active') || []
-    const assignmentStatus = calculateTeamMemberStatus(teamMember.is_active, activeProjects.length)
-
-    const currentProjects = activeProjects.map((pm: any) => ({
-      id: pm.project.id,
-      name: pm.project.name,
-      status: pm.status,
-      priority: pm.project.priority,
-      joinedAt: pm.joined_at,
-      hourlyRate: pm.hourly_rate,
-      overtimeRate: pm.overtime_rate,
-      notes: pm.notes,
-    }))
-
-    // Transform project assignments history
-    const assignmentHistory = projectAssignments.map((assignment: any) => ({
-      id: assignment.id,
-      projectId: assignment.project_id,
-      projectName: assignment.project?.name,
-      projectStatus: assignment.project?.status,
-      projectPriority: assignment.project?.priority,
-      status: assignment.status,
-      hourlyRate: assignment.hourly_rate,
-      overtimeRate: assignment.overtime_rate,
-      notes: assignment.notes,
-      joinedAt: assignment.joined_at,
-      leftAt: assignment.left_at,
-      createdAt: assignment.created_at,
-    }))
-
-    // Transform team member to clean structure
+    // Transform for frontend
     const transformedTeamMember = {
       id: teamMember.id,
       firstName: teamMember.first_name,
@@ -130,11 +99,23 @@ export async function GET(
       createdAt: teamMember.created_at,
       updatedAt: teamMember.updated_at,
       
-      // Calculated fields
-      assignmentStatus,
-      activeProjectCount: activeProjects.length,
-      currentProjects,
-      assignmentHistory,
+      // Project assignments
+      currentProjects: teamMember.project_memberships?.filter((pm: any) => pm.status === 'active').map((pm: any) => ({
+        id: pm.project?.id,
+        name: pm.project?.name,
+        status: pm.project?.status,
+        priority: pm.project?.priority,
+        role: pm.role,
+        hourlyRate: pm.hourly_rate,
+        overtimeRate: pm.overtime_rate,
+        notes: pm.notes,
+        joinedAt: pm.joined_at,
+        leftAt: pm.left_at,
+      })) || [],
+      
+      // Calculate assignment status
+      assignmentStatus: calculateTeamMemberStatus(teamMember.is_active, teamMember.project_memberships?.filter((pm: any) => pm.status === 'active').length || 0),
+      activeProjectCount: teamMember.project_memberships?.filter((pm: any) => pm.status === 'active').length || 0,
     }
 
     return NextResponse.json(
@@ -149,13 +130,13 @@ export async function GET(
     )
 
   } catch (error) {
-    console.error('Get team member details error:', error)
+    console.error('Get team member error:', error)
 
     return NextResponse.json(
       {
         success: false,
         error: 'Internal server error',
-        message: 'Something went wrong while retrieving team member details.',
+        message: 'Something went wrong while retrieving the team member.',
       },
       { status: 500 }
     )
@@ -219,8 +200,9 @@ export async function PUT(
 
     const updateData = validation.data
 
-    // Create service instance
+    // Create service instances
     const teamService = new TeamMemberDatabaseService(true, false)
+    const authService = new AuthDatabaseService(true, false)
 
     // Check if team member exists and belongs to company
     const teamMemberExists = await teamService.checkTeamMemberExists(teamMemberId, companyId)
@@ -235,39 +217,28 @@ export async function PUT(
       )
     }
 
-    // Check if email is taken by another user (if email is being updated)
-    if (updateData.email) {
-      const emailTaken = await teamService.isEmailTaken(updateData.email, companyId, teamMemberId)
-      if (emailTaken) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Email already exists',
-            details: [{ field: 'email', message: 'This email is already used by another team member' }],
-          },
-          { status: 409 }
-        )
-      }
-    }
-
-    // Remove ID from update data (not needed for update operation)
-    const { id, ...updateFields } = updateData
+    // Get original team member data before update
+    const originalTeamMember = await teamService.getTeamMemberById(teamMemberId, companyId)
 
     // Update team member
-    const updatedTeamMember = await teamService.updateTeamMember(
-      teamMemberId,
-      companyId,
-      updateFields
-    )
+    const updatedTeamMember = await teamService.updateTeamMember(teamMemberId, companyId, {
+      firstName: updateData.firstName,
+      lastName: updateData.lastName,
+      email: updateData.email,
+      phone: updateData.phone,
+      role: updateData.role,
+      jobTitle: updateData.jobTitle,
+      tradeSpecialty: updateData.tradeSpecialty,
+      hourlyRate: updateData.hourlyRate,
+      overtimeRate: updateData.overtimeRate,
+      startDate: updateData.startDate,
+      certifications: updateData.certifications,
+      emergencyContactName: updateData.emergencyContactName,
+      emergencyContactPhone: updateData.emergencyContactPhone,
+      isActive: updateData.isActive,
+    })
 
-    // Get updated team member with project assignments for response
-    const teamMemberWithProjects = await teamService.getTeamMemberById(teamMemberId, companyId)
-    
-    // Calculate assignment status
-    const activeProjects = teamMemberWithProjects?.project_memberships?.filter((pm: any) => pm.status === 'active') || []
-    const assignmentStatus = calculateTeamMemberStatus(updatedTeamMember.is_active, activeProjects.length)
-
-    // Transform response
+    // Transform for frontend response
     const transformedTeamMember = {
       id: updatedTeamMember.id,
       firstName: updatedTeamMember.first_name,
@@ -286,10 +257,6 @@ export async function PUT(
       isActive: updatedTeamMember.is_active,
       createdAt: updatedTeamMember.created_at,
       updatedAt: updatedTeamMember.updated_at,
-      
-      // Calculated fields
-      assignmentStatus,
-      activeProjectCount: activeProjects.length,
     }
 
     return NextResponse.json(
@@ -300,7 +267,7 @@ export async function PUT(
           teamMember: transformedTeamMember,
         },
         notifications: {
-          message: 'Team member information has been updated successfully.',
+          message: 'Team member details have been updated successfully.',
         },
       },
       { status: 200 }
@@ -335,7 +302,7 @@ export async function PUT(
 }
 
 // ==============================================
-// DELETE /api/team-members/[id] - Deactivate Team Member
+// DELETE /api/team-members/[id] - Deactivate Team Member (Updated with Email)
 // ==============================================
 export async function DELETE(
   request: NextRequest,
@@ -370,8 +337,9 @@ export async function DELETE(
       )
     }
 
-    // Create service instance
+    // Create service instances
     const teamService = new TeamMemberDatabaseService(true, false)
+    const authService = new AuthDatabaseService(true, false)
 
     // Check if team member exists and belongs to company
     const teamMemberExists = await teamService.checkTeamMemberExists(teamMemberId, companyId)
@@ -398,15 +366,50 @@ export async function DELETE(
       )
     }
 
+    // Get team member details before deactivation for email
+    const teamMember = await teamService.getTeamMemberById(teamMemberId, companyId)
+    const company = await authService.getCompanyById(companyId)
+    const deactivatingUser = await authService.getUserById(userId)
+
+    if (!teamMember || !company) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Required data not found',
+          message: 'Unable to retrieve team member or company information.',
+        },
+        { status: 404 }
+      )
+    }
+
     // Deactivate team member (soft delete)
     await teamService.deactivateTeamMember(teamMemberId, companyId)
+
+    // ==============================================
+    // SEND DEACTIVATION EMAIL
+    // ==============================================
+    try {
+      await teamMemberEmailService.sendAccountDeactivationEmail({
+        email: teamMember.email,
+        firstName: teamMember.first_name,
+        lastName: teamMember.last_name,
+        companyName: company.name,
+        deactivatedBy: `${deactivatingUser?.first_name} ${deactivatingUser?.last_name}` || 'System Administrator',
+        reason: 'Account has been deactivated by administrator',
+        lastWorkingDay: new Date().toISOString(),
+        contactEmail: company.contact_email || undefined,
+      })
+    } catch (emailError) {
+      console.error('Failed to send deactivation email:', emailError)
+      // Don't fail the entire request if email fails
+    }
 
     return NextResponse.json(
       {
         success: true,
         message: 'Team member deactivated successfully',
         notifications: {
-          message: 'Team member has been deactivated and removed from all active projects.',
+          message: 'Team member has been deactivated and removed from all active projects. They have been notified via email.',
         },
       },
       { status: 200 }
@@ -427,11 +430,149 @@ export async function DELETE(
 }
 
 // ==============================================
-// ALLOWED METHODS
+// POST /api/team-members/[id]/reactivate - Reactivate Team Member (New Endpoint with Email)
 // ==============================================
-export async function POST() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 }
-  )
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Check if this is a reactivation request
+    const url = new URL(request.url)
+    const action = url.searchParams.get('action')
+    
+    if (action !== 'reactivate') {
+      return NextResponse.json(
+        { error: 'Method not allowed' },
+        { status: 405 }
+      )
+    }
+
+    // Get user info from middleware
+    const userId = request.headers.get('x-user-id')
+    const companyId = request.headers.get('x-company-id')
+    
+    if (!userId || !companyId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Authentication required',
+          message: 'You must be logged in to reactivate team members.',
+        },
+        { status: 401 }
+      )
+    }
+
+    const teamMemberId = params.id
+
+    if (!teamMemberId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid request',
+          message: 'Team member ID is required.',
+        },
+        { status: 400 }
+      )
+    }
+
+    // Parse request body for any notes
+    const body = await request.json()
+    const { notes } = body
+
+    // Create service instances
+    const teamService = new TeamMemberDatabaseService(true, false)
+    const authService = new AuthDatabaseService(true, false)
+
+    // Check if team member exists
+    const teamMember = await teamService.getTeamMemberById(teamMemberId, companyId)
+    if (!teamMember) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Team member not found',
+          message: 'The requested team member does not exist.',
+        },
+        { status: 404 }
+      )
+    }
+
+    // Check if already active
+    if (teamMember.is_active) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Already active',
+          message: 'This team member is already active.',
+        },
+        { status: 400 }
+      )
+    }
+
+    // Get company and reactivating user details
+    const company = await authService.getCompanyById(companyId)
+    const reactivatingUser = await authService.getUserById(userId)
+
+    if (!company) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Company not found',
+          message: 'Company information could not be retrieved.',
+        },
+        { status: 404 }
+      )
+    }
+
+    // Generate new temporary password
+    const temporaryPassword = generateSecurePassword()
+
+    // Reactivate team member
+    await teamService.reactivateTeamMember(teamMemberId, companyId, {
+      reactivatedBy: userId,
+      temporaryPassword,
+    })
+
+    // ==============================================
+    // SEND REACTIVATION EMAIL
+    // ==============================================
+    try {
+      await teamMemberEmailService.sendAccountReactivationEmail({
+        email: teamMember.email,
+        firstName: teamMember.first_name,
+        lastName: teamMember.last_name,
+        companyName: company.name,
+        reactivatedBy: `${reactivatingUser?.first_name} ${reactivatingUser?.last_name}` || 'System Administrator',
+        temporaryPassword,
+        notes,
+        loginUrl: generateLoginUrl(),
+      })
+    } catch (emailError) {
+      console.error('Failed to send reactivation email:', emailError)
+      // Don't fail the entire request if email fails
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: 'Team member reactivated successfully',
+        notifications: {
+          message: 'Team member has been reactivated and can now access their account. They have been sent login instructions via email.',
+        },
+      },
+      { status: 200 }
+    )
+
+  } catch (error) {
+    console.error('Reactivate team member error:', error)
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Internal server error',
+        message: 'Something went wrong while reactivating the team member.',
+      },
+      { status: 500 }
+    )
+  }
 }
