@@ -1,123 +1,171 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Upload } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import { createUser } from "@/lib/database-client"
+
+// Import our new hook and types
+import { useCreateTeamMember } from "@/hooks/team-members"
+import { TEAM_MEMBER_ROLES, TRADE_SPECIALTIES } from "@/types/team-members"
+import { useProjects } from "@/hooks/projects"
 
 export default function AddTeamMemberPage() {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    first_name: "",
-    last_name: "",
-    email: "",
-    phone: "",
-    role: "member",
-    trade: "",
-    hourly_rate: "",
-    overtime_rate: "",
-    certifications: "",
-    emergency_contact: "",
-    emergency_phone: "",
-  })
+  // Use our professional hook
+  const {
+    formData,
+    errors,
+    isLoading,
+    isSuccess,
+    isError,
+    hasErrors,
+    canSubmit,
+    updateFormData,
+    clearFieldError,
+    createTeamMember,
+    reset,
+  } = useCreateTeamMember()
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+  // Load projects for the dropdown
+  const { 
+    projects, 
+    isLoading: isProjectsLoading, 
+    hasError: hasProjectsError 
+  } = useProjects()
 
-    // Auto-calculate overtime rate (1.5x regular rate)
-    if (field === "hourly_rate" && value) {
-      const overtimeRate = (Number.parseFloat(value) * 1.5).toFixed(2)
-      setFormData((prev) => ({ ...prev, overtime_rate: overtimeRate }))
-    }
-  }
+  // Filter only active projects for assignment
+  const activeProjects = projects.filter(project => 
+    project.status === 'in_progress' || 
+    project.status === 'not_started' ||
+    project.status === 'on_track'
+  )
 
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    
+    // Ensure role is always 'member' for MVP
+    const submissionData = {
+      ...formData,
+      role: 'member' as const,
+    }
+    
+    await createTeamMember(submissionData)
+  }
 
-    try {
-      // Get current user's company_id (in real app, this would come from auth context)
-      const companyId = "temp-company-id" // TODO: Get from auth context
-
-      const userData = {
-        company_id: companyId,
-        email: formData.email,
-        first_name: formData.first_name,
-        last_name: formData.last_name,
-        role: formData.role,
-        phone: formData.phone,
+  // Handle input changes with error clearing
+  const handleInputChange = (field: keyof typeof formData, value: any) => {
+    updateFormData(field, value)
+    
+    // Auto-calculate overtime rate (1.5x regular rate) for hourly rate changes
+    if (field === "hourlyRate" && value) {
+      const hourlyRate = parseFloat(value)
+      if (!isNaN(hourlyRate)) {
+        const overtimeRate = (hourlyRate * 1.5)
+        updateFormData("overtimeRate", overtimeRate)
       }
-
-      await createUser(userData)
-
-      // TODO: Save additional fields like trade, rates, certifications to a separate table
-
-      router.push("/dashboard/team")
-    } catch (error) {
-      console.error("Error adding team member:", error)
-      alert("Error adding team member. Please try again.")
-    } finally {
-      setIsLoading(false)
     }
   }
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/dashboard/team">
-          <Button variant="outline" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Add Team Member</h1>
-          <p className="text-gray-600">Add a new member to your construction team</p>
-        </div>
-      </div>
+  // Load projects for assignment dropdown (we'll implement this in the next step)
+  // const { projects } = useProjects() // We'll add this later
 
-      <div className="max-w-2xl">
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-4 mb-4">
+            <Link href="/dashboard/team">
+              <Button variant="outline" size="icon" className="shrink-0">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Add Team Member</h1>
+              <p className="text-gray-600 mt-1">
+                Add a new member to your construction team
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Success Message */}
+        {isSuccess && (
+          <div className="mb-6">
+            <Card className="border-green-200 bg-green-50">
+              <CardContent className="pt-6">
+                <div className="flex items-center space-x-2 text-green-800">
+                  <span className="font-medium">✅ Team member added successfully!</span>
+                  <span className="text-sm">Redirecting to team member details...</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {isError && errors.general && (
+          <div className="mb-6">
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="pt-6">
+                <div className="text-red-800">
+                  <span className="font-medium">❌ Error:</span> {errors.general}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Main Form Card */}
         <Card>
           <CardHeader>
             <CardTitle>Team Member Information</CardTitle>
             <CardDescription>Enter the details for the new team member</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Personal Info */}
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Personal Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Personal Information</h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* First Name */}
                   <div>
-                    <Label htmlFor="first_name">First Name *</Label>
+                    <Label htmlFor="firstName">First Name *</Label>
                     <Input
-                      id="first_name"
-                      value={formData.first_name}
-                      onChange={(e) => handleInputChange("first_name", e.target.value)}
+                      id="firstName"
+                      value={formData.firstName}
+                      onChange={(e) => handleInputChange("firstName", e.target.value)}
+                      className={errors.firstName ? "border-red-500" : ""}
                       required
                     />
+                    {errors.firstName && (
+                      <p className="text-sm text-red-500 mt-1">{errors.firstName}</p>
+                    )}
                   </div>
+
+                  {/* Last Name */}
                   <div>
-                    <Label htmlFor="last_name">Last Name *</Label>
+                    <Label htmlFor="lastName">Last Name *</Label>
                     <Input
-                      id="last_name"
-                      value={formData.last_name}
-                      onChange={(e) => handleInputChange("last_name", e.target.value)}
+                      id="lastName"
+                      value={formData.lastName}
+                      onChange={(e) => handleInputChange("lastName", e.target.value)}
+                      className={errors.lastName ? "border-red-500" : ""}
                       required
                     />
+                    {errors.lastName && (
+                      <p className="text-sm text-red-500 mt-1">{errors.lastName}</p>
+                    )}
                   </div>
                 </div>
 
+                {/* Email */}
                 <div>
                   <Label htmlFor="email">Email Address *</Label>
                   <Input
@@ -125,10 +173,15 @@ export default function AddTeamMemberPage() {
                     type="email"
                     value={formData.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
+                    className={errors.email ? "border-red-500" : ""}
                     required
                   />
+                  {errors.email && (
+                    <p className="text-sm text-red-500 mt-1">{errors.email}</p>
+                  )}
                 </div>
 
+                {/* Phone */}
                 <div>
                   <Label htmlFor="phone">Phone Number</Label>
                   <Input
@@ -137,89 +190,202 @@ export default function AddTeamMemberPage() {
                     value={formData.phone}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
                     placeholder="(555) 123-4567"
+                    className={errors.phone ? "border-red-500" : ""}
                   />
+                  {errors.phone && (
+                    <p className="text-sm text-red-500 mt-1">{errors.phone}</p>
+                  )}
                 </div>
               </div>
 
-              {/* Work Info */}
+              {/* Work Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Work Information</h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Role - Fixed to 'member' for MVP */}
                   <div>
                     <Label htmlFor="role">Role</Label>
-                    <Select value={formData.role} onValueChange={(value) => handleInputChange("role", value)}>
-                      <SelectTrigger>
-                        <SelectValue />
+                    <Select 
+                      value="member"
+                      disabled={true}
+                    >
+                      <SelectTrigger className="bg-gray-50">
+                        <SelectValue placeholder="Member" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="member">Team Member</SelectItem>
+                        <SelectItem value="member">Member</SelectItem>
                       </SelectContent>
                     </Select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Role is automatically set to Member for new team members
+                    </p>
                   </div>
 
+                  {/* Trade Specialty */}
                   <div>
-                    <Label htmlFor="trade">Trade/Specialty</Label>
-                    <Select value={formData.trade} onValueChange={(value) => handleInputChange("trade", value)}>
-                      <SelectTrigger>
+                    <Label htmlFor="tradeSpecialty">Trade/Specialty</Label>
+                    <Select 
+                      value={formData.tradeSpecialty || "none"} 
+                      onValueChange={(value) => handleInputChange("tradeSpecialty", value === "none" ? undefined : value)}
+                    >
+                      <SelectTrigger className={errors.tradeSpecialty ? "border-red-500" : ""}>
                         <SelectValue placeholder="Select trade" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="general">General Construction</SelectItem>
-                        <SelectItem value="electrical">Electrical</SelectItem>
-                        <SelectItem value="plumbing">Plumbing</SelectItem>
-                        <SelectItem value="hvac">HVAC</SelectItem>
-                        <SelectItem value="carpentry">Carpentry</SelectItem>
-                        <SelectItem value="masonry">Masonry</SelectItem>
-                        <SelectItem value="roofing">Roofing</SelectItem>
-                        <SelectItem value="painting">Painting</SelectItem>
-                        <SelectItem value="drywall">Drywall</SelectItem>
-                        <SelectItem value="flooring">Flooring</SelectItem>
-                        <SelectItem value="equipment">Equipment Operation</SelectItem>
-                        <SelectItem value="safety">Safety</SelectItem>
-                        <SelectItem value="management">Management</SelectItem>
+                        <SelectItem value="none">Select trade</SelectItem>
+                        {TRADE_SPECIALTIES.map((trade) => (
+                          <SelectItem key={trade.value} value={trade.value}>
+                            {trade.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                    {errors.tradeSpecialty && (
+                      <p className="text-sm text-red-500 mt-1">{errors.tradeSpecialty}</p>
+                    )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="hourly_rate">Hourly Rate ($)</Label>
-                    <Input
-                      id="hourly_rate"
-                      type="number"
-                      step="0.01"
-                      value={formData.hourly_rate}
-                      onChange={(e) => handleInputChange("hourly_rate", e.target.value)}
-                      placeholder="25.00"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="overtime_rate">Overtime Rate ($)</Label>
-                    <Input
-                      id="overtime_rate"
-                      type="number"
-                      step="0.01"
-                      value={formData.overtime_rate}
-                      onChange={(e) => handleInputChange("overtime_rate", e.target.value)}
-                      placeholder="37.50"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Usually 1.5x regular rate</p>
-                  </div>
-                </div>
-
+                {/* Job Title */}
                 <div>
-                  <Label htmlFor="certifications">Certifications</Label>
+                  <Label htmlFor="jobTitle">Job Title</Label>
                   <Input
-                    id="certifications"
-                    value={formData.certifications}
-                    onChange={(e) => handleInputChange("certifications", e.target.value)}
-                    placeholder="OSHA 30, First Aid, CPR (separate with commas)"
+                    id="jobTitle"
+                    value={formData.jobTitle}
+                    onChange={(e) => handleInputChange("jobTitle", e.target.value)}
+                    placeholder="e.g., Senior Electrician, Site Supervisor"
+                    className={errors.jobTitle ? "border-red-500" : ""}
                   />
+                  {errors.jobTitle && (
+                    <p className="text-sm text-red-500 mt-1">{errors.jobTitle}</p>
+                  )}
+                </div>
+
+                {/* Start Date */}
+                <div>
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={formData.startDate}
+                    onChange={(e) => handleInputChange("startDate", e.target.value)}
+                    className={errors.startDate ? "border-red-500" : ""}
+                  />
+                  {errors.startDate && (
+                    <p className="text-sm text-red-500 mt-1">{errors.startDate}</p>
+                  )}
+                </div>
+
+                {/* Rates */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Hourly Rate */}
+                  <div>
+                    <Label htmlFor="hourlyRate">Hourly Rate ($)</Label>
+                    <Input
+                      id="hourlyRate"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.hourlyRate || ""}
+                      onChange={(e) => handleInputChange("hourlyRate", parseFloat(e.target.value) || undefined)}
+                      placeholder="25.00"
+                      className={errors.hourlyRate ? "border-red-500" : ""}
+                    />
+                    {errors.hourlyRate && (
+                      <p className="text-sm text-red-500 mt-1">{errors.hourlyRate}</p>
+                    )}
+                  </div>
+
+                  {/* Overtime Rate - Auto-calculated */}
+                  <div>
+                    <Label htmlFor="overtimeRate">Overtime Rate ($)</Label>
+                    <Input
+                      id="overtimeRate"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.overtimeRate || ""}
+                      className="bg-gray-50"
+                      disabled={true}
+                      placeholder="Auto-calculated"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Automatically calculated as 1.5x hourly rate
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Project Assignment */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Project Assignment (Optional)</h3>
+                
+                <div className="space-y-4">
+                  {/* Assign to Project Checkbox */}
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="assignToProject"
+                      checked={formData.assignToProject}
+                      onChange={(e) => handleInputChange("assignToProject", e.target.checked)}
+                      className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                    />
+                    <Label htmlFor="assignToProject" className="text-sm font-medium">
+                      Assign to a project immediately
+                    </Label>
+                  </div>
+
+                  {/* Project Selection - Only show if checkbox is checked */}
+                  {formData.assignToProject && (
+                    <div className="space-y-4 pl-6 border-l-2 border-orange-100">
+                      <div>
+                        <Label htmlFor="projectId">Select Project *</Label>
+                        <Select 
+                          value={formData.projectId || "none"} 
+                          onValueChange={(value) => handleInputChange("projectId", value === "none" ? undefined : value)}
+                        >
+                          <SelectTrigger className={errors.projectId ? "border-red-500" : ""}>
+                            <SelectValue placeholder="Choose a project" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Choose a project</SelectItem>
+                            {isProjectsLoading ? (
+                              <SelectItem value="loading" disabled>Loading projects...</SelectItem>
+                            ) : hasProjectsError ? (
+                              <SelectItem value="error" disabled>Error loading projects</SelectItem>
+                            ) : activeProjects.length === 0 ? (
+                              <SelectItem value="empty" disabled>No active projects available</SelectItem>
+                            ) : (
+                              activeProjects.map((project) => (
+                                <SelectItem key={project.id} value={project.id}>
+                                  {project.name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {errors.projectId && (
+                          <p className="text-sm text-red-500 mt-1">{errors.projectId}</p>
+                        )}
+                      </div>
+
+                      {/* Project Assignment Notes */}
+                      <div>
+                        <Label htmlFor="projectNotes">Assignment Notes</Label>
+                        <Input
+                          id="projectNotes"
+                          value={formData.projectNotes}
+                          onChange={(e) => handleInputChange("projectNotes", e.target.value)}
+                          placeholder="Any special notes about this assignment..."
+                          className={errors.projectNotes ? "border-red-500" : ""}
+                        />
+                        {errors.projectNotes && (
+                          <p className="text-sm text-red-500 mt-1">{errors.projectNotes}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -228,59 +394,54 @@ export default function AddTeamMemberPage() {
                 <h3 className="text-lg font-medium">Emergency Contact</h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Emergency Contact Name */}
                   <div>
-                    <Label htmlFor="emergency_contact">Emergency Contact Name</Label>
+                    <Label htmlFor="emergencyContactName">Contact Name</Label>
                     <Input
-                      id="emergency_contact"
-                      value={formData.emergency_contact}
-                      onChange={(e) => handleInputChange("emergency_contact", e.target.value)}
-                      placeholder="Jane Doe (Spouse)"
+                      id="emergencyContactName"
+                      value={formData.emergencyContactName}
+                      onChange={(e) => handleInputChange("emergencyContactName", e.target.value)}
+                      placeholder="Emergency contact full name"
+                      className={errors.emergencyContactName ? "border-red-500" : ""}
                     />
+                    {errors.emergencyContactName && (
+                      <p className="text-sm text-red-500 mt-1">{errors.emergencyContactName}</p>
+                    )}
                   </div>
 
+                  {/* Emergency Contact Phone */}
                   <div>
-                    <Label htmlFor="emergency_phone">Emergency Contact Phone</Label>
+                    <Label htmlFor="emergencyContactPhone">Contact Phone</Label>
                     <Input
-                      id="emergency_phone"
+                      id="emergencyContactPhone"
                       type="tel"
-                      value={formData.emergency_phone}
-                      onChange={(e) => handleInputChange("emergency_phone", e.target.value)}
-                      placeholder="(555) 987-6543"
+                      value={formData.emergencyContactPhone}
+                      onChange={(e) => handleInputChange("emergencyContactPhone", e.target.value)}
+                      placeholder="(555) 123-4567"
+                      className={errors.emergencyContactPhone ? "border-red-500" : ""}
                     />
-                  </div>
-                </div>
-              </div>
-
-              {/* Profile Photo */}
-              <div>
-                <Label>Profile Photo (Optional)</Label>
-                <div className="mt-2">
-                  <div className="flex items-center justify-center w-full">
-                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <Upload className="w-8 h-8 mb-4 text-gray-500" />
-                        <p className="mb-2 text-sm text-gray-500">
-                          <span className="font-semibold">Click to upload</span> profile photo
-                        </p>
-                        <p className="text-xs text-gray-500">PNG, JPG (MAX. 5MB)</p>
-                      </div>
-                      <input type="file" className="hidden" accept="image/*" />
-                    </label>
+                    {errors.emergencyContactPhone && (
+                      <p className="text-sm text-red-500 mt-1">{errors.emergencyContactPhone}</p>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex gap-4 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.push("/dashboard/team")}
-                  className="flex-1"
+              <div className="flex justify-end gap-4 pt-6 border-t">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => window.history.back()}
+                  disabled={isLoading}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isLoading} className="flex-1 bg-orange-600 hover:bg-orange-700">
+                <Button 
+                  type="submit" 
+                  disabled={!canSubmit || isLoading}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
                   {isLoading ? "Adding..." : "Add Team Member"}
                 </Button>
               </div>
