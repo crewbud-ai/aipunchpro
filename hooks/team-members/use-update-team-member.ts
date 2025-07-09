@@ -90,7 +90,7 @@ function transformFormDataToApiData(formData: UpdateTeamMemberFormData, teamMemb
     hourlyRate: formData.hourlyRate,
     overtimeRate: formData.overtimeRate,
     startDate: formData.startDate || undefined,
-    certifications: formData.certifications.filter(cert => cert.trim() !== ''),
+    certifications: formData.certifications,
     emergencyContactName: formData.emergencyContactName?.trim() || undefined,
     emergencyContactPhone: formData.emergencyContactPhone?.trim() || undefined,
     isActive: formData.isActive,
@@ -118,7 +118,7 @@ function hasFormChanges(formData: UpdateTeamMemberFormData, originalTeamMember: 
     formData.hourlyRate !== originalFormData.hourlyRate ||
     formData.overtimeRate !== originalFormData.overtimeRate ||
     formData.startDate !== originalFormData.startDate ||
-    JSON.stringify(formData.certifications) !== JSON.stringify(originalFormData.certifications) ||
+    formData.certifications !== originalFormData.certifications ||
     formData.emergencyContactName !== originalFormData.emergencyContactName ||
     formData.emergencyContactPhone !== originalFormData.emergencyContactPhone ||
     formData.isActive !== originalFormData.isActive

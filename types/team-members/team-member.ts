@@ -18,7 +18,7 @@ export interface TeamMember {
   hourlyRate?: number
   overtimeRate?: number
   startDate?: string
-  certifications?: string[]
+  certifications?: string
   emergencyContactName?: string
   emergencyContactPhone?: string
   isActive: boolean

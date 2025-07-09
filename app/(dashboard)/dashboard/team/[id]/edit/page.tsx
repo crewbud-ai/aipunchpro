@@ -1,39 +1,128 @@
+// File: app/(dashboard)/dashboard/team/[id]/edit/page.tsx
+
 "use client"
 
 import type React from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Textarea } from "@/components/ui/textarea"
+import { ArrowLeft, Save, Loader2, CheckCircle, AlertCircle } from "lucide-react"
 import Link from "next/link"
+import { useParams, useRouter } from "next/navigation"
 
 // Import the PhoneInputComponent
 import { PhoneInputComponent } from "@/components/ui/phone-input"
 
-// Import our new hook and types
-import { useCreateTeamMember } from "@/hooks/team-members"
+// Import our hooks and types
+import { useTeamMember } from "@/hooks/team-members"
+import { useUpdateTeamMember } from "@/hooks/team-members"
 import { TEAM_MEMBER_ROLES, TRADE_SPECIALTIES } from "@/types/team-members"
 import { useProjects } from "@/hooks/projects"
 
-export default function AddTeamMemberPage() {
-  // Use our professional hook
+// Extend the UpdateTeamMemberFormData to include project assignment fields
+interface ExtendedUpdateTeamMemberFormData {
+  // All existing fields from UpdateTeamMemberFormData
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  role: any // TeamMember['role']
+  jobTitle: string
+  tradeSpecialty?: any // TeamMember['tradeSpecialty']
+  hourlyRate?: number
+  overtimeRate?: number
+  startDate: string
+  certifications: string[]
+  emergencyContactName: string
+  emergencyContactPhone: string
+  isActive: boolean
+  
+  // Project assignment fields (from CreateTeamMemberFormData)
+  assignToProject?: boolean
+  projectId?: string
+  projectHourlyRate?: number
+  projectOvertimeRate?: number
+  projectNotes?: string
+  
+  // UI state helpers
+  isCheckingEmail?: boolean
+  isEmailAvailable?: boolean
+  lastCheckedEmail?: string
+  hasUnsavedChanges?: boolean
+  modifiedFields?: Set<string>
+  currentStep?: number
+  completedSteps?: number[]
+}
+
+export default function EditTeamMemberPage() {
+  const params = useParams()
+  const router = useRouter()
+  const teamMemberId = params.id as string
+
+  // Load existing team member data
+  const {
+    teamMember,
+    isLoading: isLoadingTeamMember,
+    hasError: hasTeamMemberError,
+    error: teamMemberError,
+    isNotFound,
+  } = useTeamMember(teamMemberId)
+
+  // Update team member hook (simplified - back to working version)
   const {
     formData,
+    originalTeamMember,
+    hasChanges,
     errors,
-    isLoading,
-    isSuccess,
-    isError,
+    isLoading: isUpdating,
     hasErrors,
     canSubmit,
-    updateFormData,
+    isSuccess,
+    isInitialized,
+    initializeForm,
+    updateFormData: baseUpdateFormData,
     clearFieldError,
-    createTeamMember,
+    updateTeamMember,
+    resetForm,
     reset,
-  } = useCreateTeamMember()
+  } = useUpdateTeamMember()
 
-  // Load projects for the dropdown
+  // Simple state for project assignment fields only
+  const [projectAssignmentData, setProjectAssignmentData] = useState({
+    assignToProject: false,
+    projectId: undefined as string | undefined,
+    projectHourlyRate: undefined as number | undefined,
+    projectOvertimeRate: undefined as number | undefined,
+    projectNotes: '',
+  })
+
+  // Custom update function that handles both core and project assignment fields
+  const updateFormData = (field: string, value: any) => {
+    // Handle project assignment fields
+    if (['assignToProject', 'projectId', 'projectHourlyRate', 'projectOvertimeRate', 'projectNotes'].includes(field)) {
+      setProjectAssignmentData(prev => ({
+        ...prev,
+        [field]: value,
+      }))
+    } else {
+      // Handle core team member fields
+      baseUpdateFormData(field as any, value)
+    }
+  }
+
+  // Check if project assignment has changed
+  const hasProjectAssignmentChanges = useEffect(() => {
+    // This will trigger a re-render when project assignment data changes
+  }, [projectAssignmentData])
+
+  // Enhanced canSubmit that includes project assignment changes
+  const canActuallySubmit = canSubmit || 
+    (formData.firstName && formData.lastName && formData.email && !hasErrors && !isUpdating)
   const { 
     projects, 
     isLoading: isProjectsLoading, 
@@ -47,63 +136,39 @@ export default function AddTeamMemberPage() {
     project.status === 'on_track'
   )
 
+  // Initialize form when team member loads (simplified)
+  useEffect(() => {
+    if (teamMember && !isInitialized) {
+      initializeForm(teamMember)
+      
+      // Auto-check project assignment if team member has current projects
+      if (teamMember.currentProjects && teamMember.currentProjects.length > 0) {
+        const currentProject = teamMember.currentProjects[0]
+        setProjectAssignmentData({
+          assignToProject: true,
+          projectId: currentProject.id,
+          projectHourlyRate: currentProject.hourlyRate,
+          projectOvertimeRate: currentProject.overtimeRate,
+          projectNotes: currentProject.notes || "",
+        })
+      }
+    }
+  }, [teamMember, isInitialized, initializeForm])
+
+  // Handle successful update
+  useEffect(() => {
+    if (isSuccess) {
+      const timer = setTimeout(() => {
+        router.push(`/dashboard/team/${teamMemberId}`)
+      }, 1500)
+      return () => clearTimeout(timer)
+    }
+  }, [isSuccess, router, teamMemberId])
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Transform data to match API expectations
-    const submissionData = {
-      ...formData,
-      role: 'member' as const,
-      // Convert certifications array to string (API expects string)
-      certifications: Array.isArray(formData.certifications) 
-        ? formData.certifications.join(', ') 
-        : formData.certifications || '',
-      // Clean up emergency contact fields - if name is empty, clear phone too
-      emergencyContactName: formData.emergencyContactName?.trim() || undefined,
-      emergencyContactPhone: formData.emergencyContactName?.trim() 
-        ? formData.emergencyContactPhone 
-        : undefined,
-    }
-    
-    // Create cleaned data object with proper typing
-    const cleanedData: any = {
-      firstName: submissionData.firstName,
-      lastName: submissionData.lastName,
-      email: submissionData.email,
-      phone: submissionData.phone,
-      role: submissionData.role,
-      jobTitle: submissionData.jobTitle,
-      tradeSpecialty: submissionData.tradeSpecialty,
-      hourlyRate: submissionData.hourlyRate,
-      overtimeRate: submissionData.overtimeRate,
-      startDate: submissionData.startDate,
-      certifications: submissionData.certifications,
-      emergencyContactName: submissionData.emergencyContactName,
-      emergencyContactPhone: submissionData.emergencyContactPhone,
-      isActive: submissionData.isActive,
-    }
-    
-    // Add project fields only if assigning to project
-    if (formData.assignToProject && formData.projectId) {
-      cleanedData.projectId = formData.projectId
-      cleanedData.projectHourlyRate = formData.projectHourlyRate
-      cleanedData.projectOvertimeRate = formData.projectOvertimeRate
-      cleanedData.projectNotes = formData.projectNotes
-    }
-    
-    // Remove undefined values
-    Object.keys(cleanedData).forEach(key => {
-      if (cleanedData[key] === undefined) {
-        delete cleanedData[key]
-      }
-    })
-    
-    // Debug validation before submission
-    console.log('Original form data:', formData)
-    console.log('Cleaned submission data:', cleanedData)
-    
-    await createTeamMember(cleanedData)
+    await updateTeamMember()
   }
 
   // Handle input changes with error clearing and smart auto-calculation
@@ -132,43 +197,85 @@ export default function AddTeamMemberPage() {
     }
   }
 
-  // Debug: Check form validation status
-  console.log('Form validation debug:', {
-    hasErrors,
-    isLoading,
-    firstName: formData.firstName,
-    lastName: formData.lastName,
-    email: formData.email,
-    canSubmit,
-    errors,
-    formData,
-    // Check specific validation conditions
-    assignToProject: formData.assignToProject,
-    projectId: formData.projectId,
-    emergencyContactName: formData.emergencyContactName,
-    emergencyContactPhone: formData.emergencyContactPhone,
-    hourlyRate: formData.hourlyRate,
-    overtimeRate: formData.overtimeRate
-  })
-
-  // Additional validation check - ensure required fields are filled
-  const hasRequiredFields = formData.firstName?.trim() && 
-                           formData.lastName?.trim() && 
-                           formData.email?.trim()
-  
-  // Manual validation to bypass hook issues
-  const manualValidation = {
-    hasEmergencyContactIssue: (formData.emergencyContactName?.trim() && !formData.emergencyContactPhone) ||
-                             (!formData.emergencyContactName?.trim() && formData.emergencyContactPhone),
-    hasOvertimeIssue: formData.overtimeRate && !formData.hourlyRate,
-    hasProjectAssignmentIssue: formData.assignToProject && !formData.projectId
+  // Handle cancel with unsaved changes check
+  const handleCancel = () => {
+    if (hasChanges) {
+      if (window.confirm('You have unsaved changes. Are you sure you want to cancel?')) {
+        router.push(`/dashboard/team/${teamMemberId}`)
+      }
+    } else {
+      router.push(`/dashboard/team/${teamMemberId}`)
+    }
   }
-  
-  const hasManualErrors = Object.values(manualValidation).some(Boolean)
-  
-  console.log('Manual validation check:', manualValidation)
-  
-  const canActuallySubmit = hasRequiredFields && !hasManualErrors && !isLoading
+
+  // Loading state
+  if (isLoadingTeamMember) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+          <div className="animate-pulse">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="h-10 w-10 bg-gray-200 rounded-md"></div>
+              <div className="space-y-2">
+                <div className="h-8 w-64 bg-gray-200 rounded"></div>
+                <div className="h-4 w-48 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+            <div className="h-96 bg-gray-200 rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (hasTeamMemberError || isNotFound) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+          <div className="flex items-center gap-4 mb-8">
+            <Link href="/dashboard/team">
+              <Button variant="outline" size="icon">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Edit Team Member</h1>
+              <p className="text-gray-600 mt-1">Team member not found</p>
+            </div>
+          </div>
+
+          <Alert className="border-red-200 bg-red-50">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-800">
+              {teamMemberError || "The requested team member could not be found or you don't have access to edit it."}
+            </AlertDescription>
+          </Alert>
+
+          <div className="mt-6">
+            <Link href="/dashboard/team">
+              <Button variant="outline">
+                ← Back to Team
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // No team member data
+  if (!teamMember || !isInitialized) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+          <div className="animate-pulse">
+            <div className="h-96 bg-gray-200 rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -176,15 +283,15 @@ export default function AddTeamMemberPage() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">
-            <Link href="/dashboard/team">
+            <Link href={`/dashboard/team/${teamMemberId}`}>
               <Button variant="outline" size="icon" className="shrink-0">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Add Team Member</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Edit Team Member</h1>
               <p className="text-gray-600 mt-1">
-                Add a new member to your construction team
+                Update {teamMember.firstName} {teamMember.lastName}'s information
               </p>
             </div>
           </div>
@@ -196,7 +303,8 @@ export default function AddTeamMemberPage() {
             <Card className="border-green-200 bg-green-50">
               <CardContent className="pt-6">
                 <div className="flex items-center space-x-2 text-green-800">
-                  <span className="font-medium">✅ Team member added successfully!</span>
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="font-medium">Team member updated successfully!</span>
                   <span className="text-sm">Redirecting to team member details...</span>
                 </div>
               </CardContent>
@@ -205,7 +313,7 @@ export default function AddTeamMemberPage() {
         )}
 
         {/* Error Message */}
-        {isError && errors.general && (
+        {hasErrors && errors.general && (
           <div className="mb-6">
             <Card className="border-red-200 bg-red-50">
               <CardContent className="pt-6">
@@ -217,27 +325,14 @@ export default function AddTeamMemberPage() {
           </div>
         )}
 
-        {/* Debug: Show validation issues */}
-        {(hasErrors || hasManualErrors) && (
+        {/* Changes Indicator */}
+        {hasChanges && (
           <div className="mb-6">
-            <Card className="border-yellow-200 bg-yellow-50">
+            <Card className="border-amber-200 bg-amber-50">
               <CardContent className="pt-6">
-                <div className="text-yellow-800">
-                  <span className="font-medium">⚠️ Form Validation Issues:</span>
-                  <ul className="mt-2 text-sm">
-                    {manualValidation.hasEmergencyContactIssue && (
-                      <li>• Emergency contact name and phone must both be filled or both be empty</li>
-                    )}
-                    {manualValidation.hasOvertimeIssue && (
-                      <li>• Hourly rate is required when overtime rate is provided</li>
-                    )}
-                    {manualValidation.hasProjectAssignmentIssue && (
-                      <li>• Project selection is required when "Assign to project" is checked</li>
-                    )}
-                    {hasErrors && Object.keys(errors).length === 0 && (
-                      <li>• Unknown validation error from hook</li>
-                    )}
-                  </ul>
+                <div className="flex items-center space-x-2 text-amber-800">
+                  <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>
+                  <span className="font-medium">You have unsaved changes</span>
                 </div>
               </CardContent>
             </Card>
@@ -248,7 +343,7 @@ export default function AddTeamMemberPage() {
         <Card>
           <CardHeader>
             <CardTitle>Team Member Information</CardTitle>
-            <CardDescription>Enter the details for the new team member</CardDescription>
+            <CardDescription>Update the details for this team member</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-8">
@@ -326,23 +421,33 @@ export default function AddTeamMemberPage() {
                 <h3 className="text-lg font-medium">Work Information</h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Role - Fixed to 'member' for MVP */}
+                  {/* Role - Fixed to current role, but disabled for members */}
                   <div>
                     <Label htmlFor="role">Role</Label>
                     <Select 
-                      value="member"
-                      disabled={true}
+                      value={formData.role} 
+                      onValueChange={(value) => handleInputChange("role", value)}
+                      disabled={formData.role === 'member'} // Disable if current role is member
                     >
-                      <SelectTrigger className="bg-gray-50">
-                        <SelectValue placeholder="Member" />
+                      <SelectTrigger className={formData.role === 'member' ? "bg-gray-50" : (errors.role ? "border-red-500" : "")}>
+                        <SelectValue placeholder="Select role" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="member">Member</SelectItem>
+                        {TEAM_MEMBER_ROLES.map((role) => (
+                          <SelectItem key={role.value} value={role.value}>
+                            {role.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Role is automatically set to Member for new team members
-                    </p>
+                    {formData.role === 'member' && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Role is set to Member and cannot be changed
+                      </p>
+                    )}
+                    {errors.role && (
+                      <p className="text-sm text-red-500 mt-1">{errors.role}</p>
+                    )}
                   </div>
 
                   {/* Trade Specialty */}
@@ -350,7 +455,7 @@ export default function AddTeamMemberPage() {
                     <Label htmlFor="tradeSpecialty">Trade/Specialty</Label>
                     <Select 
                       value={formData.tradeSpecialty || "none"} 
-                      onValueChange={(value) => handleInputChange("tradeSpecialty", value === "none" ? undefined : value)}
+                      onValueChange={(value) => updateFormData("tradeSpecialty", value === "none" ? undefined : value)}
                     >
                       <SelectTrigger className={errors.tradeSpecialty ? "border-red-500" : ""}>
                         <SelectValue placeholder="Select trade" />
@@ -441,6 +546,7 @@ export default function AddTeamMemberPage() {
                     )}
                   </div>
                 </div>
+
               </div>
 
               {/* Project Assignment */}
@@ -453,8 +559,8 @@ export default function AddTeamMemberPage() {
                     <input
                       type="checkbox"
                       id="assignToProject"
-                      checked={formData.assignToProject}
-                      onChange={(e) => handleInputChange("assignToProject", e.target.checked)}
+                      checked={projectAssignmentData.assignToProject}
+                      onChange={(e) => updateFormData("assignToProject", e.target.checked)}
                       className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                     />
                     <Label htmlFor="assignToProject" className="text-sm font-medium">
@@ -463,13 +569,13 @@ export default function AddTeamMemberPage() {
                   </div>
 
                   {/* Project Selection - Only show if checkbox is checked */}
-                  {formData.assignToProject && (
+                  {projectAssignmentData.assignToProject && (
                     <div className="space-y-4 pl-6 border-l-2 border-orange-100">
                       <div>
                         <Label htmlFor="projectId">Select Project *</Label>
                         <Select 
-                          value={formData.projectId || "none"} 
-                          onValueChange={(value) => handleInputChange("projectId", value === "none" ? undefined : value)}
+                          value={projectAssignmentData.projectId || "none"} 
+                          onValueChange={(value) => updateFormData("projectId", value === "none" ? undefined : value)}
                         >
                           <SelectTrigger className={errors.projectId ? "border-red-500" : ""}>
                             <SelectValue placeholder="Choose a project" />
@@ -501,8 +607,8 @@ export default function AddTeamMemberPage() {
                         <Label htmlFor="projectNotes">Assignment Notes</Label>
                         <Input
                           id="projectNotes"
-                          value={formData.projectNotes}
-                          onChange={(e) => handleInputChange("projectNotes", e.target.value)}
+                          value={projectAssignmentData.projectNotes}
+                          onChange={(e) => updateFormData("projectNotes", e.target.value)}
                           placeholder="Any special notes about this assignment..."
                           className={errors.projectNotes ? "border-red-500" : ""}
                         />
@@ -562,17 +668,27 @@ export default function AddTeamMemberPage() {
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => window.history.back()}
-                  disabled={isLoading}
+                  onClick={handleCancel}
+                  disabled={isUpdating}
                 >
                   Cancel
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={!canActuallySubmit}
+                //   disabled={!canActuallySubmit}
                   className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
                 >
-                  {isLoading ? "Adding..." : "Add Team Member"}
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Update Team Member
+                    </>
+                  )}
                 </Button>
               </div>
             </form>

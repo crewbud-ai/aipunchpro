@@ -83,7 +83,7 @@ function transformFormDataToApiData(formData: CreateTeamMemberFormData): CreateT
     hourlyRate: formData.hourlyRate,
     overtimeRate: formData.overtimeRate,
     startDate: formData.startDate || undefined,
-    certifications: formData.certifications.filter(cert => cert.trim() !== ''),
+    certifications: formData.certifications,
     emergencyContactName: formData.emergencyContactName?.trim() || undefined,
     emergencyContactPhone: formData.emergencyContactPhone?.trim() || undefined,
     isActive: formData.isActive,

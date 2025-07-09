@@ -124,6 +124,7 @@ export const createTeamMemberSchema = baseTeamMemberSchema.extend({
         .default('active'),
 
 }).refine((data) => {
+    console.log(data, 'data')
     // If emergency contact name provided, phone is required
     if (data.emergencyContactName && !data.emergencyContactPhone) {
         return false
@@ -478,6 +479,7 @@ export interface CreateTeamMemberFormData {
 // VALIDATION HELPER FUNCTIONS
 // ==============================================
 export function validateCreateTeamMember(data: unknown) {
+    console.log(data, 'Data comming to parse')
     return createTeamMemberSchema.safeParse(data)
 }
 

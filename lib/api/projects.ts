@@ -118,7 +118,7 @@ export const projectsApi = {
             if (filters.search) searchParams.append('search', filters.search)
             if (filters.location) searchParams.append('location', filters.location)
             if (filters.client) searchParams.append('client', filters.client)
-            if (filters.managerId) searchParams.append('managerId', filters.managerId)
+            // if (filters.managerId) searchParams.append('managerId', filters.managerId)
             if (filters.sortBy) searchParams.append('sortBy', filters.sortBy)
             if (filters.sortOrder) searchParams.append('sortOrder', filters.sortOrder)
             if (filters.limit) searchParams.append('limit', filters.limit.toString())

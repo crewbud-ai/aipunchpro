@@ -194,10 +194,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse request body
-    const body = await request.json()
+    const body = await request.json();
+
+    console.log(body, 'body')
 
     // Validate input data
     const validation = validateCreateTeamMember(body)
+
+    console.log(validation, 'validation')
+
     if (!validation.success) {
       return NextResponse.json(
         {

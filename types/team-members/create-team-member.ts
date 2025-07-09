@@ -19,7 +19,7 @@ export interface CreateTeamMemberData {
   hourlyRate?: number
   overtimeRate?: number
   startDate?: string
-  certifications?: string[]
+  certifications?: string
   emergencyContactName?: string
   emergencyContactPhone?: string
   isActive?: boolean
@@ -47,7 +47,7 @@ export interface CreateTeamMemberResult {
       hourlyRate?: number
       overtimeRate?: number
       startDate?: string
-      certifications?: string[]
+      certifications?: string
       emergencyContactName?: string
       emergencyContactPhone?: string
       isActive: boolean
@@ -97,7 +97,7 @@ export interface CreateTeamMemberFormData {
   hourlyRate?: number
   overtimeRate?: number
   startDate: string
-  certifications: string[]
+  certifications: string
   emergencyContactName: string
   emergencyContactPhone: string
   isActive: boolean
@@ -163,7 +163,7 @@ export const createTeamMemberSchema = z.object({
   startDate: z.string()
     .optional(),
   
-  certifications: z.array(z.string())
+  certifications: z.string()
     .optional(),
   
   emergencyContactName: z.string()
@@ -218,7 +218,7 @@ export function getDefaultCreateTeamMemberFormData(): CreateTeamMemberFormData {
     hourlyRate: undefined,
     overtimeRate: undefined,
     startDate: new Date().toISOString().split('T')[0], // Today's date
-    certifications: [],
+    certifications: '',
     emergencyContactName: '',
     emergencyContactPhone: '',
     isActive: true,
