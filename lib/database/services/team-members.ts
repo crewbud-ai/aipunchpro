@@ -241,6 +241,7 @@ export class TeamMemberDatabaseService {
             )
         `, { count: 'exact' })
             .eq('company_id', companyId)
+            .neq('role', 'super_admin')
 
         // Apply filters
         if (options.role) {
