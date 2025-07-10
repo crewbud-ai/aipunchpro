@@ -3,7 +3,7 @@
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { 
+import {
   validateUpdateTeamMember,
   formatTeamMemberErrors,
 } from '@/lib/validations/team/team-member'
@@ -24,7 +24,7 @@ export async function GET(
     // Get user info from middleware
     const userId = request.headers.get('x-user-id')
     const companyId = request.headers.get('x-company-id')
-    
+
     if (!userId || !companyId) {
       return NextResponse.json(
         {
@@ -98,7 +98,7 @@ export async function GET(
       isActive: teamMember.is_active,
       createdAt: teamMember.created_at,
       updatedAt: teamMember.updated_at,
-      
+
       // Project assignments
       currentProjects: teamMember.project_memberships?.filter((pm: any) => pm.status === 'active').map((pm: any) => ({
         id: pm.project?.id,
@@ -112,7 +112,7 @@ export async function GET(
         joinedAt: pm.joined_at,
         leftAt: pm.left_at,
       })) || [],
-      
+
       // Calculate assignment status
       assignmentStatus: calculateTeamMemberStatus(teamMember.is_active, teamMember.project_memberships?.filter((pm: any) => pm.status === 'active').length || 0),
       activeProjectCount: teamMember.project_memberships?.filter((pm: any) => pm.status === 'active').length || 0,
@@ -146,6 +146,9 @@ export async function GET(
 // ==============================================
 // PUT /api/team-members/[id] - Update Team Member Details
 // ==============================================
+// ==============================================
+// PUT /api/team-members/[id] - Update Team Member Details (With Project Assignment)
+// ==============================================
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -154,7 +157,7 @@ export async function PUT(
     // Get user info from middleware
     const userId = request.headers.get('x-user-id')
     const companyId = request.headers.get('x-company-id')
-    
+
     if (!userId || !companyId) {
       return NextResponse.json(
         {
@@ -181,7 +184,9 @@ export async function PUT(
 
     // Parse request body
     const body = await request.json()
-    
+
+    console.log(body, 'update body') // Debug log
+
     // Add ID to validation data
     const validationData = { ...body, id: teamMemberId }
 
@@ -220,7 +225,7 @@ export async function PUT(
     // Get original team member data before update
     const originalTeamMember = await teamService.getTeamMemberById(teamMemberId, companyId)
 
-    // Update team member
+    // Update team member basic information
     const updatedTeamMember = await teamService.updateTeamMember(teamMemberId, companyId, {
       firstName: updateData.firstName,
       lastName: updateData.lastName,
@@ -237,6 +242,83 @@ export async function PUT(
       emergencyContactPhone: updateData.emergencyContactPhone,
       isActive: updateData.isActive,
     })
+
+    // ==============================================
+    // HANDLE PROJECT ASSIGNMENT (NEW LOGIC)
+    // ==============================================
+    let projectAssignment: any = null
+    let projectDetails: any = null
+
+    // Check if project assignment is included in the update
+    if (body.assignToProject && body.projectId) {
+      console.log('Processing project assignment for update...') // Debug log
+
+      try {
+        // Get project details
+        projectDetails = await teamService.getBasicProjectInfo(body.projectId, companyId)
+
+        if (!projectDetails) {
+          return NextResponse.json({
+            success: false,
+            error: 'Project not found',
+            message: 'The specified project could not be found.',
+          }, { status: 404 })
+        }
+
+        // Check if user is already assigned to this project
+        const existingAssignment = await teamService.checkProjectAssignment(teamMemberId, body.projectId, companyId)
+
+        if (existingAssignment) {
+          // Update existing assignment
+          projectAssignment = await teamService.updateProjectAssignment(teamMemberId, body.projectId, companyId, {
+            hourlyRate: body.projectHourlyRate,
+            overtimeRate: body.projectOvertimeRate,
+            notes: body.projectNotes,
+            status: 'active',
+          })
+          console.log('Updated existing project assignment') // Debug log
+        } else {
+          // Create new project assignment
+          projectAssignment = await teamService.assignToProject(teamMemberId, body.projectId, companyId, {
+            hourlyRate: body.projectHourlyRate,
+            overtimeRate: body.projectOvertimeRate,
+            notes: body.projectNotes,
+            status: 'active',
+            assignedBy: userId,
+          })
+          console.log('Created new project assignment') // Debug log
+        }
+
+        // ==============================================
+        // SEND PROJECT ASSIGNMENT EMAIL
+        // ==============================================
+        try {
+          const company = await authService.getCompanyById(companyId)
+          const assigningUser = await authService.getUserById(userId)
+
+          if (company && projectDetails) {
+            await teamMemberEmailService.sendProjectAssignmentEmail({
+              email: updatedTeamMember.email,
+              firstName: updatedTeamMember.first_name,
+              lastName: updatedTeamMember.last_name,
+              companyName: company.name,
+              projectName: projectDetails.name,
+              assignedBy: `${assigningUser?.first_name} ${assigningUser?.last_name}` || 'System Administrator',
+              hourlyRate: body.projectHourlyRate,
+              notes: body.projectNotes,
+              dashboardUrl: generateDashboardUrl(),
+            })
+          }
+        } catch (emailError) {
+          console.error('Failed to send project assignment email:', emailError)
+          // Don't fail the entire request if email fails
+        }
+
+      } catch (error) {
+        console.error('Error handling project assignment:', error)
+        // Don't fail the entire update if project assignment fails
+      }
+    }
 
     // Transform for frontend response
     const transformedTeamMember = {
@@ -259,16 +341,43 @@ export async function PUT(
       updatedAt: updatedTeamMember.updated_at,
     }
 
+    // Build response data
+    const responseData: any = {
+      teamMember: transformedTeamMember,
+    }
+
+    // Add project assignment details if created/updated
+    if (projectAssignment) {
+      responseData.projectAssignment = {
+        id: projectAssignment.id,
+        projectId: projectAssignment.project_id,
+        status: projectAssignment.status,
+        hourlyRate: projectAssignment.hourly_rate,
+        overtimeRate: projectAssignment.overtime_rate,
+        notes: projectAssignment.notes,
+        joinedAt: projectAssignment.joined_at,
+      }
+    }
+
+    // Build success message
+    const message = projectAssignment
+      ? 'Team member updated successfully and assigned to project'
+      : 'Team member updated successfully'
+
+    const notifications = projectAssignment
+      ? {
+        message: `Team member details have been updated and they have been assigned to the project. They will be notified via email.`
+      }
+      : {
+        message: `Team member details have been updated successfully.`
+      }
+
     return NextResponse.json(
       {
         success: true,
-        message: 'Team member updated successfully',
-        data: {
-          teamMember: transformedTeamMember,
-        },
-        notifications: {
-          message: 'Team member details have been updated successfully.',
-        },
+        message,
+        data: responseData,
+        notifications,
       },
       { status: 200 }
     )
@@ -288,6 +397,17 @@ export async function PUT(
           { status: 409 }
         )
       }
+
+      if (error.message.includes('User is already assigned')) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Assignment conflict',
+            message: 'User is already assigned to this project.',
+          },
+          { status: 409 }
+        )
+      }
     }
 
     return NextResponse.json(
@@ -302,7 +422,7 @@ export async function PUT(
 }
 
 // ==============================================
-// DELETE /api/team-members/[id] - Deactivate Team Member (Updated with Email)
+// DELETE /api/team-members/[id]
 // ==============================================
 export async function DELETE(
   request: NextRequest,
@@ -312,13 +432,13 @@ export async function DELETE(
     // Get user info from middleware
     const userId = request.headers.get('x-user-id')
     const companyId = request.headers.get('x-company-id')
-    
+
     if (!userId || !companyId) {
       return NextResponse.json(
         {
           success: false,
           error: 'Authentication required',
-          message: 'You must be logged in to deactivate team members.',
+          message: 'You must be logged in to delete team members.',
         },
         { status: 401 }
       )
@@ -348,28 +468,28 @@ export async function DELETE(
         {
           success: false,
           error: 'Team member not found',
-          message: 'The requested team member does not exist or you do not have access to deactivate it.',
+          message: 'The requested team member does not exist or you do not have access to delete it.',
         },
         { status: 404 }
       )
     }
 
-    // Prevent self-deactivation
+    // Prevent self-deletion
     if (teamMemberId === userId) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Cannot deactivate self',
-          message: 'You cannot deactivate your own account.',
+          error: 'Cannot delete self',
+          message: 'You cannot delete your own account.',
         },
         { status: 400 }
       )
     }
 
-    // Get team member details before deactivation for email
+    // Get team member details before deletion for email notification
     const teamMember = await teamService.getTeamMemberById(teamMemberId, companyId)
     const company = await authService.getCompanyById(companyId)
-    const deactivatingUser = await authService.getUserById(userId)
+    const deletingUser = await authService.getUserById(userId)
 
     if (!teamMember || !company) {
       return NextResponse.json(
@@ -382,11 +502,8 @@ export async function DELETE(
       )
     }
 
-    // Deactivate team member (soft delete)
-    await teamService.deactivateTeamMember(teamMemberId, companyId)
-
     // ==============================================
-    // SEND DEACTIVATION EMAIL
+    // SEND DELETION NOTIFICATION EMAIL FIRST
     // ==============================================
     try {
       await teamMemberEmailService.sendAccountDeactivationEmail({
@@ -394,35 +511,45 @@ export async function DELETE(
         firstName: teamMember.first_name,
         lastName: teamMember.last_name,
         companyName: company.name,
-        deactivatedBy: `${deactivatingUser?.first_name} ${deactivatingUser?.last_name}` || 'System Administrator',
-        reason: 'Account has been deactivated by administrator',
+        deactivatedBy: `${deletingUser?.first_name} ${deletingUser?.last_name}` || 'System Administrator',
+        reason: 'Account has been permanently deleted by administrator',
         lastWorkingDay: new Date().toISOString(),
         contactEmail: company.contact_email || undefined,
       })
     } catch (emailError) {
-      console.error('Failed to send deactivation email:', emailError)
+      console.error('Failed to send deletion email:', emailError)
       // Don't fail the entire request if email fails
     }
+
+    // ==============================================
+    // PERMANENTLY DELETE TEAM MEMBER
+    // ==============================================
+
+    // First, remove from all active projects
+    await teamService.removeFromAllProjects(teamMemberId, companyId)
+
+    // Then, permanently delete the team member from the database
+    await teamService.permanentlyDeleteTeamMember(teamMemberId, companyId)
 
     return NextResponse.json(
       {
         success: true,
-        message: 'Team member deactivated successfully',
+        message: 'Team member deleted permanently',
         notifications: {
-          message: 'Team member has been deactivated and removed from all active projects. They have been notified via email.',
+          message: 'Team member has been permanently deleted from the system. All associated data has been removed.',
         },
       },
       { status: 200 }
     )
 
   } catch (error) {
-    console.error('Deactivate team member error:', error)
+    console.error('Delete team member error:', error)
 
     return NextResponse.json(
       {
         success: false,
         error: 'Internal server error',
-        message: 'Something went wrong while deactivating the team member.',
+        message: 'Something went wrong while deleting the team member.',
       },
       { status: 500 }
     )
@@ -440,7 +567,7 @@ export async function POST(
     // Check if this is a reactivation request
     const url = new URL(request.url)
     const action = url.searchParams.get('action')
-    
+
     if (action !== 'reactivate') {
       return NextResponse.json(
         { error: 'Method not allowed' },
@@ -451,7 +578,7 @@ export async function POST(
     // Get user info from middleware
     const userId = request.headers.get('x-user-id')
     const companyId = request.headers.get('x-company-id')
-    
+
     if (!userId || !companyId) {
       return NextResponse.json(
         {

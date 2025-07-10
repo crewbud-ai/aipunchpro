@@ -66,14 +66,10 @@ const permissionStore = new PermissionStore()
  * Initialize permissions after login
  */
 export function initializePermissions(sessionData: any) {
-  console.log('🔥 Initializing permissions with:', sessionData)
   
   if (sessionData?.user?.permissions && sessionData?.user?.role) {
-    console.log('✅ Permissions found, setting in store')
     permissionStore.setPermissions(sessionData.user.permissions, sessionData.user.role)
     
-    // Verify it was set
-    console.log('✅ Permissions set successfully:', permissionStore.getPermissions())
   } else {
     console.log('❌ No permissions found in session data')
     console.log('User object:', sessionData?.user)
@@ -92,7 +88,6 @@ export function clearPermissions() {
  */
 export function hasPermission(category: keyof UserPermissions, permission: string): boolean {
   const result = permissionStore.hasPermission(category, permission)
-  console.log(`🔍 Checking permission ${category}.${permission}: ${result}`)
   return result
 }
 

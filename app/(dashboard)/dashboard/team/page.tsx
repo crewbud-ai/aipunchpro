@@ -51,7 +51,7 @@ export default function TeamPage() {
     isEmpty,
     pagination,
     filters,
-    searchByName,
+    // searchByName,
     filterByTrade,
     filterByStatus,
     refreshTeamMembers,
@@ -60,24 +60,24 @@ export default function TeamPage() {
   // Handle search
   const handleSearch = (value: string) => {
     setSearchTerm(value)
-    searchByName(value)
+    // searchByName(value)
   }
 
   // Handle trade filter
   const handleTradeFilter = (value: string) => {
     setSelectedTrade(value)
-    if (value === "all") {
-      filterByTrade(undefined)
-    } else {
-      // Type assertion since we know the value comes from TRADE_SPECIALTIES
-      filterByTrade(value as 'electrical' | 'plumbing' | 'framing' | 'drywall' | 'roofing' | 'concrete' | 'hvac' | 'general' | 'management' | 'safety')
-    }
+    // if (value === "all") {
+    //   filterByTrade(undefined)
+    // } else {
+    //   // Type assertion since we know the value comes from TRADE_SPECIALTIES
+    //   filterByTrade(value as 'electrical' | 'plumbing' | 'framing' | 'drywall' | 'roofing' | 'concrete' | 'hvac' | 'general' | 'management' | 'safety')
+    // }
   }
 
   // Handle status filter
   const handleStatusFilter = (value: string) => {
     setSelectedStatus(value)
-    filterByStatus(value === "all" ? undefined : (value as 'active' | 'inactive'))
+    // filterByStatus(value === "all" ? undefined : (value as 'active' | 'inactive'))
   }
 
   // Helper functions

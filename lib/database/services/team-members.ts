@@ -290,6 +290,27 @@ export class TeamMemberDatabaseService {
         }
     }
 
+    async permanentlyDeleteTeamMember(userId: string, companyId: string) {
+        // First, delete all project memberships (both active and inactive)
+        const { error: projectMembersError } = await this.supabaseClient
+            .from('project_members')
+            .delete()
+            .eq('user_id', userId)
+            .eq('company_id', companyId)
+
+        if (projectMembersError) throw projectMembersError
+
+        // Then, delete the user record permanently
+        const { error: userError } = await this.supabaseClient
+            .from('users')
+            .delete()
+            .eq('id', userId)
+            .eq('company_id', companyId)
+
+        if (userError) throw userError
+        return true
+    }
+
     async updateTeamMember(
         userId: string,
         companyId: string,
@@ -422,19 +443,15 @@ export class TeamMemberDatabaseService {
             status?: 'active' | 'inactive'
         }
     ) {
-        const updateData: any = {
-            updated_at: new Date().toISOString(),
-        }
-
-        // Only include fields that are provided
-        if (data.hourlyRate !== undefined) updateData.hourly_rate = data.hourlyRate
-        if (data.overtimeRate !== undefined) updateData.overtime_rate = data.overtimeRate
-        if (data.notes !== undefined) updateData.notes = data.notes
-        if (data.status !== undefined) updateData.status = data.status
-
-        const { data: assignment, error } = await this.supabaseClient
+        const { data: updated, error } = await this.supabaseClient
             .from('project_members')
-            .update(updateData)
+            .update({
+                hourly_rate: data.hourlyRate,
+                overtime_rate: data.overtimeRate,
+                notes: data.notes,
+                status: data.status || 'active',
+                updated_at: new Date().toISOString(),
+            })
             .eq('user_id', userId)
             .eq('project_id', projectId)
             .eq('company_id', companyId)
@@ -442,7 +459,7 @@ export class TeamMemberDatabaseService {
             .single()
 
         if (error) throw error
-        return assignment
+        return updated
     }
 
     async getBasicProjectInfo(projectId: string, companyId: string) {
@@ -550,6 +567,22 @@ export class TeamMemberDatabaseService {
         return true
     }
 
+    async removeFromAllProjects(userId: string, companyId: string) {
+        const { error } = await this.supabaseClient
+            .from('project_members')
+            .update({
+                status: 'inactive',
+                left_at: new Date().toISOString().split('T')[0],
+                updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', userId)
+            .eq('company_id', companyId)
+            .eq('status', 'active')
+
+        if (error) throw error
+        return true
+    }
+
     async getProjectAssignments(userId: string, companyId: string) {
         const { data: assignments, error } = await this.supabaseClient
             .from('project_members')
@@ -611,6 +644,22 @@ export class TeamMemberDatabaseService {
 
         if (error) throw error
         return assignments || []
+    }
+
+    async checkProjectAssignment(userId: string, projectId: string, companyId: string) {
+        const { data, error } = await this.supabaseClient
+            .from('project_members')
+            .select('id, status, hourly_rate, overtime_rate, notes')
+            .eq('user_id', userId)
+            .eq('project_id', projectId)
+            .eq('company_id', companyId)
+            .single()
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+            throw error
+        }
+
+        return data
     }
 
     // ==============================================

@@ -200,12 +200,8 @@ function SidebarNavigation({ isMobile = false, onItemClick }: { isMobile?: boole
   const visibleNavItems = navigation.filter(item => {
     const canShow = item.show()
     // Debug logging
-    console.log(`Menu item "${item.name}": ${canShow}`)
     return canShow
   })
-
-  // Debug permissions state
-  console.log('Current permissions in layout:', getCurrentPermissions())
 
   // Filter settings items based on permissions
   // const visibleSettingsItems = settingsNavigation.filter(item => item.show())

@@ -278,17 +278,93 @@ export const teamMembersApi = {
     // ==============================================
     // UPDATE TEAM MEMBER (with proper ID handling)
     // ==============================================
-    async updateTeamMember(id: string, updates: Partial<UpdateTeamMemberData>): Promise<UpdateTeamMemberResult> {
+    // async updateTeamMember(id: string, updates: Partial<UpdateTeamMemberData>): Promise<UpdateTeamMemberResult> {
+    //     try {
+    //         if (!id || id.length !== 36) {
+    //             throw new ApiError(400, 'Invalid team member ID')
+    //         }
+
+    //         // Ensure the ID is included in the updates
+    //         const data: UpdateTeamMemberData = {
+    //             id,
+    //             ...updates
+    //         }
+
+    //         const response = await apiCall<UpdateTeamMemberResult>(`/api/team-members/${id}`, {
+    //             method: 'PUT',
+    //             body: JSON.stringify(data),
+    //         })
+
+    //         // Show success toast
+    //         toast({
+    //             title: "Team Member Updated",
+    //             description: response.message || "Team member has been updated successfully.",
+    //         })
+
+    //         // Show additional notification if provided
+    //         if (response.notifications?.message) {
+    //             toast({
+    //                 title: "Info",
+    //                 description: response.notifications.message,
+    //             })
+    //         }
+
+    //         return response
+
+    //     } catch (error) {
+    //         if (error instanceof ApiError) {
+    //             // Handle validation errors
+    //             if (error.status === 400 && error.details) {
+    //                 toast({
+    //                     title: "Validation Error",
+    //                     description: "Please check the form for errors and try again.",
+    //                     variant: "destructive",
+    //                 })
+    //             }
+    //             // Handle duplicate email error
+    //             else if (error.status === 409) {
+    //                 toast({
+    //                     title: "Email Already Exists",
+    //                     description: error.message,
+    //                     variant: "destructive",
+    //                 })
+    //             }
+    //             // Handle not found error
+    //             else if (error.status === 404) {
+    //                 toast({
+    //                     title: "Team Member Not Found",
+    //                     description: error.message,
+    //                     variant: "destructive",
+    //                 })
+    //             }
+    //             // Handle other API errors
+    //             else {
+    //                 toast({
+    //                     title: "Failed to Update Team Member",
+    //                     description: error.message,
+    //                     variant: "destructive",
+    //                 })
+    //             }
+    //             throw error
+    //         }
+
+    //         const networkError = new ApiError(0, 'Failed to update team member')
+    //         toast({
+    //             title: "Network Error",
+    //             description: "Unable to update team member. Please try again.",
+    //             variant: "destructive",
+    //         })
+    //         throw networkError
+    //     }
+    // },
+
+    async updateTeamMember(id: string, data: UpdateTeamMemberData): Promise<UpdateTeamMemberResult> {
         try {
             if (!id || id.length !== 36) {
                 throw new ApiError(400, 'Invalid team member ID')
             }
 
-            // Ensure the ID is included in the updates
-            const data: UpdateTeamMemberData = {
-                id,
-                ...updates
-            }
+            console.log('Sending update data:', data) // Debug log
 
             const response = await apiCall<UpdateTeamMemberResult>(`/api/team-members/${id}`, {
                 method: 'PUT',
@@ -304,7 +380,7 @@ export const teamMembersApi = {
             // Show additional notification if provided
             if (response.notifications?.message) {
                 toast({
-                    title: "Info",
+                    title: "Additional Info",
                     description: response.notifications.message,
                 })
             }
@@ -314,33 +390,27 @@ export const teamMembersApi = {
         } catch (error) {
             if (error instanceof ApiError) {
                 // Handle validation errors
-                if (error.status === 400 && error.details) {
+                if (error.status === 400) {
                     toast({
                         title: "Validation Error",
-                        description: "Please check the form for errors and try again.",
-                        variant: "destructive",
-                    })
-                }
-                // Handle duplicate email error
-                else if (error.status === 409) {
-                    toast({
-                        title: "Email Already Exists",
                         description: error.message,
                         variant: "destructive",
                     })
-                }
-                // Handle not found error
-                else if (error.status === 404) {
+                } else if (error.status === 404) {
                     toast({
                         title: "Team Member Not Found",
                         description: error.message,
                         variant: "destructive",
                     })
-                }
-                // Handle other API errors
-                else {
+                } else if (error.status === 409) {
                     toast({
-                        title: "Failed to Update Team Member",
+                        title: "Conflict",
+                        description: error.message,
+                        variant: "destructive",
+                    })
+                } else {
+                    toast({
+                        title: "Update Failed",
                         description: error.message,
                         variant: "destructive",
                     })

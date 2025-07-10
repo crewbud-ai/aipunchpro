@@ -9,8 +9,6 @@ import { env } from '@/lib/env'
 // export const resend = new Resend(env.RESEND_API_KEY)
 export const resend = new Resend(env.RESEND_API_KEY)
 
-console.log(resend, 'resend')
-
 // Email configuration
 export const emailConfig = {
   from: env.FROM_EMAIL,
@@ -37,8 +35,6 @@ export abstract class BaseEmailService {
   }): Promise<EmailResult> {
     try {
 
-      console.log(data, 'data')
-
       const result = await resend.emails.send({
         from: `${emailConfig.brandName} <${emailConfig.from}>`,
         to: data.to,
@@ -47,8 +43,6 @@ export abstract class BaseEmailService {
         html: data.html,
         react: data.react,
       })
-
-      console.log(result, 'result')
 
       if (result.error) {
         console.error('Email sending error:', result.error)
