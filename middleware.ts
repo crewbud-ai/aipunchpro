@@ -8,13 +8,25 @@ import { AuthDatabaseService } from '@/lib/database/services'
 
 // Protected routes that require authentication
 const protectedRoutes = [
+  // Dashboard routes
   '/dashboard',
   '/profile',
   '/settings',
+  
+  // API routes that require authentication
   '/api/user',
   '/api/company',
-  '/api/projects', // Add projects API protection
-  '/api/protected', // Add any other protected API routes
+  '/api/projects',
+  '/api/team-members',
+  '/api/schedule-projects',    // ← NEW: Schedule projects API
+  '/api/punchlist-items',      // ← NEW: Punchlist items API
+  '/api/protected',
+  
+  // Additional API endpoints that might exist
+  '/api/files',
+  '/api/reports',
+  '/api/notifications',
+  '/api/stats',
 ]
 
 // Public routes that don't require authentication
@@ -28,6 +40,8 @@ const publicRoutes = [
   '/contact',
   '/about',
   '/api/auth', // All auth API routes are public
+  '/api/health', // Health check endpoint (if exists)
+  '/api/status', // Status endpoint (if exists)
 ]
 
 export async function middleware(request: NextRequest) {
@@ -92,18 +106,13 @@ export async function middleware(request: NextRequest) {
           requestHeaders.set('x-user-role', sessionValidation.data.user.role)
         }
 
-        // Find this section and make sure you have the permissions header
-        if (sessionValidation.data.user?.permissions) {
-          requestHeaders.set('x-user-permissions', JSON.stringify(sessionValidation.data.user.permissions))
+        // IMPORTANT: Add company ID to headers for all protected APIs
+        if (sessionValidation.data.user?.company?.id) {
+          requestHeaders.set('x-company-id', sessionValidation.data.user.company.id)
         }
 
         if (sessionValidation.data.user?.email) {
           requestHeaders.set('x-user-email', sessionValidation.data.user.email)
-        }
-
-        // IMPORTANT: Add company ID to headers for project APIs
-        if (sessionValidation.data.user?.company?.id) {
-          requestHeaders.set('x-company-id', sessionValidation.data.user.company.id)
         }
 
         // Add user name for convenience
