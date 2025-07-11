@@ -186,7 +186,7 @@ export default function CreateSchedulePage() {
     const step1Props = {
         formData,
         errors,
-        updateFormData,
+        updateFormData: updateFormData as (field: string, value: any) => void, // Type cast
         clearFieldError,
         activeProjects,
         isProjectsLoading,
@@ -198,7 +198,7 @@ export default function CreateSchedulePage() {
     const step2Props = {
         formData,
         errors,
-        updateFormData,
+        updateFormData: updateFormData as (field: string, value: any) => void, // Type cast
         clearFieldError,
         handleStartDateChange,
     }
@@ -206,7 +206,7 @@ export default function CreateSchedulePage() {
     const step3Props = {
         formData,
         errors,
-        updateFormData,
+        updateFormData: updateFormData as (field: string, value: any) => void, // Type cast
         clearFieldError,
         selectedProject,
         isTeamMembersLoading,

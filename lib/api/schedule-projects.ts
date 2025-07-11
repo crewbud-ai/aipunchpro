@@ -263,7 +263,7 @@ export const scheduleProjectsApi = {
     async updateScheduleProject(data: UpdateScheduleProjectData): Promise<UpdateScheduleProjectResult> {
         try {
             const response = await apiCall<UpdateScheduleProjectResult>(`/api/schedule-projects/${data.id}`, {
-                method: 'PATCH',
+                method: 'PUT',
                 body: JSON.stringify(data),
             })
 

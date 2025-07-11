@@ -176,10 +176,14 @@ export async function POST(request: NextRequest) {
     // Get the created schedule project with full details
     const scheduleProjectWithDetails = await scheduleService.getScheduleProjectById(scheduleProject.id, companyId)
 
+
+
     return NextResponse.json(
       {
         success: true,
-        data: scheduleProjectWithDetails,
+        data: {
+            scheduleProject: scheduleProjectWithDetails
+        },
         message: 'Schedule project created successfully.',
       },
       { status: 201 }
