@@ -10,6 +10,8 @@ export * from './project-members';
 export * from './tasks';
 export * from './files';
 export * from './scheduling';
+export * from './schedule-projects';
+export * from './punchlist-items';
 export * from './time-tracking';
 export * from './system';
 
@@ -24,6 +26,8 @@ import { projectMembers } from './project-members';
 import { tasks } from './tasks';
 import { projectFiles, taskAttachments } from './files';
 import { scheduleEvents, scheduleAttendees } from './scheduling';
+import { scheduleProjects } from './schedule-projects';
+import { punchlistItems } from './punchlist-items';
 import { timeEntries } from './time-tracking';
 import { auditLogs, notifications } from './system';
 
@@ -43,9 +47,13 @@ export const schema = {
   projectFiles,
   taskAttachments,
   
-  // Scheduling
+  // Scheduling (OLD - keeping for backward compatibility)
   scheduleEvents,
   scheduleAttendees,
+  
+  // NEW Scheduling & Punchlist
+  scheduleProjects,
+  punchlistItems,
   
   // Time tracking
   timeEntries,
@@ -86,12 +94,19 @@ export type NewProjectFile = typeof projectFiles.$inferInsert;
 export type TaskAttachment = typeof taskAttachments.$inferSelect;
 export type NewTaskAttachment = typeof taskAttachments.$inferInsert;
 
-// Scheduling
+// OLD Scheduling (keeping for backward compatibility)
 export type ScheduleEvent = typeof scheduleEvents.$inferSelect;
 export type NewScheduleEvent = typeof scheduleEvents.$inferInsert;
 
 export type ScheduleAttendee = typeof scheduleAttendees.$inferSelect;
 export type NewScheduleAttendee = typeof scheduleAttendees.$inferInsert;
+
+// NEW Scheduling & Punchlist
+export type ScheduleProject = typeof scheduleProjects.$inferSelect;
+export type NewScheduleProject = typeof scheduleProjects.$inferInsert;
+
+export type PunchlistItem = typeof punchlistItems.$inferSelect;
+export type NewPunchlistItem = typeof punchlistItems.$inferInsert;
 
 // Time tracking
 export type TimeEntry = typeof timeEntries.$inferSelect;
@@ -132,12 +147,14 @@ export type ProjectWithTeam = Project & {
 // UTILITY TYPES FOR COMPLEX QUERIES
 // ==============================================
 
-// Project with related data
+// Project with related data (UPDATED)
 export type ProjectWithDetails = Project & {
   members?: ProjectMember[];
   tasks?: Task[];
   files?: ProjectFile[];
-  scheduleEvents?: ScheduleEvent[];
+  scheduleEvents?: ScheduleEvent[]; // OLD scheduling
+  scheduleProjects?: ScheduleProject[]; // NEW scheduling
+  punchlistItems?: PunchlistItem[]; // NEW punchlist
   creator?: User;
   projectManager?: User;
   foreman?: User;
@@ -153,11 +170,64 @@ export type TaskWithDetails = Task & {
   blockedByTask?: Task;
 };
 
-// Schedule event with attendees
+// OLD Schedule event with attendees (keeping for backward compatibility)
 export type ScheduleEventWithAttendees = ScheduleEvent & {
   attendees?: (ScheduleAttendee & { user?: User })[];
   project?: Project;
   creator?: User;
+};
+
+// NEW Schedule project with details
+export type ScheduleProjectWithDetails = ScheduleProject & {
+  project?: {
+    id: string;
+    name: string;
+    status: string;
+  };
+  assignedMembers?: Array<{
+    id: string;
+    userId: string;
+    user: {
+      firstName: string;
+      lastName: string;
+      tradeSpecialty?: string;
+    };
+  }>;
+  creator?: {
+    firstName: string;
+    lastName: string;
+  };
+};
+
+// NEW Punchlist item with details
+export type PunchlistItemWithDetails = PunchlistItem & {
+  project?: {
+    id: string;
+    name: string;
+    status: string;
+  };
+  assignedMember?: {
+    id: string;
+    userId: string;
+    user: {
+      firstName: string;
+      lastName: string;
+      tradeSpecialty?: string;
+    };
+  };
+  relatedScheduleProject?: {
+    id: string;
+    title: string;
+    status: string;
+  };
+  reporter?: {
+    firstName: string;
+    lastName: string;
+  };
+  inspector?: {
+    firstName: string;
+    lastName: string;
+  };
 };
 
 // Time entry with related data
@@ -172,4 +242,34 @@ export type TimeEntryWithDetails = TimeEntry & {
 export type ProjectMemberWithUser = ProjectMember & {
   user?: User;
   project?: Project;
+};
+
+// ==============================================
+// SCHEDULE PROJECTS & PUNCHLIST SUMMARY TYPES
+// ==============================================
+
+// Schedule project summary for dashboards
+export type ScheduleProjectSummary = {
+  id: string;
+  title: string;
+  projectName: string;
+  status: string;
+  priority: string;
+  startDate: string;
+  endDate: string;
+  assignedMemberCount: number;
+  progressPercentage: number;
+};
+
+// Punchlist item summary for dashboards
+export type PunchlistItemSummary = {
+  id: string;
+  title: string;
+  projectName: string;
+  status: string;
+  priority: string;
+  issueType: string;
+  assignedMemberName?: string;
+  dueDate?: string;
+  isOverdue: boolean;
 };
