@@ -1,5 +1,5 @@
 // ==============================================
-// hooks/schedule-projects/use-create-schedule-project.ts - Create Schedule Project Hook (FIXED)
+// hooks/schedule-projects/use-create-schedule-project.ts - COMPLETE FIXED VERSION
 // ==============================================
 
 import { useState, useCallback } from 'react'
@@ -30,7 +30,7 @@ interface UseCreateScheduleProjectActions {
   updateFormData: (field: keyof CreateScheduleProjectFormData, value: any) => void
   updateFormDataBulk: (data: Partial<CreateScheduleProjectFormData>) => void
   clearErrors: () => void
-  clearFieldError: (field: keyof ScheduleProjectFormErrors) => void
+  clearFieldError: (field: string) => void  // FIXED: Now accepts string
   validateForm: () => boolean
   createScheduleProject: (data?: CreateScheduleProjectData) => Promise<void>
   reset: () => void
@@ -62,13 +62,77 @@ interface UseCreateScheduleProjectReturn extends UseCreateScheduleProjectState, 
 }
 
 // ==============================================
-// MAIN HOOK - EXACT SAME PATTERN AS PROJECT HOOK
+// VALIDATION HELPERS
+// ==============================================
+function validateFormData(formData: CreateScheduleProjectFormData): {
+  isValid: boolean
+  errors: ScheduleProjectFormErrors
+} {
+  const result = validateCreateScheduleProject(transformCreateFormDataToApiData(formData))
+
+  if (result.success) {
+    return { isValid: true, errors: {} }
+  }
+
+  // Transform Zod errors to our error format
+  const errors: ScheduleProjectFormErrors = {}
+  result.error.errors.forEach((error) => {
+    const field = error.path[0] as keyof ScheduleProjectFormErrors
+    if (field) {
+      errors[field] = error.message
+    }
+  })
+
+  return { isValid: false, errors }
+}
+
+// FIXED: Helper function to validate current step
+function getCurrentStepValidation(
+  formData: CreateScheduleProjectFormData, 
+  errors: ScheduleProjectFormErrors, 
+  currentStep: number
+): boolean {
+  // Check if there are any errors for current step fields
+  const stepFields = getStepFields(currentStep)
+  const hasCurrentStepErrors = stepFields.some(field => errors[field as keyof ScheduleProjectFormErrors])
+
+  if (hasCurrentStepErrors) return false
+
+  // Check required fields for current step
+  switch (currentStep) {
+    case 1:
+      return formData.title.trim().length > 0 && formData.projectId.length > 0
+    case 2:
+      return formData.startDate.length > 0 && formData.endDate.length > 0
+    case 3:
+      return formData.assignedProjectMemberIds.length > 0
+    default:
+      return false
+  }
+}
+
+// Helper to get fields for each step
+function getStepFields(step: number): string[] {
+  switch (step) {
+    case 1:
+      return ['title', 'projectId', 'description', 'tradeRequired']
+    case 2:
+      return ['startDate', 'endDate', 'startTime', 'endTime', 'estimatedHours']
+    case 3:
+      return ['assignedProjectMemberIds', 'priority', 'location', 'notes']
+    default:
+      return []
+  }
+}
+
+// ==============================================
+// MAIN HOOK
 // ==============================================
 export function useCreateScheduleProject() {
   const router = useRouter()
 
   // ==============================================
-  // STATE - SINGLE STATE OBJECT LIKE PROJECT HOOK
+  // STATE
   // ==============================================
   const [state, setState] = useState<UseCreateScheduleProjectState>({
     state: 'idle',
@@ -78,19 +142,13 @@ export function useCreateScheduleProject() {
   })
 
   // ==============================================
-  // COMPUTED PROPERTIES - EXACT SAME PATTERN
+  // COMPUTED VALUES
   // ==============================================
   const isLoading = state.state === 'loading'
   const isSuccess = state.state === 'success'
   const isError = state.state === 'error'
   const isIdle = state.state === 'idle'
   const hasErrors = Object.keys(state.errors).length > 0
-  const canSubmit = Boolean(
-    state.formData.title.trim().length > 0 &&
-    state.formData.projectId.length > 0 &&
-    state.formData.assignedProjectMemberIds.length > 0 &&
-    !isLoading
-  )
 
   // Multi-step form computed values
   const currentStep = state.formData.currentStep
@@ -101,28 +159,36 @@ export function useCreateScheduleProject() {
   const isLastStep = currentStep === totalSteps
   const progressPercentage = (currentStep / totalSteps) * 100
 
+  // FIXED: Proper canSubmit logic
+  const canSubmit = !isLoading && getCurrentStepValidation(state.formData, state.errors, currentStep)
+
   // ==============================================
-  // FORM DATA MANAGEMENT - EXACT SAME PATTERN AS PROJECT HOOK
+  // ACTIONS - ALL FIXED WITH PROPER STATE UPDATES
   // ==============================================
+
+  // Update single form field
   const updateFormData = useCallback((field: keyof CreateScheduleProjectFormData, value: any) => {
     setState(prev => ({
       ...prev,
-      formData: { ...prev.formData, [field]: value },
-      // Clear field error when user starts typing
-      errors: { ...prev.errors, [field]: undefined },
+      formData: {
+        ...prev.formData,
+        [field]: value,
+      },
     }))
   }, [])
 
+  // Update multiple form fields at once
   const updateFormDataBulk = useCallback((data: Partial<CreateScheduleProjectFormData>) => {
     setState(prev => ({
       ...prev,
-      formData: { ...prev.formData, ...data },
+      formData: {
+        ...prev.formData,
+        ...data,
+      },
     }))
   }, [])
 
-  // ==============================================
-  // ERROR MANAGEMENT - EXACT SAME PATTERN
-  // ==============================================
+  // Clear all errors
   const clearErrors = useCallback(() => {
     setState(prev => ({
       ...prev,
@@ -130,134 +196,175 @@ export function useCreateScheduleProject() {
     }))
   }, [])
 
-  const clearFieldError = useCallback((field: keyof ScheduleProjectFormErrors) => {
+  // FIXED: Clear specific field error - now accepts string
+  const clearFieldError = useCallback((field: string) => {
     setState(prev => ({
       ...prev,
-      errors: { ...prev.errors, [field]: undefined },
+      errors: {
+        ...prev.errors,
+        [field]: undefined,
+      },
     }))
   }, [])
 
-  // ==============================================
-  // FORM VALIDATION - EXACT SAME PATTERN
-  // ==============================================
-  const validateForm = useCallback(() => {
-    const validation = validateCreateScheduleProject(transformCreateFormDataToApiData(state.formData))
+  // FIXED: Validate entire form
+  const validateForm = useCallback((): boolean => {
+    let isValid = false
+    
+    setState(prev => {
+      const { isValid: formIsValid, errors } = validateFormData(prev.formData)
+      isValid = formIsValid
+      
+      if (!formIsValid) {
+        return {
+          ...prev,
+          errors,
+        }
+      }
+      
+      return prev
+    })
 
-    if (!validation.success) {
-      const newErrors: ScheduleProjectFormErrors = {}
-      validation.error.errors.forEach((error: any) => {
-        const fieldPath = error.path.join('.')
-        newErrors[fieldPath as keyof ScheduleProjectFormErrors] = error.message
-      })
+    return isValid
+  }, [])
 
-      setState(prev => ({
-        ...prev,
-        errors: newErrors,
-      }))
-      return false
-    }
-
-    setState(prev => ({
-      ...prev,
-      errors: {},
-    }))
-    return true
-  }, [state.formData])
-
-  // ==============================================
-  // CREATE SCHEDULE PROJECT - EXACT SAME PATTERN
-  // ==============================================
+  // FIXED: Create schedule project - simplest approach
   const createScheduleProject = useCallback(async (data?: CreateScheduleProjectData) => {
     try {
+      // Capture current form data before any state changes
+      const currentFormData = state.formData
+      
       setState(prev => ({
         ...prev,
         state: 'loading',
         errors: {},
       }))
 
-      // Use provided data or transform form data
-      const scheduleProjectData = data || transformCreateFormDataToApiData(state.formData)
+      // Use provided data or transform current form data
+      const scheduleProjectData = data || transformCreateFormDataToApiData(currentFormData)
 
-      // Validate data before sending
-      const validation = validateCreateScheduleProject(scheduleProjectData)
-      if (!validation.success) {
-        const newErrors: ScheduleProjectFormErrors = {}
-        validation.error.errors.forEach((error: any) => {
-          const fieldPath = error.path.join('.')
-          newErrors[fieldPath as keyof ScheduleProjectFormErrors] = error.message
-        })
+      // Validate before sending
+      if (!data) {
+        const validation = validateCreateScheduleProject(scheduleProjectData)
+        if (!validation.success) {
+          const errors: ScheduleProjectFormErrors = {}
+          validation.error.errors.forEach((error) => {
+            const field = error.path[0] as keyof ScheduleProjectFormErrors
+            if (field) {
+              errors[field] = error.message
+            }
+          })
 
-        setState(prev => ({
-          ...prev,
-          state: 'error',
-          errors: newErrors,
-        }))
-        return
+          setState(prev => ({
+            ...prev,
+            state: 'error',
+            errors,
+          }))
+          return
+        }
       }
 
-      const response = await scheduleProjectsApi.createScheduleProject(scheduleProjectData)
+      // Call API
+      const result = await scheduleProjectsApi.createScheduleProject(scheduleProjectData)
 
-      if (response.success) {
-        setState(prev => ({
-          ...prev,
-          state: 'success',
-          result: response,
-          errors: {},
-        }))
+      setState(prev => ({
+        ...prev,
+        state: 'success',
+        result,
+        errors: {},
+      }))
 
-        // Navigate to the new schedule project
-        router.push(`/dashboard/schedule/${response.data.scheduleProject.id}`)
-      } else {
-        setState(prev => ({
-          ...prev,
-          state: 'error',
-          errors: { general: response.message || 'Failed to create schedule project' },
-        }))
-      }
-    } catch (error: any) {
+      // Navigate to the created schedule project or back to list
+      const scheduleProjectId = result.data.scheduleProject.id
+      router.push(`/dashboard/schedule/${scheduleProjectId}`)
+
+    } catch (error) {
       console.error('Error creating schedule project:', error)
+
+      let errors: ScheduleProjectFormErrors = {}
+
+      if (error instanceof Error) {
+        // Handle API validation errors
+        if ('details' in error && Array.isArray((error as any).details)) {
+          (error as any).details.forEach((detail: any) => {
+            if (detail.field) {
+              errors[detail.field as keyof ScheduleProjectFormErrors] = detail.message
+            }
+          })
+        } else {
+          errors.general = error.message
+        }
+      } else {
+        errors.general = 'An unexpected error occurred while creating the schedule project'
+      }
 
       setState(prev => ({
         ...prev,
         state: 'error',
-        errors: { general: error.message || 'Failed to create schedule project' },
+        errors,
       }))
     }
-  }, [state.formData, router])
+  }, [router, state.formData])
+
+  // Reset form
+  const reset = useCallback(() => {
+    setState({
+      state: 'idle',
+      result: null,
+      errors: {},
+      formData: getDefaultCreateScheduleProjectFormData(),
+    })
+  }, [])
 
   // ==============================================
   // MULTI-STEP FORM HELPERS
   // ==============================================
+
   const goToNextStep = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      formData: {
-        ...prev.formData,
-        currentStep: prev.formData.currentStep + 1,
-        completedSteps: [...prev.formData.completedSteps, prev.formData.currentStep]
-          .filter((v, i, a) => a.indexOf(v) === i), // Remove duplicates
-      },
-    }))
+    setState(prev => {
+      if (prev.formData.currentStep < totalSteps) {
+        return {
+          ...prev,
+          formData: {
+            ...prev.formData,
+            currentStep: prev.formData.currentStep + 1,
+            completedSteps: [...prev.formData.completedSteps, prev.formData.currentStep]
+              .filter((v, i, a) => a.indexOf(v) === i), // Remove duplicates
+          },
+        }
+      }
+      return prev
+    })
   }, [])
 
   const goToPrevStep = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      formData: {
-        ...prev.formData,
-        currentStep: prev.formData.currentStep - 1,
-      },
-    }))
+    setState(prev => {
+      if (prev.formData.currentStep > 1) {
+        return {
+          ...prev,
+          formData: {
+            ...prev.formData,
+            currentStep: prev.formData.currentStep - 1,
+          },
+        }
+      }
+      return prev
+    })
   }, [])
 
   const goToStep = useCallback((step: number) => {
-    setState(prev => ({
-      ...prev,
-      formData: {
-        ...prev.formData,
-        currentStep: step,
-      },
-    }))
+    setState(prev => {
+      if (step >= 1 && step <= totalSteps) {
+        return {
+          ...prev,
+          formData: {
+            ...prev.formData,
+            currentStep: step,
+          },
+        }
+      }
+      return prev
+    })
   }, [])
 
   const markStepComplete = useCallback((step: number) => {
@@ -269,18 +376,6 @@ export function useCreateScheduleProject() {
           .filter((v, i, a) => a.indexOf(v) === i), // Remove duplicates
       },
     }))
-  }, [])
-
-  // ==============================================
-  // RESET - EXACT SAME PATTERN
-  // ==============================================
-  const reset = useCallback(() => {
-    setState({
-      state: 'idle',
-      result: null,
-      errors: {},
-      formData: getDefaultCreateScheduleProjectFormData(),
-    })
   }, [])
 
   // ==============================================
@@ -299,7 +394,7 @@ export function useCreateScheduleProject() {
     isError,
     isIdle,
     hasErrors,
-    canSubmit,
+    canSubmit, // FIXED: Now properly validates current step
 
     // Multi-step form computed properties
     currentStep,
@@ -314,7 +409,7 @@ export function useCreateScheduleProject() {
     updateFormData,
     updateFormDataBulk,
     clearErrors,
-    clearFieldError,
+    clearFieldError, // FIXED: Now accepts string
     validateForm,
     createScheduleProject,
     reset,

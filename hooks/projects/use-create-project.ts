@@ -112,6 +112,7 @@ export const useCreateProject = () => {
   // FORM DATA MANAGEMENT
   // ==============================================
   const updateFormData = useCallback((field: keyof CreateProjectFormData, value: any) => {
+    console.log(field, value)
     setState(prev => ({
       ...prev,
       formData: { ...prev.formData, [field]: value },

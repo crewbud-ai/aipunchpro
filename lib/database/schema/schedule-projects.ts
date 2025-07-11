@@ -1,28 +1,25 @@
 // ==============================================
-// src/lib/database/schema/schedule-projects.ts
+// lib/database/schema/schedule-projects.ts - UPDATED WITH PROPER FOREIGN KEYS
 // ==============================================
 
-import { 
-  pgTable, 
-  uuid, 
-  varchar, 
+import {
+  pgTable,
+  uuid,
+  varchar,
   text,
-  boolean, 
-  timestamp,
-  decimal,
   date,
   time,
-  unique,
+  decimal,
+  timestamp,
   index
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
+import { companies } from './companies';
 import { projects } from './projects';
 import { users } from './users';
-import { companies } from './companies';
-import { projectMembers } from './project-members';
 
 // ==============================================
-// SCHEDULE STATUS & PRIORITY ENUMS
+// SCHEDULE STATUS & PRIORITY CONSTANTS
 // ==============================================
 export const SCHEDULE_STATUS = [
   'planned',
@@ -35,7 +32,7 @@ export const SCHEDULE_STATUS = [
 export const SCHEDULE_PRIORITY = [
   'low',
   'medium',
-  'high', 
+  'high',
   'critical'
 ] as const;
 
@@ -53,10 +50,12 @@ export const TRADE_REQUIRED = [
 ] as const;
 
 // ==============================================
-// SCHEDULE PROJECTS TABLE
+// SCHEDULE PROJECTS TABLE - NEW SYSTEM
 // ==============================================
 export const scheduleProjects = pgTable('schedule_projects', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Company & Project Relations - FIXED: Proper foreign key references
   companyId: uuid('company_id').references(() => companies.id, { onDelete: 'cascade' }).notNull(),
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
   
@@ -90,7 +89,7 @@ export const scheduleProjects = pgTable('schedule_projects', {
   location: text('location'),
   notes: text('notes'),
   
-  // Metadata
+  // Metadata - FIXED: Proper foreign key reference for created_by
   createdBy: uuid('created_by').references(() => users.id).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),

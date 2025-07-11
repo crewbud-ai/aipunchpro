@@ -267,11 +267,11 @@ export class ScheduleProjectDatabaseService {
             .select(`
                 *,
                 project:projects(id, name, status),
-                creator:users!schedule_projects_created_by_fkey(first_name, last_name)
+                creator:users!created_by(first_name, last_name)
             `)
             .eq('company_id', companyId)
 
-        // Apply filters
+        // Apply filters (keep all existing filter logic)
         if (options.projectId) {
             query = query.eq('project_id', options.projectId)
         }
@@ -338,14 +338,7 @@ export class ScheduleProjectDatabaseService {
         const offset = options.offset || 0
         query = query.range(offset, offset + limit - 1)
 
-        const { data: scheduleProjects, error, count } = await this.supabaseClient
-            .from('schedule_projects')
-            .select(`
-                *,
-                project:projects(id, name, status),
-                creator:users!schedule_projects_created_by_fkey(first_name, last_name)
-            `, { count: 'exact' })
-            .eq('company_id', companyId)
+        const { data: scheduleProjects, error, count } = await query
 
         if (error) {
             console.error('Error fetching schedule projects:', error)
@@ -375,7 +368,7 @@ export class ScheduleProjectDatabaseService {
             .select(`
                 *,
                 project:projects(id, name, status),
-                creator:users!schedule_projects_created_by_fkey(first_name, last_name)
+                creator:users!created_by(first_name, last_name)
             `)
             .eq('id', scheduleId)
             .eq('company_id', companyId)
@@ -426,10 +419,10 @@ export class ScheduleProjectDatabaseService {
         const { data: projectMembers, error } = await this.supabaseClient
             .from('project_members')
             .select(`
-                id,
-                user_id,
-                user:users(first_name, last_name, trade_specialty)
-            `)
+            id,
+            user_id,
+            user:users!user_id(first_name, last_name, trade_specialty)
+        `)
             .in('id', assignedProjectMemberIds)
 
         if (error) {
@@ -444,12 +437,12 @@ export class ScheduleProjectDatabaseService {
         const { data: projectMembers, error } = await this.supabaseClient
             .from('project_members')
             .select(`
-                id,
-                user_id,
-                user:users(first_name, last_name, trade_specialty),
-                hourly_rate,
-                status
-            `)
+            id,
+            user_id,
+            user:users!user_id(first_name, last_name, trade_specialty),
+            hourly_rate,
+            status
+        `)
             .eq('project_id', projectId)
             .eq('company_id', companyId)
             .eq('status', 'active')
@@ -502,7 +495,7 @@ export class ScheduleProjectDatabaseService {
     async getUpcomingScheduleForUser(userId: string, companyId: string, days = 7) {
         const today = new Date()
         const futureDate = new Date(today.getTime() + (days * 24 * 60 * 60 * 1000))
-        
+
         const todayStr = today.toISOString().split('T')[0]
         const futureDateStr = futureDate.toISOString().split('T')[0]
 
@@ -563,7 +556,7 @@ export class ScheduleProjectDatabaseService {
         }
 
         const statsData = stats || []
-        
+
         return {
             total: statsData.length,
             planned: statsData.filter(s => s.status === 'planned').length,
@@ -600,7 +593,7 @@ export class ScheduleProjectDatabaseService {
         const statsData = stats || []
         const today = new Date().toISOString().split('T')[0]
         const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        
+
         return {
             total: statsData.length,
             planned: statsData.filter(s => s.status === 'planned').length,
