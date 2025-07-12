@@ -15,10 +15,6 @@ import { ProjectDatabaseService } from '@/lib/database/services/projects'
 // ==============================================
 // GET /api/schedule-projects - Get All Schedule Projects for Company
 // ==============================================
-// ==============================================
-// Fix for app/api/schedule-projects/route.ts
-// Add data transformation to convert snake_case to camelCase
-// ==============================================
 
 export async function GET(request: NextRequest) {
     try {
