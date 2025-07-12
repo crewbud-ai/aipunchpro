@@ -416,22 +416,87 @@ export class ScheduleProjectDatabaseService {
             return []
         }
 
-        const { data: projectMembers, error } = await this.supabaseClient
-            .from('project_members')
-            .select(`
-            id,
-            user_id,
-            user:users!user_id(first_name, last_name, trade_specialty)
-        `)
-            .in('id', assignedProjectMemberIds)
+        try {
+            // First try as project member IDs
+            const { data: projectMembers, error: pmError } = await this.supabaseClient
+                .from('project_members')
+                .select('id, user_id, project_id, status, company_id')
+                .in('id', assignedProjectMemberIds)
+                .eq('status', 'active')
 
-        if (error) {
-            console.error('Error fetching assigned members:', error)
+            if (!pmError && projectMembers && projectMembers.length > 0) {
+                const userIds = projectMembers.map(pm => pm.user_id)
+                const { data: users } = await this.supabaseClient
+                    .from('users')
+                    .select('id, first_name, last_name, trade_specialty, role')
+                    .in('id', userIds)
+
+                return this.formatMemberData(projectMembers, users || [])
+            }
+
+            // If not found, try as user IDs
+            const { data: projectMembersByUserId, error: userIdError } = await this.supabaseClient
+                .from('project_members')
+                .select('id, user_id, project_id, status, company_id')
+                .in('user_id', assignedProjectMemberIds)
+                .eq('status', 'active')
+
+            if (!userIdError && projectMembersByUserId && projectMembersByUserId.length > 0) {
+                const { data: users } = await this.supabaseClient
+                    .from('users')
+                    .select('id, first_name, last_name, trade_specialty, role')
+                    .in('id', assignedProjectMemberIds)
+
+                return this.formatMemberData(projectMembersByUserId, users || [])
+            }
+
+            // Fallback: direct user lookup
+            const { data: users, error: directUserError } = await this.supabaseClient
+                .from('users')
+                .select('id, first_name, last_name, trade_specialty, role')
+                .in('id', assignedProjectMemberIds)
+
+            if (!directUserError && users && users.length > 0) {
+                const mockProjectMembers = users.map(user => ({
+                    id: `user-${user.id}`,
+                    user_id: user.id,
+                    project_id: null,
+                    status: 'active',
+                    company_id: null
+                }))
+
+                return this.formatMemberData(mockProjectMembers, users)
+            }
+
+            return []
+
+        } catch (error) {
+            console.error('Error in getAssignedMembersForScheduleProject:', error)
             return []
         }
-
-        return projectMembers || []
     }
+
+    // Add this helper method to the same class
+    private formatMemberData(projectMembers: any[], users: any[]) {
+        return projectMembers.map(member => {
+            const user = users.find(u => u.id === member.user_id)
+            return {
+                id: member.id,
+                userId: member.user_id,
+                projectId: member.project_id,
+                status: member.status,
+                user: user ? {
+                    id: user.id,
+                    firstName: user.first_name,
+                    lastName: user.last_name,
+                    tradeSpecialty: user.trade_specialty,
+                    role: user.role
+                } : null
+            }
+        }).filter(member => member.user !== null)
+    }
+
+
 
     async getProjectMembersForProject(projectId: string, companyId: string) {
         const { data: projectMembers, error } = await this.supabaseClient

@@ -724,7 +724,6 @@ export default function SchedulePage() {
                               <span>{item.location}</span>
                             </div>
                           )}
-                          
                           {item.assignedMembers && (
                             <div className="flex items-center gap-2">
                               <Users className="h-4 w-4 text-gray-400" />

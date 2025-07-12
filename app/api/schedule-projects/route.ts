@@ -15,6 +15,11 @@ import { ProjectDatabaseService } from '@/lib/database/services/projects'
 // ==============================================
 // GET /api/schedule-projects - Get All Schedule Projects for Company
 // ==============================================
+// ==============================================
+// Fix for app/api/schedule-projects/route.ts
+// Add data transformation to convert snake_case to camelCase
+// ==============================================
+
 export async function GET(request: NextRequest) {
     try {
         // Get user info from middleware
@@ -75,11 +80,66 @@ export async function GET(request: NextRequest) {
         // Get schedule projects with filters
         const result = await scheduleService.getScheduleProjects(companyId, validation.data)
 
+        // Transform snake_case to camelCase for frontend
+        const transformedScheduleProjects = result.data.map((scheduleProject: any) => ({
+            id: scheduleProject.id,
+            companyId: scheduleProject.company_id,
+            projectId: scheduleProject.project_id,
+            title: scheduleProject.title,
+            description: scheduleProject.description,
+
+            // Transform dates and times
+            startDate: scheduleProject.start_date,
+            endDate: scheduleProject.end_date,
+            startTime: scheduleProject.start_time,
+            endTime: scheduleProject.end_time,
+
+            // Transform assignment and work details
+            assignedProjectMemberIds: scheduleProject.assigned_project_member_ids,
+            tradeRequired: scheduleProject.trade_required,
+            status: scheduleProject.status,
+            priority: scheduleProject.priority,
+            progressPercentage: scheduleProject.progress_percentage,
+            estimatedHours: scheduleProject.estimated_hours,
+            actualHours: scheduleProject.actual_hours,
+            dependsOn: scheduleProject.depends_on,
+            location: scheduleProject.location,
+            notes: scheduleProject.notes,
+
+            // Transform metadata
+            createdBy: scheduleProject.created_by,
+            createdAt: scheduleProject.created_at,
+            updatedAt: scheduleProject.updated_at,
+            completedAt: scheduleProject.completed_at,
+
+            // Transform related data
+            project: scheduleProject.project ? {
+                id: scheduleProject.project.id,
+                name: scheduleProject.project.name,
+                status: scheduleProject.project.status
+            } : undefined,
+
+            creator: scheduleProject.creator ? {
+                firstName: scheduleProject.creator.first_name,
+                lastName: scheduleProject.creator.last_name
+            } : undefined,
+
+            assignedMembers: scheduleProject.assignedMembers ? scheduleProject.assignedMembers.map((member: any) => ({
+                id: member.id,
+                userId: member.userId || member.user_id,
+                user: member.user ? {
+                    firstName: member.user.firstName || member.user.first_name,
+                    lastName: member.user.lastName || member.user.last_name,
+                    tradeSpecialty: member.user.tradeSpecialty || member.user.trade_specialty
+                } : undefined
+            })) : []
+        }))
+
         return NextResponse.json(
             {
                 success: true,
                 data: {
-                    scheduleProjects: result.data,
+                    scheduleProjects: transformedScheduleProjects,
                     pagination: {
                         total: result.totalCount,
                         limit,
