@@ -78,7 +78,6 @@ export async function GET(request: NextRequest) {
         // Validate query parameters
         const validation = validateGetPunchlistItems(queryParams)
         if (!validation.success) {
-            console.error('Validation errors:', validation.error.errors)
             return NextResponse.json(
                 {
                     success: false,
@@ -204,17 +203,44 @@ export async function POST(request: NextRequest) {
 
         // Verify assigned project member if provided
         if (validation.data.assignedProjectMemberId) {
-            const projectMembers = await punchlistService.getProjectMembersForProject(validation.data.projectId, companyId)
-            const assignedMemberExists = projectMembers.some(pm => pm.id === validation.data.assignedProjectMemberId)
 
-            if (!assignedMemberExists) {
+            try {
+                const projectMembers = await punchlistService.getProjectMembersForProject(validation.data.projectId, companyId)
+
+                // CHANGED: Check if the user_id exists in project members (not project_member_id)
+                const assignedMember = projectMembers.find(pm => pm.user_id === validation.data.assignedProjectMemberId)
+
+                if (!assignedMember) {
+                    return NextResponse.json(
+                        {
+                            success: false,
+                            error: 'Invalid assignment',
+                            message: 'The specified user is not assigned to this project.',
+                            debug: {
+                                sentUserId: validation.data.assignedProjectMemberId,
+                                availableUsers: projectMembers.map(pm => ({
+                                    user_id: pm.user_id,
+                                    // name: `${pm.user?.first_name} ${pm.user?.last_name}`
+                                }))
+                            }
+                        },
+                        { status: 400 }
+                    )
+                }
+
+                // IMPORTANT: Replace the user_id with the actual project_member_id for database storage
+                validation.data.assignedProjectMemberId = assignedMember.id
+
+            } catch (memberError) {
+                console.error('🚨 Error fetching project members:', memberError)
                 return NextResponse.json(
                     {
                         success: false,
-                        error: 'Invalid assignment',
-                        message: 'The specified team member is not assigned to this project.',
+                        error: 'Database error',
+                        message: 'Failed to verify user assignment.',
+                        // debug: { originalError: memberError.message }
                     },
-                    { status: 400 }
+                    { status: 500 }
                 )
             }
         }

@@ -85,65 +85,33 @@ export default function CreatePunchlistPage() {
         project.status === 'on_track'
     ), [projects])
 
-    // Get project-filtered team members
+    // Get project-filtered team members - SIMPLIFIED VERSION
     const availableTeamMembers = useMemo(() => {
-        console.log('🔍 Team Members Debug:', {
-            projectId: formData.projectId,
-            totalTeamMembers: teamMembers.length,
-            teamMembersArray: teamMembers,
-        })
 
         if (!formData.projectId) {
             console.log('❌ No project selected, returning empty array')
             return []
         }
-        
+
         const filtered = teamMembers.filter(member => {
-            // FIXED: Check currentProjects array instead of currentProject object
-            const isAssignedToProject = member.currentProjects?.some(project => 
+            // Check if member is assigned to the selected project
+            const isAssignedToProject = member.currentProjects?.some(project =>
                 project.id === formData.projectId
             )
-            
-            console.log('🧑 Checking member:', {
-                member: `${member.firstName} ${member.lastName}`,
-                isActive: member.isActive,
-                assignmentStatus: member.assignmentStatus,
-                currentProjects: member.currentProjects,
-                projectIds: member.currentProjects?.map(p => p.id),
-                targetProjectId: formData.projectId,
-                isAssignedToProject,
-                matches: member.isActive && member.assignmentStatus === 'assigned' && isAssignedToProject
-            })
-            
-            return member.isActive && 
-                   member.assignmentStatus === 'assigned' && 
-                   isAssignedToProject
+
+            return member.isActive &&
+                member.assignmentStatus === 'assigned' &&
+                isAssignedToProject
         })
 
-        console.log('✅ Filtered team members:', filtered)
         return filtered
     }, [teamMembers, formData.projectId])
 
     // Form validation for each step
     const stepValidation = useMemo(() => {
-        console.log('🔍 Step Validation Check:', {
-            currentStep,
-            formData: {
-                title: formData.title,
-                issueType: formData.issueType,
-                priority: formData.priority,
-                projectId: formData.projectId,
-            },
-            errors
-        })
 
         // TEMPORARY: Simplified validation for testing
         const step1Valid = formData.title.trim().length > 0
-        // const step1Valid =
-        //     formData.title.trim().length > 0 &&
-        //     formData.issueType.length > 0 &&
-        //     formData.priority.length > 0 &&
-        //     !errors.title && !errors.issueType && !errors.priority
 
         const step2Valid =
             formData.projectId.length > 0 &&
@@ -152,14 +120,6 @@ export default function CreatePunchlistPage() {
         const step3Valid = true // Assignment is optional
 
         const step4Valid = canSubmit
-
-        console.log('📊 Validation Results:', {
-            step1Valid,
-            step2Valid,
-            step3Valid,
-            step4Valid,
-            currentStepValid: step1Valid // Fix this line
-        })
 
         return {
             1: step1Valid,
@@ -170,12 +130,6 @@ export default function CreatePunchlistPage() {
     }, [formData, errors, canSubmit, currentStep])
 
     const canProceedToNext = stepValidation[currentStep] || false
-
-    console.log('🎯 Can Proceed Check:', {
-        currentStep,
-        canProceedToNext,
-        stepValidationResult: stepValidation[currentStep]
-    })
 
     // ==============================================
     // EVENT HANDLERS - MEMOIZED
@@ -199,21 +153,8 @@ export default function CreatePunchlistPage() {
 
     // Navigation handlers - BYPASS HOOK VALIDATION TEMPORARILY
     const handleNext = React.useCallback(() => {
-        console.log('🚀 Next Button Clicked:', {
-            currentStep,
-            totalSteps,
-            canProceedToNext,
-            stepValidation: stepValidation[currentStep]
-        })
 
         if (currentStep < totalSteps && canProceedToNext) {
-            console.log('✅ Proceeding to next step...')
-            
-            // TEMPORARY FIX: Directly update form data instead of relying on hook's goToNextStep
-            console.log('🔧 Manually updating currentStep from', currentStep, 'to', currentStep + 1)
-            updateFormData('currentStep', currentStep + 1)
-            
-            // Also try the hook's method
             goToNextStep()
         } else {
             console.log('❌ Cannot proceed to next step:', {

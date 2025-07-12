@@ -518,10 +518,12 @@ export class PunchlistItemDatabaseService {
         const { data: projectMember, error } = await this.supabaseClient
             .from('project_members')
             .select(`
-                id,
-                user_id,
-                user:users(first_name, last_name, trade_specialty)
-            `)
+            id,
+            user_id,
+            user:users!project_members_user_id_users_id_fk(first_name, last_name, trade_specialty),
+            status,
+            joined_at
+        `)
             .eq('id', assignedProjectMemberId)
             .single()
 
@@ -549,21 +551,25 @@ export class PunchlistItemDatabaseService {
     }
 
     async getProjectMembersForProject(projectId: string, companyId: string) {
+
         const { data: projectMembers, error } = await this.supabaseClient
             .from('project_members')
             .select(`
-                id,
-                user_id,
-                user:users(first_name, last_name, trade_specialty),
-                hourly_rate,
-                status
-            `)
+            id,
+            user_id,
+            user:users!project_members_user_id_users_id_fk(first_name, last_name, trade_specialty),
+            hourly_rate,
+            status,
+            joined_at,
+            notes
+        `)
             .eq('project_id', projectId)
             .eq('company_id', companyId)
             .eq('status', 'active')
+            .is('left_at', null)  // Only get members who haven't left
 
         if (error) {
-            console.error('Error fetching project members:', error)
+            console.error('🚨 Error fetching project members:', error)
             throw new Error('Failed to fetch project members')
         }
 
