@@ -1,344 +1,575 @@
+// ==============================================
+// app/(dashboard)/dashboard/punchlist/page.tsx - Main Punchlist Page
+// ==============================================
+
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
+import { useState, useMemo } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Search, Calendar, User, AlertTriangle, CheckCircle, Clock, Camera } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { 
+  Plus, 
+  Search, 
+  Calendar, 
+  User, 
+  AlertTriangle, 
+  CheckCircle, 
+  Clock, 
+  Camera,
+  MapPin,
+  Filter,
+  Grid3X3,
+  List,
+  Eye,
+  Edit,
+  Play,
+  XCircle,
+  Pause,
+  Building2,
+  Users,
+  RefreshCw,
+  AlertCircle,
+  Loader2
+} from "lucide-react"
+import Link from "next/link"
 
-const punchlistItems = [
-  {
-    id: 1,
-    title: "Fix electrical outlet in conference room",
-    description: "Outlet on north wall not working properly",
-    priority: "High",
-    status: "Open",
-    project: "Downtown Office Complex",
-    assignedTo: "Sarah Chen",
-    dueDate: "2024-01-20",
-    createdDate: "2024-01-15",
-    location: "Floor 15, Conference Room B",
-    trade: "Electrical",
-  },
-  {
-    id: 2,
-    title: "Repair drywall damage in hallway",
-    description: "Small hole in drywall near elevator bank",
-    priority: "Medium",
-    status: "In Progress",
-    project: "Residential Tower A",
-    assignedTo: "Mike Rodriguez",
-    dueDate: "2024-01-22",
-    createdDate: "2024-01-16",
-    location: "Floor 8, East Hallway",
-    trade: "Drywall",
-  },
-  {
-    id: 3,
-    title: "Install missing handrail",
-    description: "Handrail missing on stairwell between floors 3-4",
-    priority: "High",
-    status: "Open",
-    project: "Shopping Center Renovation",
-    assignedTo: "Tom Williams",
-    dueDate: "2024-01-18",
-    createdDate: "2024-01-14",
-    location: "Stairwell B, Floors 3-4",
-    trade: "General",
-  },
-  {
-    id: 4,
-    title: "Touch up paint in lobby",
-    description: "Scuff marks on walls near main entrance",
-    priority: "Low",
-    status: "Completed",
-    project: "Downtown Office Complex",
-    assignedTo: "David Johnson",
-    dueDate: "2024-01-19",
-    createdDate: "2024-01-17",
-    location: "Main Lobby",
-    trade: "Painting",
-  },
-  {
-    id: 5,
-    title: "Adjust door alignment",
-    description: "Door not closing properly, needs adjustment",
-    priority: "Medium",
-    status: "Open",
-    project: "Highway Bridge Repair",
-    assignedTo: "Jessica Martinez",
-    dueDate: "2024-01-21",
-    createdDate: "2024-01-18",
-    location: "Site Office",
-    trade: "Carpentry",
-  },
-]
+// Import our real hooks and types following established patterns
+import { usePunchlistItems } from "@/hooks/punchlist-items"
+import { useProjects } from "@/hooks/projects"
+import { useTeamMembers } from "@/hooks/team-members"
+import { 
+  PUNCHLIST_STATUS_OPTIONS, 
+  PUNCHLIST_PRIORITY_OPTIONS,
+  ISSUE_TYPE_OPTIONS,
+  TRADE_CATEGORY_OPTIONS,
+  getPunchlistStatusColor,
+  getPunchlistPriorityColor,
+  getIssueTypeLabel,
+  getTradeCategoryLabel
+} from "@/types/punchlist-items"
+import { withPermission } from "@/lib/permissions"
 
 export default function PunchlistPage() {
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
+  // ==============================================
+  // STATE FOR UI CONTROLS
+  // ==============================================
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "High":
-        return "bg-red-100 text-red-800"
-      case "Medium":
-        return "bg-yellow-100 text-yellow-800"
-      case "Low":
-        return "bg-green-100 text-green-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
+  // ==============================================
+  // HOOKS FOR REAL DATA (Following team/schedule patterns)
+  // ==============================================
+  
+  // Main punchlist items hook
+  const {
+    punchlistItems,
+    isLoading,
+    hasError,
+    error,
+    isEmpty,
+    pagination,
+    filters,
+    filtersForm,
+    // Actions
+    loadPunchlistItems,
+    refreshPunchlistItems,
+    updateFilters,
+    updateFiltersForm,
+    applyFiltersForm,
+    clearFilters,
+    setPage,
+    setLimit,
+    // Enhanced search actions
+    searchByTitle,
+    filterByProject,
+    filterByStatus,
+    filterByPriority,
+    filterByIssueType,
+    filterByTrade,
+    filterByAssignee,
+    sortPunchlistItems,
+  } = usePunchlistItems()
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Open":
-        return "bg-blue-100 text-blue-800"
-      case "In Progress":
-        return "bg-orange-100 text-orange-800"
-      case "Completed":
-        return "bg-green-100 text-green-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
+  // Projects for filtering (following schedule pattern)
+  const { projects } = useProjects()
 
+  // Team members for display and filtering
+  const { teamMembers } = useTeamMembers()
+
+  // ==============================================
+  // COMPUTED VALUES
+  // ==============================================
+  
+  // Active projects for filter dropdown
+  const activeProjects = useMemo(() => {
+    return projects.filter(project => 
+      project.status === 'in_progress' || 
+      project.status === 'not_started' || 
+      project.status === 'on_track'
+    )
+  }, [projects])
+
+  // ==============================================
+  // UTILITY FUNCTIONS (Following established patterns)
+  // ==============================================
+  
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "Open":
+      case "open":
         return <AlertTriangle className="h-4 w-4" />
-      case "In Progress":
+      case "assigned":
+        return <User className="h-4 w-4" />
+      case "in_progress":
+        return <Play className="h-4 w-4" />
+      case "pending_review":
         return <Clock className="h-4 w-4" />
-      case "Completed":
+      case "completed":
         return <CheckCircle className="h-4 w-4" />
+      case "rejected":
+        return <XCircle className="h-4 w-4" />
+      case "on_hold":
+        return <Pause className="h-4 w-4" />
       default:
         return <Clock className="h-4 w-4" />
     }
   }
 
-  const filteredItems = punchlistItems.filter((item) => {
-    const matchesSearch =
-      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.project.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.assignedTo.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || item.status.toLowerCase().replace(" ", "-") === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString()
+  }
 
+  const isOverdue = (dueDate?: string) => {
+    if (!dueDate) return false
+    return new Date(dueDate) < new Date()
+  }
+
+  const getAssignedMemberName = (assignedProjectMemberId?: string) => {
+    if (!assignedProjectMemberId) return "Unassigned"
+    
+    const teamMember = teamMembers.find(member => 
+      member.id === assignedProjectMemberId
+    )
+    return teamMember ? `${teamMember.firstName} ${teamMember.lastName}` : "Unknown"
+  }
+
+  const getProjectName = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId)
+    return project?.name || "Unknown Project"
+  }
+
+  // Filter punchlist items locally (in addition to server-side filtering)
+  const filteredPunchlistItems = useMemo(() => {
+    return punchlistItems.filter((item) => {
+      // This provides additional client-side filtering if needed
+      // Most filtering should be done server-side via the hooks
+      return true
+    })
+  }, [punchlistItems])
+
+  // ==============================================
+  // LOADING STATE (Following team pattern)
+  // ==============================================
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+
+        {/* Filters Skeleton */}
+        <div className="flex gap-4">
+          <Skeleton className="h-10 flex-1" />
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-10 w-48" />
+        </div>
+
+        {/* Items Skeleton */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <Skeleton className="h-6 w-3/4 mb-2" />
+                <Skeleton className="h-4 w-full mb-4" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // ==============================================
+  // ERROR STATE (Following team pattern)
+  // ==============================================
+  if (hasError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Punchlist</h1>
+            <p className="text-gray-600">Track and manage construction defects and completion items</p>
+          </div>
+        </div>
+
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Failed to load punchlist items. {error || "Please try again."}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={refreshPunchlistItems}
+              className="ml-2"
+            >
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
+  // ==============================================
+  // MAIN RENDER
+  // ==============================================
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header (Following team pattern) */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Punchlist</h1>
           <p className="text-gray-600">Track and manage construction defects and completion items</p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
+        {withPermission('punchlist', 'add',
+          <Link href="/dashboard/punchlist/new">
             <Button className="bg-orange-600 hover:bg-orange-700">
               <Plus className="mr-2 h-4 w-4" />
               Add Item
             </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Add Punchlist Item</DialogTitle>
-              <DialogDescription>Create a new item that needs to be completed or fixed.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="title">Title</Label>
-                <Input id="title" placeholder="Brief description of the issue" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea id="description" placeholder="Detailed description of the work needed" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="priority">Priority</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="trade">Trade</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select trade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="electrical">Electrical</SelectItem>
-                      <SelectItem value="plumbing">Plumbing</SelectItem>
-                      <SelectItem value="hvac">HVAC</SelectItem>
-                      <SelectItem value="drywall">Drywall</SelectItem>
-                      <SelectItem value="painting">Painting</SelectItem>
-                      <SelectItem value="carpentry">Carpentry</SelectItem>
-                      <SelectItem value="general">General</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="project">Project</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="downtown">Downtown Office Complex</SelectItem>
-                    <SelectItem value="residential">Residential Tower A</SelectItem>
-                    <SelectItem value="bridge">Highway Bridge Repair</SelectItem>
-                    <SelectItem value="shopping">Shopping Center Renovation</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="location">Location</Label>
-                <Input id="location" placeholder="Specific location within project" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="assigned">Assign To</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select team member" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="mike">Mike Rodriguez</SelectItem>
-                      <SelectItem value="sarah">Sarah Chen</SelectItem>
-                      <SelectItem value="tom">Tom Williams</SelectItem>
-                      <SelectItem value="jessica">Jessica Martinez</SelectItem>
-                      <SelectItem value="david">David Johnson</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="due-date">Due Date</Label>
-                  <Input id="due-date" type="date" />
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="photo">Photo (Optional)</Label>
-                <div className="flex items-center gap-2">
-                  <Input id="photo" type="file" accept="image/*" />
-                  <Button type="button" variant="outline" size="icon">
-                    <Camera className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button className="bg-orange-600 hover:bg-orange-700" onClick={() => setIsCreateDialogOpen(false)}>
-                Create Item
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+          </Link>
+        )}
       </div>
 
-      {/* Search and Filters */}
-      <div className="flex gap-4">
+      {/* Search and Filters (Following team/schedule pattern) */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        {/* Search */}
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
             placeholder="Search punchlist items..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={filtersForm.search}
+            onChange={(e) => {
+              updateFiltersForm('search', e.target.value)
+              searchByTitle(e.target.value)
+            }}
             className="pl-10"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by status" />
+
+        {/* Project Filter */}
+        <Select 
+          value={filtersForm.projectId || "all"} 
+          onValueChange={(value) => {
+            updateFiltersForm('projectId', value === "all" ? "" : value)
+            filterByProject(value === "all" ? undefined : value)
+          }}
+        >
+          <SelectTrigger className="w-full sm:w-[200px]">
+            <Building2 className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="All Projects" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Items</SelectItem>
-            <SelectItem value="open">Open</SelectItem>
-            <SelectItem value="in-progress">In Progress</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="all">All Projects</SelectItem>
+            {activeProjects.map((project) => (
+              <SelectItem key={project.id} value={project.id}>
+                {project.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
+
+        {/* Status Filter */}
+        <Select 
+          value={filtersForm.status || "all"} 
+          onValueChange={(value) => {
+            updateFiltersForm('status', value === "all" ? "" : value)
+            filterByStatus(value === "all" ? undefined : value as any)
+          }}
+        >
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder="All Statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            {PUNCHLIST_STATUS_OPTIONS.map((status) => (
+              <SelectItem key={status.value} value={status.value}>
+                {status.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* Priority Filter */}
+        <Select 
+          value={filtersForm.priority || "all"} 
+          onValueChange={(value) => {
+            updateFiltersForm('priority', value === "all" ? "" : value)
+            filterByPriority(value === "all" ? undefined : value as any)
+          }}
+        >
+          <SelectTrigger className="w-full sm:w-[150px]">
+            <SelectValue placeholder="All Priorities" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Priorities</SelectItem>
+            {PUNCHLIST_PRIORITY_OPTIONS.map((priority) => (
+              <SelectItem key={priority.value} value={priority.value}>
+                {priority.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* View Mode Toggle (Following team pattern) */}
+        <div className="flex border rounded-md">
+          <Button
+            variant={viewMode === 'grid' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('grid')}
+            className="rounded-r-none"
+          >
+            <Grid3X3 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('list')}
+            className="rounded-l-none"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Punchlist Items */}
-      <div className="space-y-4">
-        {filteredItems.map((item) => (
-          <Card key={item.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
+      {/* Punchlist Count (Following team pattern) */}
+      {punchlistItems.length > 0 && (
+        <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            <span>
+              Showing {filteredPunchlistItems.length} of {punchlistItems.length} punchlist item{punchlistItems.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          {pagination && (
+            <span>
+              Page {Math.floor(pagination.offset / pagination.limit) + 1} of {Math.ceil(pagination.total / pagination.limit)}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Empty State (Following team pattern) */}
+      {isEmpty && !hasError && (
+        <div className="text-center py-12">
+          <AlertTriangle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No punchlist items found</h3>
+          <p className="text-gray-600 mb-6">
+            {filtersForm.search || filtersForm.projectId || filtersForm.status || filtersForm.priority
+              ? "Try adjusting your search criteria or filters."
+              : "Get started by adding your first punchlist item."}
+          </p>
+          {!filtersForm.search && !filtersForm.projectId && !filtersForm.status && !filtersForm.priority && withPermission('punchlist', 'add',
+            <Link href="/dashboard/punchlist/new">
+              <Button className="bg-orange-600 hover:bg-orange-700">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Your First Punchlist Item
+              </Button>
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* Punchlist Items Grid View */}
+      {filteredPunchlistItems.length > 0 && viewMode === 'grid' && (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredPunchlistItems.map((item) => (
+            <Card key={item.id} className="hover:shadow-lg transition-shadow group">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
                     {getStatusIcon(item.status)}
-                    <h3 className="text-lg font-semibold">{item.title}</h3>
-                    <Badge className={getPriorityColor(item.priority)}>{item.priority}</Badge>
-                    <Badge className={getStatusColor(item.status)}>{item.status}</Badge>
+                    <Badge className={getPunchlistStatusColor(item.status)}>
+                      {PUNCHLIST_STATUS_OPTIONS.find(s => s.value === item.status)?.label || item.status}
+                    </Badge>
                   </div>
-                  <p className="text-gray-600 mb-3">{item.description}</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <Badge className={getPunchlistPriorityColor(item.priority)}>
+                    {PUNCHLIST_PRIORITY_OPTIONS.find(p => p.value === item.priority)?.label || item.priority}
+                  </Badge>
+                </div>
+
+                <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                  {item.title}
+                </h3>
+
+                {item.description && (
+                  <p className="text-gray-600 mb-4 line-clamp-2">
+                    {item.description}
+                  </p>
+                )}
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-gray-400" />
+                    <span className="font-medium">Project:</span>
+                    <span className="text-gray-600 truncate">
+                      {getProjectName(item.projectId)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-gray-400" />
+                    <span className="font-medium">Assigned:</span>
+                    <span className="text-gray-600 truncate">
+                      {getAssignedMemberName(item.assignedProjectMemberId)}
+                    </span>
+                  </div>
+
+                  {item.location && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-gray-400" />
+                      <span className="font-medium">Location:</span>
+                      <span className="text-gray-600 truncate">{item.location}</span>
+                    </div>
+                  )}
+
+                  {item.dueDate && (
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-gray-400" />
-                      <div>
-                        <p className="font-medium">Due Date</p>
-                        <p className="text-gray-600">{new Date(item.dueDate).toLocaleDateString()}</p>
-                      </div>
+                      <span className="font-medium">Due:</span>
+                      <span className={`${isOverdue(item.dueDate) ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
+                        {formatDate(item.dueDate)}
+                      </span>
                     </div>
+                  )}
+
+                  {item.issueType && (
                     <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-gray-400" />
-                      <div>
-                        <p className="font-medium">Assigned To</p>
-                        <p className="text-gray-600">{item.assignedTo}</p>
-                      </div>
+                      <AlertTriangle className="h-4 w-4 text-gray-400" />
+                      <span className="font-medium">Type:</span>
+                      <span className="text-gray-600">
+                        {getIssueTypeLabel(item.issueType)}
+                      </span>
                     </div>
-                    <div>
-                      <p className="font-medium">Project</p>
-                      <p className="text-gray-600">{item.project}</p>
-                    </div>
-                    <div>
-                      <p className="font-medium">Location</p>
-                      <p className="text-gray-600">{item.location}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-2 ml-4">
-                  <Button variant="outline" size="sm">
-                    Edit
-                  </Button>
-                  {item.status !== "Completed" && (
-                    <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                      Mark Complete
-                    </Button>
                   )}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 mt-4">
+                  <Link href={`/dashboard/punchlist/${item.id}`} className="flex-1">
+                    <Button variant="outline" size="sm" className="w-full">
+                      <Eye className="h-3 w-3 mr-1" />
+                      View
+                    </Button>
+                  </Link>
+                  {withPermission('punchlist', 'edit',
+                    <Link href={`/dashboard/punchlist/${item.id}/edit`} className="flex-1">
+                      <Button variant="outline" size="sm" className="w-full">
+                        <Edit className="h-3 w-3 mr-1" />
+                        Edit
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Punchlist Items List View */}
+      {filteredPunchlistItems.length > 0 && viewMode === 'list' && (
+        <div className="space-y-3">
+          {filteredPunchlistItems.map((item) => (
+            <Card key={item.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(item.status)}
+                      <Badge className={getPunchlistStatusColor(item.status)}>
+                        {PUNCHLIST_STATUS_OPTIONS.find(s => s.value === item.status)?.label || item.status}
+                      </Badge>
+                      <Badge className={getPunchlistPriorityColor(item.priority)}>
+                        {PUNCHLIST_PRIORITY_OPTIONS.find(p => p.value === item.priority)?.label || item.priority}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 truncate mb-1">
+                        {item.title}
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-sm text-gray-600">
+                        <div className="flex items-center gap-1">
+                          <Building2 className="h-3 w-3" />
+                          <span className="truncate">{getProjectName(item.projectId)}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          <span className="truncate">{getAssignedMemberName(item.assignedProjectMemberId)}</span>
+                        </div>
+                        {item.dueDate && (
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            <span className={isOverdue(item.dueDate) ? 'text-red-600 font-medium' : ''}>
+                              {formatDate(item.dueDate)}
+                            </span>
+                          </div>
+                        )}
+                        {item.location && (
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            <span className="truncate">{item.location}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 ml-4">
+                    <Link href={`/dashboard/punchlist/${item.id}`}>
+                      <Button variant="outline" size="sm">
+                        <Eye className="h-3 w-3" />
+                      </Button>
+                    </Link>
+                    {withPermission('punchlist', 'edit',
+                      <Link href={`/dashboard/punchlist/${item.id}/edit`}>
+                        <Button variant="outline" size="sm">
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

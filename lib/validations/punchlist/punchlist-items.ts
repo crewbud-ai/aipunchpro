@@ -287,30 +287,31 @@ export const quickUpdatePunchlistStatusSchema = z.object({
 // GET PUNCHLIST ITEMS SCHEMA (FILTERING & PAGINATION)
 // ==============================================
 export const getPunchlistItemsSchema = z.object({
-  // Pagination
   limit: z
     .number()
     .int()
     .min(1, 'Limit must be at least 1')
     .max(100, 'Limit cannot exceed 100')
-    .default(20),
+    .default(20)
+    .optional(),
 
   offset: z
     .number()
     .int()
     .min(0, 'Offset cannot be negative')
-    .default(0),
+    .default(0)
+    .optional(),
 
-  // Sorting
   sortBy: z
     .enum(['title', 'status', 'priority', 'issueType', 'dueDate', 'createdAt'])
-    .default('createdAt'),
+    .default('createdAt')
+    .optional(),
 
   sortOrder: z
     .enum(['asc', 'desc'])
-    .default('desc'),
+    .default('desc')
+    .optional(),
 
-  // Filtering
   projectId: z
     .string()
     .uuid('Invalid project ID')

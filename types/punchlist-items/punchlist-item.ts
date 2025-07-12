@@ -70,6 +70,7 @@ export interface PunchlistItemSummary {
   
   // Issue Details
   title: string
+  description?: string
   issueType: IssueType
   location?: string
   

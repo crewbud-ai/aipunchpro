@@ -255,6 +255,8 @@ export const usePunchlistItems = (initialFilters: Partial<PunchlistItemFilters> 
       const filtersToUse = { ...state.filters, ...newFilters }
       const response = await punchlistItemsApi.getPunchlistItems(filtersToUse)
 
+      console.log(response, 'response')
+
       if (response.success) {
         setState(prev => ({
           ...prev,

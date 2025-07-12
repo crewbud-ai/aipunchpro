@@ -315,14 +315,15 @@ export class PunchlistItemDatabaseService {
             sortOrder?: 'asc' | 'desc'
         } = {}
     ) {
+        // ✅ FIXED: Use correct foreign key names or simple joins
         let query = this.supabaseClient
             .from('punchlist_items')
             .select(`
-                *,
-                project:projects(id, name, status),
-                reporter:users!punchlist_items_reported_by_fkey(first_name, last_name),
-                inspector:users!punchlist_items_inspected_by_fkey(first_name, last_name)
-            `)
+            *,
+            project:projects(id, name, status),
+            reporter:users!reported_by(first_name, last_name),
+            inspector:users!inspected_by(first_name, last_name)
+        `)
             .eq('company_id', companyId)
 
         // Apply filters
@@ -455,15 +456,16 @@ export class PunchlistItemDatabaseService {
         }
     }
 
+    // ✅ ALSO FIX: getPunchlistItemById method
     async getPunchlistItemById(punchlistItemId: string, companyId: string): Promise<PunchlistItemWithDetails | null> {
         const { data: punchlistItem, error } = await this.supabaseClient
             .from('punchlist_items')
             .select(`
-                *,
-                project:projects(id, name, status),
-                reporter:users!punchlist_items_reported_by_fkey(first_name, last_name),
-                inspector:users!punchlist_items_inspected_by_fkey(first_name, last_name)
-            `)
+            *,
+            project:projects(id, name, status),
+            reporter:users!reported_by(first_name, last_name),
+            inspector:users!inspected_by(first_name, last_name)
+        `)
             .eq('id', punchlistItemId)
             .eq('company_id', companyId)
             .single()
@@ -664,7 +666,7 @@ export class PunchlistItemDatabaseService {
 
         const statsData = stats || []
         const today = new Date().toISOString().split('T')[0]
-        
+
         return {
             total: statsData.length,
             open: statsData.filter(s => s.status === 'open').length,
@@ -674,7 +676,7 @@ export class PunchlistItemDatabaseService {
             rejected: statsData.filter(s => s.status === 'rejected').length,
             highPriority: statsData.filter(s => s.priority === 'high').length,
             critical: statsData.filter(s => s.priority === 'critical').length,
-            overdue: statsData.filter(s => 
+            overdue: statsData.filter(s =>
                 s.due_date && s.due_date < today && ['open', 'assigned', 'in_progress'].includes(s.status)
             ).length
         }
@@ -705,7 +707,7 @@ export class PunchlistItemDatabaseService {
         const statsData = stats || []
         const today = new Date().toISOString().split('T')[0]
         const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        
+
         return {
             total: statsData.length,
             open: statsData.filter(s => s.status === 'open').length,
@@ -715,7 +717,7 @@ export class PunchlistItemDatabaseService {
             rejected: statsData.filter(s => s.status === 'rejected').length,
             createdToday: statsData.filter(s => s.created_at?.split('T')[0] === today).length,
             createdThisWeek: statsData.filter(s => s.created_at?.split('T')[0] >= weekAgo).length,
-            overdue: statsData.filter(s => 
+            overdue: statsData.filter(s =>
                 s.due_date && s.due_date < today && ['open', 'assigned', 'in_progress'].includes(s.status)
             ).length,
             critical: statsData.filter(s => s.priority === 'critical').length
