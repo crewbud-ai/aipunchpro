@@ -1,10 +1,10 @@
 // ==============================================
-// app/(dashboard)/dashboard/punchlist/new/page.tsx - Create Punchlist Item
+// app/(dashboard)/dashboard/punchlist/new/page.tsx
 // ==============================================
 
 "use client"
 
-import React, { useState, useEffect, useMemo, useCallback } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -18,22 +18,23 @@ import {
     AlertTriangle,
     Users,
     Camera,
+    AlertCircle,
     CheckCircle,
     Loader2,
 } from "lucide-react"
 import Link from "next/link"
 
-// Import our real hooks and types (following schedule pattern)
+// Import our real hooks and types
 import { useCreatePunchlistItem } from "@/hooks/punchlist-items"
 import { useProjects } from "@/hooks/projects"
 import { useTeamMembers } from "@/hooks/team-members"
 
-// Import sub-components (we'll create these next)
+// Import sub-components
 import { IssueDetailsStep, ProjectLocationStep, AssignmentStep, PhotosReviewStep } from "../components/forms"
 
 export default function CreatePunchlistPage() {
     // ==============================================
-    // HOOKS FOR REAL DATA (Following schedule pattern)
+    // HOOKS FOR REAL DATA
     // ==============================================
 
     // Punchlist item creation hook
@@ -41,129 +42,198 @@ export default function CreatePunchlistPage() {
         formData,
         errors,
         isLoading,
-        isSuccess,
         canSubmit,
         currentStep,
         totalSteps,
         progressPercentage,
-        canGoNext,
-        canGoPrev,
-        isFirstStep,
-        isLastStep,
         updateFormData,
         clearFieldError,
         createPunchlistItem,
         goToNextStep,
         goToPrevStep,
-        reset,
     } = useCreatePunchlistItem()
 
-    // Projects for selection
+    // Projects data
     const {
-        projects: activeProjects,
+        projects,
         isLoading: isProjectsLoading,
         hasError: hasProjectsError,
-        refreshProjects,
-    } = useProjects({
-        limit: 100,
-        // Load active projects for punchlist assignment
-    })
+        refreshProjects
+    } = useProjects()
 
-    // Team members for assignment
+    // Team members data with project filtering
     const {
-        teamMembers: allTeamMembers,
+        teamMembers,
         isLoading: isTeamMembersLoading,
         hasError: hasTeamMembersError,
+        refreshTeamMembers,
     } = useTeamMembers()
 
     // ==============================================
-    // LOCAL STATE & COMPUTED VALUES
+    // LOCAL STATE
     // ==============================================
-    
-    // Selected project for filtering team members
-    const selectedProject = useMemo(() => {
-        return activeProjects.find(p => p.id === formData.projectId)
-    }, [activeProjects, formData.projectId])
+    const [selectedProject, setSelectedProject] = useState<any>(null)
 
-    // Available team members (filtered by selected project)
+    // ==============================================
+    // COMPUTED VALUES
+    // ==============================================
+
+    // Filter active projects for assignment
+    const activeProjects = useMemo(() => projects.filter(project =>
+        project.status === 'in_progress' ||
+        project.status === 'not_started' ||
+        project.status === 'on_track'
+    ), [projects])
+
+    // Get project-filtered team members
     const availableTeamMembers = useMemo(() => {
-        if (!formData.projectId) return []
-        
-        // Filter team members who are assigned to the selected project
-        return allTeamMembers.filter(member => 
-            member.isActive && 
-            member.currentProjects?.some(project => project.id === formData.projectId)
-        )
-    }, [allTeamMembers, formData.projectId])
+        console.log('🔍 Team Members Debug:', {
+            projectId: formData.projectId,
+            totalTeamMembers: teamMembers.length,
+            teamMembersArray: teamMembers,
+        })
 
-    // Check if current step is valid
-    const canProceedToNext = useMemo(() => {
-        switch (currentStep) {
-            case 1:
-                // Issue Details step
-                return !!(formData.title && formData.issueType && formData.priority)
-            case 2:
-                // Project & Location step
-                return !!(formData.projectId)
-            case 3:
-                // Assignment step
-                return true // Assignment is optional
-            case 4:
-                // Photos & Review step
-                return canSubmit
-            default:
-                return false
+        if (!formData.projectId) {
+            console.log('❌ No project selected, returning empty array')
+            return []
         }
-    }, [currentStep, formData, canSubmit])
+        
+        const filtered = teamMembers.filter(member => {
+            // FIXED: Check currentProjects array instead of currentProject object
+            const isAssignedToProject = member.currentProjects?.some(project => 
+                project.id === formData.projectId
+            )
+            
+            console.log('🧑 Checking member:', {
+                member: `${member.firstName} ${member.lastName}`,
+                isActive: member.isActive,
+                assignmentStatus: member.assignmentStatus,
+                currentProjects: member.currentProjects,
+                projectIds: member.currentProjects?.map(p => p.id),
+                targetProjectId: formData.projectId,
+                isAssignedToProject,
+                matches: member.isActive && member.assignmentStatus === 'assigned' && isAssignedToProject
+            })
+            
+            return member.isActive && 
+                   member.assignmentStatus === 'assigned' && 
+                   isAssignedToProject
+        })
+
+        console.log('✅ Filtered team members:', filtered)
+        return filtered
+    }, [teamMembers, formData.projectId])
+
+    // Form validation for each step
+    const stepValidation = useMemo(() => {
+        console.log('🔍 Step Validation Check:', {
+            currentStep,
+            formData: {
+                title: formData.title,
+                issueType: formData.issueType,
+                priority: formData.priority,
+                projectId: formData.projectId,
+            },
+            errors
+        })
+
+        // TEMPORARY: Simplified validation for testing
+        const step1Valid = formData.title.trim().length > 0
+        // const step1Valid =
+        //     formData.title.trim().length > 0 &&
+        //     formData.issueType.length > 0 &&
+        //     formData.priority.length > 0 &&
+        //     !errors.title && !errors.issueType && !errors.priority
+
+        const step2Valid =
+            formData.projectId.length > 0 &&
+            !errors.projectId
+
+        const step3Valid = true // Assignment is optional
+
+        const step4Valid = canSubmit
+
+        console.log('📊 Validation Results:', {
+            step1Valid,
+            step2Valid,
+            step3Valid,
+            step4Valid,
+            currentStepValid: step1Valid // Fix this line
+        })
+
+        return {
+            1: step1Valid,
+            2: step2Valid,
+            3: step3Valid,
+            4: step4Valid
+        } as Record<number, boolean> // Add index signature
+    }, [formData, errors, canSubmit, currentStep])
+
+    const canProceedToNext = stepValidation[currentStep] || false
+
+    console.log('🎯 Can Proceed Check:', {
+        currentStep,
+        canProceedToNext,
+        stepValidationResult: stepValidation[currentStep]
+    })
 
     // ==============================================
-    // EVENT HANDLERS (Following schedule pattern)
+    // EVENT HANDLERS - MEMOIZED
     // ==============================================
 
     // Project selection handler
-    const handleProjectChange = useCallback((projectId: string) => {
+    const handleProjectChange = React.useCallback(async (projectId: string) => {
         updateFormData('projectId', projectId)
-        clearFieldError('projectId')
-        
-        // Clear assigned member if they're not in the new project
-        if (formData.assignedProjectMemberId) {
-            const newAvailableMembers = allTeamMembers.filter(member => 
-                member.currentProjects?.some(project => project.id === projectId)
-            )
-            const memberStillAvailable = newAvailableMembers.some(member => 
-                member.id === formData.assignedProjectMemberId
-            )
-            
-            if (!memberStillAvailable) {
-                updateFormData('assignedProjectMemberId', '')
-            }
-        }
-    }, [updateFormData, clearFieldError, formData.assignedProjectMemberId, allTeamMembers])
+        const project = activeProjects.find(p => p.id === projectId)
+        setSelectedProject(project)
+
+        // Reset team member selection when project changes
+        updateFormData('assignedProjectMemberId', '')
+    }, [updateFormData, activeProjects])
 
     // Form submission
-    const handleSubmit = useCallback(async () => {
+    const handleSubmit = React.useCallback(async () => {
         if (!canSubmit) return
         await createPunchlistItem()
     }, [canSubmit, createPunchlistItem])
 
-    // Navigation handlers
-    const handleNext = useCallback(() => {
-        if (currentStep < totalSteps && canProceedToNext) {
-            goToNextStep()
-        }
-    }, [currentStep, totalSteps, canProceedToNext, goToNextStep])
+    // Navigation handlers - BYPASS HOOK VALIDATION TEMPORARILY
+    const handleNext = React.useCallback(() => {
+        console.log('🚀 Next Button Clicked:', {
+            currentStep,
+            totalSteps,
+            canProceedToNext,
+            stepValidation: stepValidation[currentStep]
+        })
 
-    const handlePrevious = useCallback(() => {
+        if (currentStep < totalSteps && canProceedToNext) {
+            console.log('✅ Proceeding to next step...')
+            
+            // TEMPORARY FIX: Directly update form data instead of relying on hook's goToNextStep
+            console.log('🔧 Manually updating currentStep from', currentStep, 'to', currentStep + 1)
+            updateFormData('currentStep', currentStep + 1)
+            
+            // Also try the hook's method
+            goToNextStep()
+        } else {
+            console.log('❌ Cannot proceed to next step:', {
+                reason: currentStep >= totalSteps ? 'Last step reached' : 'Validation failed',
+                ourCanProceed: canProceedToNext
+            })
+        }
+    }, [currentStep, totalSteps, canProceedToNext, goToNextStep, stepValidation, updateFormData])
+
+    const handlePrevious = React.useCallback(() => {
         if (currentStep > 1) {
             goToPrevStep()
         }
     }, [currentStep, goToPrevStep])
 
     // ==============================================
-    // STEP PROPS - PREPARED OUTSIDE RENDER (Following schedule pattern)
+    // STEP PROPS - PREPARED OUTSIDE RENDER
     // ==============================================
-    
     const step1Props = {
+        mode: 'create' as const,
         formData,
         errors,
         updateFormData: updateFormData as (field: string, value: any) => void,
@@ -171,7 +241,12 @@ export default function CreatePunchlistPage() {
     }
 
     const step2Props = {
-        formData,
+        mode: 'create' as const,
+        formData: {
+            location: formData.location,
+            roomArea: formData.roomArea,
+            projectId: formData.projectId,
+        },
         errors,
         updateFormData: updateFormData as (field: string, value: any) => void,
         clearFieldError,
@@ -183,7 +258,12 @@ export default function CreatePunchlistPage() {
     }
 
     const step3Props = {
-        formData,
+        mode: 'create' as const,
+        formData: {
+            assignedProjectMemberId: formData.assignedProjectMemberId,
+            dueDate: formData.dueDate,
+            resolutionNotes: formData.resolutionNotes,
+        },
         errors,
         updateFormData: updateFormData as (field: string, value: any) => void,
         clearFieldError,
@@ -191,17 +271,30 @@ export default function CreatePunchlistPage() {
         isTeamMembersLoading,
         hasTeamMembersError,
         availableTeamMembers,
+        refreshTeamMembers,
     }
 
     const step4Props = {
-        formData,
+        mode: 'create' as const,
+        formData: {
+            title: formData.title,
+            issueType: formData.issueType,
+            priority: formData.priority,
+            location: formData.location,
+            roomArea: formData.roomArea,
+            assignedProjectMemberId: formData.assignedProjectMemberId,
+            dueDate: formData.dueDate,
+            resolutionNotes: formData.resolutionNotes,
+            photos: formData.photos,
+            projectId: formData.projectId,
+        },
         errors,
-        selectedProject,
-        availableTeamMembers,
+        updateFormData: updateFormData as (field: string, value: any) => void,
+        clearFieldError,
     }
 
     // ==============================================
-    // STEP METADATA (Following schedule pattern)
+    // STEP METADATA
     // ==============================================
     const getStepMetadata = (step: number) => {
         switch (step) {
@@ -209,25 +302,25 @@ export default function CreatePunchlistPage() {
                 return {
                     icon: AlertTriangle,
                     title: "Issue Details",
-                    description: "Describe the problem or work needed"
+                    description: "Describe the problem or work that needs to be addressed"
                 }
             case 2:
                 return {
                     icon: Building,
                     title: "Project & Location",
-                    description: "Select project and specify location"
+                    description: "Select the project and specify where the issue is located"
                 }
             case 3:
                 return {
                     icon: Users,
-                    title: "Assignment & Priority",
-                    description: "Assign team member and set priority"
+                    title: "Assignment & Timeline",
+                    description: "Assign team member and set completion timeline"
                 }
             case 4:
                 return {
                     icon: Camera,
                     title: "Photos & Review",
-                    description: "Add photos and review details"
+                    description: "Add photos and review all details before creating"
                 }
             default:
                 return {
@@ -242,7 +335,7 @@ export default function CreatePunchlistPage() {
     const StepIcon = currentStepMeta.icon
 
     // ==============================================
-    // RENDER STEP CONTENT (Following schedule pattern)
+    // RENDER STEP CONTENT
     // ==============================================
     const renderStepContent = () => {
         switch (currentStep) {
@@ -260,148 +353,122 @@ export default function CreatePunchlistPage() {
     }
 
     // ==============================================
-    // SUCCESS STATE (Following schedule pattern)
-    // ==============================================
-    if (isSuccess) {
-        return (
-            <div className="max-w-2xl mx-auto space-y-6">
-                <div className="text-center py-12">
-                    <CheckCircle className="mx-auto h-16 w-16 text-green-600 mb-4" />
-                    <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                        Punchlist Item Created Successfully!
-                    </h1>
-                    <p className="text-gray-600 mb-6">
-                        Your punchlist item has been created and assigned.
-                    </p>
-                    <div className="flex gap-4 justify-center">
-                        <Link href="/dashboard/punchlist">
-                            <Button variant="outline">
-                                View All Items
-                            </Button>
-                        </Link>
-                        <Button onClick={reset}>
-                            Create Another Item
-                        </Button>
-                    </div>
-                </div>
-            </div>
-        )
-    }
-
-    // ==============================================
-    // MAIN RENDER (Following schedule pattern)
+    // MAIN RENDER
     // ==============================================
     return (
-        <div className="max-w-4xl mx-auto space-y-6">
-            {/* Header */}
-            <div className="flex items-center gap-4">
-                <Link href="/dashboard/punchlist">
-                    <Button variant="ghost" size="sm">
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back to Punchlist
-                    </Button>
-                </Link>
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Create Punchlist Item</h1>
-                    <p className="text-gray-600">Add a new issue or work item to track</p>
+        <div className="min-h-screen bg-gray-50">
+            <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+                {/* Header */}
+                <div className="mb-8">
+                    <div className="flex items-center gap-4 mb-4">
+                        <Link href="/dashboard/punchlist">
+                            <Button variant="outline" size="icon" className="shrink-0">
+                                <ArrowLeft className="h-4 w-4" />
+                            </Button>
+                        </Link>
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-2xl font-bold text-gray-900">Create New Punchlist Item</h1>
+                            <p className="text-gray-600 mt-1">Track and manage construction defects and completion items</p>
+                        </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-sm font-medium text-gray-700">
+                            <span>Step {currentStep} of {totalSteps}</span>
+                            <span>{Math.round(progressPercentage)}% Complete</span>
+                        </div>
+                        <Progress value={progressPercentage} className="h-2" />
+                    </div>
                 </div>
-            </div>
 
-            {/* Progress Card */}
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <StepIcon className="h-6 w-6 text-orange-600" />
-                            <div>
-                                <CardTitle className="text-lg">
-                                    Step {currentStep} of {totalSteps}: {currentStepMeta.title}
-                                </CardTitle>
-                                <CardDescription>
-                                    {currentStepMeta.description}
-                                </CardDescription>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                            <div className="text-sm font-medium text-gray-900">
-                                {Math.round(progressPercentage)}% Complete
-                            </div>
-                        </div>
-                    </div>
-                    <Progress value={progressPercentage} className="w-full" />
-                </CardHeader>
-            </Card>
+                {/* Form Card */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <StepIcon className="h-5 w-5" />
+                            {currentStepMeta.title}
+                        </CardTitle>
+                        <CardDescription>
+                            {currentStepMeta.description}
+                        </CardDescription>
+                    </CardHeader>
+                    <form>
+                        <CardContent className="space-y-6">
 
-            {/* Step Content */}
-            <Card>
-                <CardContent className="p-6">
-                    {renderStepContent()}
-                </CardContent>
-            </Card>
+                            {/* Render Current Step */}
+                            {renderStepContent()}
 
-            {/* Navigation */}
-            <Card>
-                <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            {!isFirstStep && (
-                                <Button
-                                    variant="outline"
-                                    onClick={handlePrevious}
-                                    disabled={isLoading}
-                                >
-                                    <ChevronLeft className="h-4 w-4 mr-2" />
-                                    Previous
-                                </Button>
+                            {/* Show general errors */}
+                            {errors.general && (
+                                <Alert variant="destructive">
+                                    <AlertCircle className="h-4 w-4" />
+                                    <AlertDescription>{errors.general}</AlertDescription>
+                                </Alert>
                             )}
-                        </div>
 
-                        <div className="flex gap-2">
-                            {!isLastStep ? (
-                                <Button
-                                    onClick={handleNext}
-                                    disabled={!canProceedToNext || isLoading}
-                                    className="bg-orange-600 hover:bg-orange-700"
-                                >
-                                    Next
-                                    <ChevronRight className="h-4 w-4 ml-2" />
-                                </Button>
-                            ) : (
-                                <Button
-                                    onClick={handleSubmit}
-                                    disabled={!canSubmit || isLoading}
-                                    className="bg-green-600 hover:bg-green-700"
-                                >
-                                    {isLoading ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            Creating...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CheckCircle className="h-4 w-4 mr-2" />
-                                            Create Punchlist Item
-                                        </>
+                            {/* Navigation Buttons */}
+                            <Separator />
+                            <div className="flex flex-col sm:flex-row gap-3 pt-6">
+                                <div className="flex gap-3 sm:flex-1">
+                                    {currentStep > 1 && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={handlePrevious}
+                                            className="flex-1 sm:flex-none"
+                                        >
+                                            <ChevronLeft className="mr-2 h-4 w-4" />
+                                            Previous
+                                        </Button>
                                     )}
-                                </Button>
-                            )}
-                        </div>
-                    </div>
 
-                    {/* Error Display */}
-                    {Object.keys(errors).length > 0 && (
-                        <>
-                            <Separator className="my-4" />
-                            <Alert variant="destructive">
-                                <AlertTriangle className="h-4 w-4" />
-                                <AlertDescription>
-                                    Please fix the errors above before proceeding.
-                                </AlertDescription>
-                            </Alert>
-                        </>
-                    )}
-                </CardContent>
-            </Card>
+                                    {currentStep === 1 && (
+                                        <Link href="/dashboard/punchlist" className="flex-1 sm:flex-none">
+                                            <Button variant="outline" className="w-full">
+                                                Cancel
+                                            </Button>
+                                        </Link>
+                                    )}
+                                </div>
+
+                                {currentStep < totalSteps ? (
+                                    <Button
+                                        type="button"
+                                        onClick={() => {
+                                            handleNext()
+                                        }}
+                                        disabled={!canProceedToNext}
+                                        className="flex-1 sm:flex-none"
+                                    >
+                                        Next
+                                        <ChevronRight className="ml-2 h-4 w-4" />
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        type="button"
+                                        onClick={handleSubmit}
+                                        disabled={!canSubmit}
+                                        className="flex-1 sm:flex-none"
+                                    >
+                                        {isLoading ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Creating...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CheckCircle className="mr-2 h-4 w-4" />
+                                                Create Punchlist Item
+                                            </>
+                                        )}
+                                    </Button>
+                                )}
+                            </div>
+                        </CardContent>
+                    </form>
+                </Card>
+            </div>
         </div>
     )
 }
