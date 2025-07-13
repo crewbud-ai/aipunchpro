@@ -1,37 +1,10 @@
 // ==============================================
-// types/punchlist-items/index.ts - Punchlist Items Types Export
+// types/punchlist-items/index.ts - Updated Punchlist Items Types Export
 // ==============================================
 
-// ==============================================
-// IMPORT ALL TYPES FIRST
-// ==============================================
-import type {
-  CreatePunchlistItemFormData,
-  CreatePunchlistItemFormErrors,
-  CreatePunchlistItemValidation,
-  CreatePunchlistItemState,
-  CreatePunchlistItemResult
-} from './create-punchlist-item'
-
-import type {
-  UpdatePunchlistItemFormData,
-  UpdatePunchlistItemFormErrors,
-  UpdatePunchlistItemValidation,
-  UpdatePunchlistItemState,
-  UpdatePunchlistItemResult,
-  QuickUpdatePunchlistStatusResult
-} from './update-punchlist-item'
-
-import type {
-  GetPunchlistItemsResult,
-  GetPunchlistItemResult
-} from './punchlist-item'
-
-// ✅ FIXED: Import from upload-photos.ts (note: you had 'upload-photes' - typo)
-import type {
-  BulkPhotoUploadResult,
-  PhotoUploadResult
-} from './upload-photos'
+import { CreatePunchlistItemFormData, CreatePunchlistItemFormErrors, CreatePunchlistItemResult, CreatePunchlistItemState, CreatePunchlistItemValidation } from './create-punchlist-item'
+import { GetPunchlistItemResult, GetPunchlistItemsResult, QuickUpdatePunchlistStatusResult } from './punchlist-item'
+import { UpdatePunchlistItemFormData, UpdatePunchlistItemFormErrors, UpdatePunchlistItemResult, UpdatePunchlistItemState, UpdatePunchlistItemValidation } from './update-punchlist-item'
 
 // ==============================================
 // MAIN PUNCHLIST ITEM TYPES
@@ -43,7 +16,6 @@ export type {
   PunchlistItemWithDetails,
   PunchlistItemFilters,
   PunchlistItemFieldErrors,
-  PunchlistItemFieldError,
   PunchlistItemStats,
   PunchlistItemsState,
   PunchlistItemState,
@@ -52,17 +24,29 @@ export type {
   DeletePunchlistItemResult,
   PunchlistItemFiltersFormData,
 
+  // NEW: Assignment interfaces
+  PunchlistItemAssignment,
+  AssignmentInput,
+
   // Enum types
   IssueType,
   PunchlistStatus,
   PunchlistPriority,
   TradeCategory,
+  AssignmentRole,
 
   // Form option interfaces
   IssueTypeOption,
   PunchlistStatusOption,
   PunchlistPriorityOption,
-  TradeCategoryOption
+  TradeCategoryOption,
+  AssignmentRoleOption,
+
+  // NEW: Assignment management interfaces
+  AddAssignmentData,
+  RemoveAssignmentData,
+  UpdateAssignmentRoleData,
+  AssignmentResult
 } from './punchlist-item'
 
 export {
@@ -71,24 +55,36 @@ export {
   PUNCHLIST_STATUS,
   PUNCHLIST_PRIORITY,
   TRADE_CATEGORY,
+  ASSIGNMENT_ROLE,
 
   // Form option data
   ISSUE_TYPE_OPTIONS,
   PUNCHLIST_STATUS_OPTIONS,
   PUNCHLIST_PRIORITY_OPTIONS,
   TRADE_CATEGORY_OPTIONS,
+  ASSIGNMENT_ROLE_OPTIONS,
 
   // Utility functions
   getPunchlistStatusColor,
   getPunchlistPriorityColor,
   getIssueTypeLabel,
   getTradeCategoryLabel,
+  getAssignmentRoleLabel,
+  getAssignmentRoleColor,
 
   // Validation helpers
   isValidPunchlistStatus,
   isValidPunchlistPriority,
   isValidIssueType,
-  isValidTradeCategory
+  isValidTradeCategory,
+  isValidAssignmentRole,
+
+  // NEW: Assignment helpers
+  getPrimaryAssignee,
+  getSecondaryAssignees,
+  getAssigneesByRole,
+  formatAssigneeNames,
+  getAssignmentSummary
 } from './punchlist-item'
 
 // ==============================================
@@ -100,9 +96,6 @@ export {
 
   // Default values
   DEFAULT_CREATE_PUNCHLIST_ITEM_FORM_DATA,
-
-  // Validation rules
-  CREATE_PUNCHLIST_ITEM_VALIDATION_RULES,
 
   // Transformation functions
   transformCreateFormDataToApiData,
@@ -130,12 +123,7 @@ export type {
 
   // File upload interfaces
   PunchlistFileUpload,
-  PunchlistFileUploadResult,
-
-  // Utility types
-  FieldValidationState,
-  StepCompletionStatus,
-  FormSubmissionState
+  PunchlistFileUploadResult
 } from './create-punchlist-item'
 
 // ==============================================
@@ -174,6 +162,9 @@ export type {
   UpdatePunchlistItemFormErrors,
   UpdatePunchlistItemValidation,
 
+  // NEW: Assignment update interfaces
+  UpdatePunchlistItemAssignmentData,
+
   // Quick status update
   QuickUpdatePunchlistStatusData,
   QuickUpdatePunchlistStatusResult,
@@ -197,13 +188,33 @@ export type {
 } from './update-punchlist-item'
 
 // ==============================================
-// 📸 PHOTO UPLOAD TYPES (NEW SECTION)
+// 📸 PHOTO UPLOAD TYPES
 // ==============================================
-export type {
-  // Photo upload result types
-  PhotoUploadResult,
-  BulkPhotoUploadResult,
-} from './upload-photos'
+export interface PhotoUploadResult {
+  success: boolean
+  data?: {
+    url: string
+    fileName: string
+    fileSize: number
+  }
+  error?: string
+}
+
+export interface BulkPhotoUploadResult {
+  success: boolean
+  data?: {
+    uploadedPhotos: Array<{
+      url: string
+      fileName: string
+      fileSize: number
+    }>
+    failedPhotos: Array<{
+      fileName: string
+      error: string
+    }>
+  }
+  error?: string
+}
 
 // ==============================================
 // VALIDATION EXPORTS
@@ -237,12 +248,13 @@ export {
 
 // Re-export commonly used constants
 export { ISSUE_TYPE as PUNCHLIST_ISSUE_TYPES } from './punchlist-item'
-export { PUNCHLIST_STATUS as PUNCHLIST_STATUSES } from './punchlist-item'
-export { PUNCHLIST_PRIORITY as PUNCHLIST_PRIORITIES } from './punchlist-item'
+export { PUNCHLIST_STATUS as PUNCHLIST_STATUS_TYPES } from './punchlist-item'
+export { PUNCHLIST_PRIORITY as PUNCHLIST_PRIORITY_TYPES } from './punchlist-item'
 export { TRADE_CATEGORY as PUNCHLIST_TRADE_CATEGORIES } from './punchlist-item'
+export { ASSIGNMENT_ROLE as PUNCHLIST_ASSIGNMENT_ROLES } from './punchlist-item'
 
 // ==============================================
-// RE-EXPORT CONVENIENCE TYPES
+// CONVENIENCE TYPE COMBINATIONS
 // ==============================================
 
 // Common type combinations for easy importing
@@ -257,7 +269,7 @@ export type PunchlistItemMutationResult = CreatePunchlistItemResult | UpdatePunc
 // Form state types
 export type PunchlistItemFormState = CreatePunchlistItemState | UpdatePunchlistItemState
 
-// 📸 Photo upload convenience types
+// Photo upload convenience types
 export type PhotoUploadApiResult = PhotoUploadResult | BulkPhotoUploadResult
 
 // ==============================================
@@ -313,15 +325,15 @@ export const isQuickUpdatePunchlistStatusResult = (
   return 'data' in result && 'punchlistItem' in result.data
 }
 
-// 📸 Photo upload type guards
+// Photo upload type guards
 export const isPhotoUploadResult = (
   result: PhotoUploadApiResult
 ): result is PhotoUploadResult => {
-  return 'data' in result && result.data !== undefined && 'url' in result.data
+  return 'success' in result && 'data' in result && result.data !== undefined
 }
 
 export const isBulkPhotoUploadResult = (
   result: PhotoUploadApiResult
 ): result is BulkPhotoUploadResult => {
-  return 'data' in result && result.data !== undefined && 'uploadedPhotos' in result.data
+  return 'success' in result && 'data' in result && result.data !== undefined && 'uploadedPhotos' in result.data
 }

@@ -1,11 +1,11 @@
 // ==============================================
-// hooks/punchlist-items/use-create-punchlist-item.ts - Create Punchlist Item Hook
+// hooks/punchlist-items/use-create-punchlist-item.ts - UPDATED for Multiple Assignments
 // ==============================================
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { punchlistItemsApi } from '@/lib/api/punchlist-items'
-import { usePunchlistFileUpload } from './use-punchlist-file-upload' // ✅ ADD THIS IMPORT
+import { usePunchlistFileUpload } from './use-punchlist-file-upload'
 import {
     validateCreatePunchlistItem,
     getDefaultCreatePunchlistItemFormData,
@@ -43,13 +43,19 @@ interface UseCreatePunchlistItemActions {
     goToStep: (step: number) => void
     markStepComplete: (step: number) => void
 
-    // ✅ ADD: File upload actions
+    // File upload actions
     addPendingFiles: (files: File[]) => void
     removePendingFile: (index: number) => void
     uploadPhotos: (files?: File[]) => Promise<string[]>
     uploadAttachments: (files?: File[]) => Promise<string[]>
     removePhoto: (photoUrl: string) => void
     removeAttachment: (attachmentUrl: string) => void
+
+    // NEW: Assignment management actions
+    addAssignment: (projectMemberId: string, role?: 'primary' | 'secondary' | 'inspector' | 'supervisor') => void
+    removeAssignment: (projectMemberId: string) => void
+    updateAssignmentRole: (projectMemberId: string, role: 'primary' | 'secondary' | 'inspector' | 'supervisor') => void
+    clearAssignments: () => void
 }
 
 interface UseCreatePunchlistItemReturn extends UseCreatePunchlistItemState, UseCreatePunchlistItemActions {
@@ -70,12 +76,17 @@ interface UseCreatePunchlistItemReturn extends UseCreatePunchlistItemState, UseC
     isLastStep: boolean
     progressPercentage: number
 
-    // ✅ ADD: File upload computed properties
+    // File upload computed properties
     isUploadingFiles: boolean
     hasPendingFiles: boolean
     pendingFiles: File[]
     uploadProgress: number
     uploadError: string | null
+
+    // NEW: Assignment computed properties
+    assignedMemberCount: number
+    hasPrimaryAssignee: boolean
+    primaryAssignee?: { projectMemberId: string; role: string }
 }
 
 // ==============================================
@@ -102,14 +113,13 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
     })
 
     // ==============================================
-    // ✅ ADD: FILE UPLOAD HOOK INTEGRATION
+    // FILE UPLOAD HOOK INTEGRATION
     // ==============================================
     const fileUpload = usePunchlistFileUpload(
         'punchlist',
         undefined,
         {
             onUploadSuccess: (urls, type) => {
-                // Sync uploaded URLs with form data
                 setState(prev => ({
                     ...prev,
                     formData: {
@@ -119,7 +129,6 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
                 }))
             },
             onUploadError: (error, type) => {
-                // Sync upload errors with form errors
                 setState(prev => ({
                     ...prev,
                     errors: {
@@ -154,17 +163,21 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
         return step.validation(state.formData)
     })()
 
-    // FIXED: Allow free navigation between steps (don't block based on validation)
-    const canGoNext = !isLastStep && !isLoading && !fileUpload.isUploading // ✅ ADD: Don't allow next if uploading
-    const canGoPrev = !isFirstStep && !isLoading && !fileUpload.isUploading // ✅ ADD: Don't allow prev if uploading
-    const canSubmit = currentStepValid && isLastStep && !hasErrors && !isLoading && !fileUpload.isUploading // ✅ ADD: Don't allow submit if uploading
+    const canGoNext = !isLastStep && !isLoading && !fileUpload.isUploading
+    const canGoPrev = !isFirstStep && !isLoading && !fileUpload.isUploading
+    const canSubmit = currentStepValid && isLastStep && !hasErrors && !isLoading && !fileUpload.isUploading
 
-    // ✅ ADD: File upload computed properties
+    // File upload computed properties
     const isUploadingFiles = fileUpload.isUploading
     const hasPendingFiles = fileUpload.hasPendingFiles
     const pendingFiles = fileUpload.pendingFiles
     const uploadProgress = fileUpload.uploadProgress
     const uploadError = fileUpload.error
+
+    // NEW: Assignment computed properties
+    const assignedMemberCount = state.formData.assignedMembers?.length || 0
+    const hasPrimaryAssignee = state.formData.assignedMembers?.some(member => member.role === 'primary') || false
+    const primaryAssignee = state.formData.assignedMembers?.find(member => member.role === 'primary')
 
     // ==============================================
     // UPDATE FORM DATA
@@ -195,11 +208,99 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
     }, [])
 
     // ==============================================
+    // NEW: ASSIGNMENT MANAGEMENT ACTIONS
+    // ==============================================
+    const addAssignment = useCallback((projectMemberId: string, role: 'primary' | 'secondary' | 'inspector' | 'supervisor' = 'primary') => {
+        setState(prev => {
+            const currentAssignments = prev.formData.assignedMembers || []
+            
+            // Check if member is already assigned
+            const existingAssignment = currentAssignments.find(member => member.projectMemberId === projectMemberId)
+            if (existingAssignment) {
+                return prev // Don't add duplicate
+            }
+
+            // If adding a primary role, remove existing primary
+            let updatedAssignments = currentAssignments
+            if (role === 'primary') {
+                updatedAssignments = currentAssignments.map(member => 
+                    member.role === 'primary' ? { ...member, role: 'secondary' } : member
+                )
+            }
+
+            const newAssignment = {
+                projectMemberId,
+                role,
+            }
+
+            return {
+                ...prev,
+                formData: {
+                    ...prev.formData,
+                    assignedMembers: [...updatedAssignments, newAssignment],
+                },
+            }
+        })
+    }, [])
+
+    const removeAssignment = useCallback((projectMemberId: string) => {
+        setState(prev => ({
+            ...prev,
+            formData: {
+                ...prev.formData,
+                assignedMembers: (prev.formData.assignedMembers || []).filter(
+                    member => member.projectMemberId !== projectMemberId
+                ),
+            },
+        }))
+    }, [])
+
+    const updateAssignmentRole = useCallback((projectMemberId: string, role: 'primary' | 'secondary' | 'inspector' | 'supervisor') => {
+        setState(prev => {
+            let updatedAssignments = prev.formData.assignedMembers || []
+            
+            // If changing to primary, remove existing primary role from others
+            if (role === 'primary') {
+                updatedAssignments = updatedAssignments.map(member => 
+                    member.role === 'primary' && member.projectMemberId !== projectMemberId
+                        ? { ...member, role: 'secondary' }
+                        : member
+                )
+            }
+
+            // Update the specific assignment
+            updatedAssignments = updatedAssignments.map(member => 
+                member.projectMemberId === projectMemberId
+                    ? { ...member, role }
+                    : member
+            )
+
+            return {
+                ...prev,
+                formData: {
+                    ...prev.formData,
+                    assignedMembers: updatedAssignments,
+                },
+            }
+        })
+    }, [])
+
+    const clearAssignments = useCallback(() => {
+        setState(prev => ({
+            ...prev,
+            formData: {
+                ...prev.formData,
+                assignedMembers: [],
+            },
+        }))
+    }, [])
+
+    // ==============================================
     // CLEAR ERRORS
     // ==============================================
     const clearErrors = useCallback(() => {
         setState(prev => ({ ...prev, errors: {} }))
-        fileUpload.clearError() // ✅ ADD: Clear upload errors too
+        fileUpload.clearError()
     }, [fileUpload])
 
     const clearFieldError = useCallback((field: string) => {
@@ -240,7 +341,7 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
         try {
             setState(prev => ({ ...prev, state: 'loading', errors: {} }))
 
-            // ✅ ADD: Upload any pending files before submission
+            // Upload any pending files before submission
             if (fileUpload.hasPendingFiles) {
                 const pendingPhotos = fileUpload.pendingFiles.filter(file => file.type.startsWith('image/'))
                 const pendingAttachments = fileUpload.pendingFiles.filter(file => !file.type.startsWith('image/'))
@@ -268,7 +369,17 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
                     const field = error.path.join('.')
                     newErrors[field as keyof CreatePunchlistItemFormErrors] = error.message
                 })
-                setState(prev => ({ ...prev, state: 'error', errors: newErrors }))
+                
+                // Show validation errors in toast instead of form
+                const errorMessages = Object.values(newErrors).filter(Boolean)
+                if (errorMessages.length > 0) {
+                    // You can replace this with your toast implementation
+                    console.error('Validation Errors:', errorMessages)
+                    // For now, just show first error - replace with your toast
+                    alert(`Validation Error: ${errorMessages[0]}`)
+                }
+                
+                setState(prev => ({ ...prev, state: 'idle', errors: {} })) // FIXED: Reset to idle instead of error
                 return
             }
 
@@ -290,24 +401,29 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
         } catch (error) {
             console.error('Error creating punchlist item:', error)
 
-            let newErrors: CreatePunchlistItemFormErrors = {}
+            let errorMessage = 'An unexpected error occurred'
 
             if (error instanceof Error) {
-                // Try to parse validation errors from API response
-                if (error.message.includes('Validation failed')) {
-                    newErrors.general = error.message
-                } else {
-                    newErrors.general = error.message
+                errorMessage = error.message
+                
+                // Check if it's a validation error from API
+                if (error.message.includes('Validation failed') || error.message.includes('validation')) {
+                    // Show in toast instead of form
+                    console.error('API Validation Error:', error.message)
+                    // Replace with your toast implementation
+                    alert(`Validation Error: ${error.message}`)
+                    
+                    setState(prev => ({ ...prev, state: 'idle', errors: {} })) // FIXED: Reset to idle
+                    return
                 }
-            } else {
-                newErrors.general = 'An unexpected error occurred'
             }
 
-            setState(prev => ({
-                ...prev,
-                state: 'error',
-                errors: newErrors,
-            }))
+            // For other errors, show in toast as well
+            console.error('Create Error:', errorMessage)
+            // Replace with your toast implementation  
+            alert(`Error: ${errorMessage}`)
+            
+            setState(prev => ({ ...prev, state: 'idle', errors: {} })) // FIXED: Reset to idle instead of error
         }
     }, [state.formData, router, fileUpload])
 
@@ -321,7 +437,7 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
             errors: {},
             formData: getDefaultCreatePunchlistItemFormData(),
         })
-        fileUpload.reset() // ✅ ADD: Reset upload state too
+        fileUpload.reset()
     }, [fileUpload])
 
     // ==============================================
@@ -377,7 +493,7 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
     }, [])
 
     // ==============================================
-    // ✅ ADD: FILE UPLOAD HELPERS
+    // FILE UPLOAD HELPERS
     // ==============================================
     const addPendingFiles = useCallback((files: File[]) => {
         fileUpload.addPendingFiles(files)
@@ -399,7 +515,6 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
         try {
             const deleteResult = await punchlistItemsApi.deleteFile(photoUrl)
 
-            // Remove from form data (regardless of deletion success to improve UX)
             setState(prev => ({
                 ...prev,
                 formData: {
@@ -408,7 +523,6 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
                 },
             }))
 
-            // Log if deletion failed but don't block UI update
             if (!deleteResult.success) {
                 console.warn('Failed to delete file from storage, but removed from UI:', deleteResult.error)
             }
@@ -416,7 +530,6 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
         } catch (error) {
             console.error('Error removing photo:', error)
 
-            // Still remove from UI even if deletion fails
             setState(prev => ({
                 ...prev,
                 formData: {
@@ -427,13 +540,10 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
         }
     }, [])
 
-
     const removeAttachment = useCallback(async (attachmentUrl: string) => {
         try {
-            // Delete from Supabase Storage first
             const deleteResult = await punchlistItemsApi.deleteFile(attachmentUrl)
 
-            // Remove from form data
             setState(prev => ({
                 ...prev,
                 formData: {
@@ -449,7 +559,6 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
         } catch (error) {
             console.error('Error removing attachment:', error)
 
-            // Still remove from UI even if deletion fails
             setState(prev => ({
                 ...prev,
                 formData: {
@@ -487,12 +596,17 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
         isLastStep,
         progressPercentage,
 
-        // ✅ ADD: File upload computed properties
+        // File upload computed properties
         isUploadingFiles,
         hasPendingFiles,
         pendingFiles,
         uploadProgress,
         uploadError,
+
+        // NEW: Assignment computed properties
+        assignedMemberCount,
+        hasPrimaryAssignee,
+        primaryAssignee,
 
         // Actions
         updateFormData,
@@ -509,15 +623,20 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
         goToStep,
         markStepComplete,
 
-        // ✅ ADD: File upload actions
+        // File upload actions
         addPendingFiles,
         removePendingFile,
         uploadPhotos,
         uploadAttachments,
         removePhoto,
         removeAttachment,
+
+        // NEW: Assignment management actions
+        addAssignment,
+        removeAssignment,
+        updateAssignmentRole,
+        clearAssignments,
     }
 }
 
-// Export default
 export default useCreatePunchlistItem

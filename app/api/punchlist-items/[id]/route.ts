@@ -1,5 +1,5 @@
 // ==============================================
-// src/app/api/punchlist-items/[id]/route.ts - Individual Punchlist Item API Routes (COMPLETE FIXED)
+// src/app/api/punchlist-items/[id]/route.ts - UPDATED for Multiple Assignments
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -122,7 +122,7 @@ export async function GET(
 }
 
 // ==============================================
-// PATCH /api/punchlist-items/[id] - Update Punchlist Item (FIXED)
+// PATCH /api/punchlist-items/[id] - Update Punchlist Item (UPDATED FOR MULTIPLE ASSIGNMENTS)
 // ==============================================
 export async function PATCH(
     request: NextRequest,
@@ -179,7 +179,6 @@ export async function PATCH(
         // Create service instances
         const punchlistService = new PunchlistItemDatabaseService(true, false)
         const projectService = new ProjectDatabaseService(true, false)
-        const scheduleService = new ScheduleProjectDatabaseService(true, false)
 
         // Check if punchlist item exists and belongs to company
         const punchlistItemExists = await punchlistService.checkPunchlistItemExists(punchlistItemId, companyId)
@@ -194,33 +193,35 @@ export async function PATCH(
             )
         }
 
-        // ✅ FIXED: Extract fields that actually exist in validation data
+        // Get current punchlist item to check project context
+        const currentPunchlistItem = await punchlistService.getPunchlistItemById(punchlistItemId, companyId)
+        const projectIdToCheck = currentPunchlistItem?.projectId
+
+        // ✅ UPDATED: Extract fields including multiple assignments
         const {
             id: validationId,
-            assignedProjectMemberId: newAssignedProjectMemberId,
+            assignedMembers: newAssignedMembers,
             status: newStatus,
             ...otherUpdateData
         } = validation.data
 
-        // Note: projectId and relatedScheduleProjectId are NOT included in update validation
-        // They cannot be changed via the update endpoint - only during creation
+        // Handle legacy single assignment if provided in the request body directly
+        const legacyAssignedMemberId = body.assignedProjectMemberId
 
-        // If assigned project member is being changed, verify assignment is valid
-        if (newAssignedProjectMemberId) {
-            // Get the current punchlist item to determine which project to check against
-            const currentPunchlistItem = await punchlistService.getPunchlistItemById(punchlistItemId, companyId)
-            const projectIdToCheck = currentPunchlistItem?.projectId
+        // ✅ NEW: Handle multiple assignments validation
+        if (newAssignedMembers && newAssignedMembers.length > 0 && projectIdToCheck) {
+            // Get all valid project members for this project
+            const projectMembers = await punchlistService.getProjectMembersForProject(projectIdToCheck, companyId)
+            const validProjectMemberIds = new Set(projectMembers.map(pm => pm.id))
 
-            if (projectIdToCheck) {
-                const projectMembers = await punchlistService.getProjectMembersForProject(projectIdToCheck, companyId)
-                const assignedMemberExists = projectMembers.some(pm => pm.id === newAssignedProjectMemberId)
-
-                if (!assignedMemberExists) {
+            // Validate all assigned members
+            for (const assignment of newAssignedMembers) {
+                if (!validProjectMemberIds.has(assignment.projectMemberId)) {
                     return NextResponse.json(
                         {
                             success: false,
                             error: 'Invalid assignment',
-                            message: 'The specified team member is not assigned to this project.',
+                            message: `Team member with ID ${assignment.projectMemberId} is not assigned to this project.`,
                         },
                         { status: 400 }
                     )
@@ -228,11 +229,26 @@ export async function PATCH(
             }
         }
 
-        // ✅ FIXED: Create update data with proper type handling
+        // ✅ LEGACY: Handle single assignment for backward compatibility
+        if (legacyAssignedMemberId && projectIdToCheck) {
+            const projectMembers = await punchlistService.getProjectMembersForProject(projectIdToCheck, companyId)
+            const assignedMemberExists = projectMembers.some(pm => pm.id === legacyAssignedMemberId)
+
+            if (!assignedMemberExists) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: 'Invalid assignment',
+                        message: 'The specified team member is not assigned to this project.',
+                    },
+                    { status: 400 }
+                )
+            }
+        }
+
+        // ✅ UPDATED: Create update data with proper type handling
         const updateData = {
             ...otherUpdateData,
-            // Include the properly typed fields conditionally
-            ...(newAssignedProjectMemberId && { assignedProjectMemberId: newAssignedProjectMemberId }),
             // Transform status for database compatibility
             ...(newStatus && { status: transformStatusForDatabase(newStatus) }),
             // Add inspector information if inspection fields are being updated
@@ -241,14 +257,34 @@ export async function PATCH(
                 : {})
         }
 
-        // Update punchlist item
+        // ✅ NEW: Handle assignment updates
+        if (newAssignedMembers) {
+            // This will be handled separately by updating the assignments table
+            // We don't include assignedMembers in the main punchlist_items update
+            await punchlistService.updatePunchlistItemAssignments(
+                punchlistItemId,
+                companyId,
+                newAssignedMembers,
+                userId
+            )
+        } else if (legacyAssignedMemberId) {
+            // Handle legacy single assignment by converting to new assignment format
+            await punchlistService.updatePunchlistItemAssignments(
+                punchlistItemId,
+                companyId,
+                [{ projectMemberId: legacyAssignedMemberId, role: 'primary' }],
+                userId
+            )
+        }
+
+        // Update main punchlist item
         const updatedPunchlistItem = await punchlistService.updatePunchlistItem(
             punchlistItemId,
             companyId,
             updateData
         )
 
-        // Get updated punchlist item with full details
+        // Get updated punchlist item with full details including assignments
         const punchlistItemWithDetails = await punchlistService.getPunchlistItemById(punchlistItemId, companyId)
 
         return NextResponse.json(
@@ -288,7 +324,7 @@ export async function PATCH(
 }
 
 // ==============================================
-// DELETE /api/punchlist-items/[id] - Delete Punchlist Item
+// DELETE /api/punchlist-items/[id] - Delete Punchlist Item (UNCHANGED)
 // ==============================================
 export async function DELETE(
     request: NextRequest,
@@ -352,7 +388,7 @@ export async function DELETE(
             )
         }
 
-        // Delete punchlist item
+        // Delete punchlist item (this will also cascade delete assignments)
         await punchlistService.deletePunchlistItem(punchlistItemId, companyId)
 
         return NextResponse.json(

@@ -1,5 +1,5 @@
 // ==============================================
-// hooks/punchlist-items/use-update-punchlist-item.ts - Update Punchlist Item Hook
+// hooks/punchlist-items/use-update-punchlist-item.ts - UPDATED for Multiple Assignments
 // ==============================================
 
 import { useState, useCallback } from 'react'
@@ -40,6 +40,12 @@ interface UseUpdatePunchlistItemActions {
   updatePunchlistItem: (data?: UpdatePunchlistItemData) => Promise<void>
   resetForm: () => void
   reset: () => void
+
+  // NEW: Assignment management actions
+  addAssignment: (projectMemberId: string, role?: 'primary' | 'secondary' | 'inspector' | 'supervisor') => void
+  removeAssignment: (projectMemberId: string) => void
+  updateAssignmentRole: (projectMemberId: string, role: 'primary' | 'secondary' | 'inspector' | 'supervisor') => void
+  clearAssignments: () => void
 }
 
 interface UseUpdatePunchlistItemReturn extends UseUpdatePunchlistItemState, UseUpdatePunchlistItemActions {
@@ -51,6 +57,11 @@ interface UseUpdatePunchlistItemReturn extends UseUpdatePunchlistItemState, UseU
   hasErrors: boolean
   canSubmit: boolean
   isInitialized: boolean
+
+  // NEW: Assignment computed properties
+  assignedMemberCount: number
+  hasPrimaryAssignee: boolean
+  primaryAssignee?: { projectMemberId: string; role: string; projectMemberName?: string }
 }
 
 // ==============================================
@@ -60,26 +71,23 @@ const getDefaultUpdateFormData = (punchlistItemId: string): UpdatePunchlistItemF
   id: punchlistItemId,
   title: '',
   description: '',
-  issueType: '',
+  issueType: '', // FIXED: Empty string for form state
   location: '',
   roomArea: '',
-  assignedProjectMemberId: '',
-  tradeCategory: '',
+  assignedMembers: [], // UPDATED: Now an array
+  tradeCategory: '', // FIXED: Empty string for form state
   priority: 'medium',
   status: 'open',
   dueDate: '',
-  estimatedHours: '',
-  actualHours: '',
+  estimatedHours: '', // FIXED: Empty string for form state
+  actualHours: '', // FIXED: Empty string for form state
   resolutionNotes: '',
   rejectionReason: '',
   requiresInspection: false,
-  inspectionPassed: '',
+  inspectionPassed: '', // FIXED: Empty string for form state
   inspectionNotes: '',
   photos: [],
   attachments: [],
-  hasUnsavedChanges: false,
-  modifiedFields: [],
-  originalData: undefined,
 })
 
 // ==============================================
@@ -103,13 +111,18 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
   // ==============================================
   // COMPUTED PROPERTIES
   // ==============================================
-  const isLoading = state.state === 'loading' || state.state === 'saving'
+  const isLoading = state.state === 'loading'
   const isSuccess = state.state === 'success'
   const isError = state.state === 'error'
   const isIdle = state.state === 'idle'
   const hasErrors = Object.keys(state.errors).length > 0
   const isInitialized = !!state.originalPunchlistItem
   const canSubmit = state.hasChanges && !hasErrors && !isLoading && isInitialized
+
+  // NEW: Assignment computed properties
+  const assignedMemberCount = state.formData.assignedMembers?.length || 0
+  const hasPrimaryAssignee = state.formData.assignedMembers?.some(member => member.role === 'primary') || false
+  const primaryAssignee = state.formData.assignedMembers?.find(member => member.role === 'primary')
 
   // ==============================================
   // INITIALIZE FORM
@@ -119,7 +132,7 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
     
     setState(prev => ({
       ...prev,
-      state: 'editing',
+      state: 'idle',
       formData,
       originalPunchlistItem: punchlistItem,
       hasChanges: false,
@@ -136,7 +149,7 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
       
       // Check if there are changes compared to original
       const hasChanges = prev.originalPunchlistItem ? 
-        hasFormChanges(prev.originalPunchlistItem, newFormData) : false
+        hasFormChanges(punchlistItemToUpdateFormData(prev.originalPunchlistItem), newFormData) : false
 
       // Clear field error when value changes
       const newErrors = { ...prev.errors }
@@ -146,10 +159,7 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
 
       return {
         ...prev,
-        formData: {
-          ...newFormData,
-          hasUnsavedChanges: hasChanges,
-        },
+        formData: newFormData,
         hasChanges,
         errors: newErrors,
       }
@@ -162,14 +172,127 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
       
       // Check if there are changes compared to original
       const hasChanges = prev.originalPunchlistItem ? 
-        hasFormChanges(prev.originalPunchlistItem, newFormData) : false
+        hasFormChanges(punchlistItemToUpdateFormData(prev.originalPunchlistItem), newFormData) : false
 
       return {
         ...prev,
-        formData: {
-          ...newFormData,
-          hasUnsavedChanges: hasChanges,
-        },
+        formData: newFormData,
+        hasChanges,
+      }
+    })
+  }, [])
+
+  // ==============================================
+  // NEW: ASSIGNMENT MANAGEMENT ACTIONS
+  // ==============================================
+  const addAssignment = useCallback((projectMemberId: string, role: 'primary' | 'secondary' | 'inspector' | 'supervisor' = 'primary') => {
+    setState(prev => {
+      const currentAssignments = prev.formData.assignedMembers || []
+      
+      // Check if member is already assigned
+      const existingAssignment = currentAssignments.find(member => member.projectMemberId === projectMemberId)
+      if (existingAssignment) {
+        return prev // Don't add duplicate
+      }
+
+      // If adding a primary role, remove existing primary
+      let updatedAssignments = currentAssignments
+      if (role === 'primary') {
+        updatedAssignments = currentAssignments.map(member => 
+          member.role === 'primary' ? { ...member, role: 'secondary' } : member
+        )
+      }
+
+      const newAssignment = {
+        projectMemberId,
+        role,
+      }
+
+      const newFormData = {
+        ...prev.formData,
+        assignedMembers: [...updatedAssignments, newAssignment],
+      }
+
+      const hasChanges = prev.originalPunchlistItem ? 
+        hasFormChanges(punchlistItemToUpdateFormData(prev.originalPunchlistItem), newFormData) : false
+
+      return {
+        ...prev,
+        formData: newFormData,
+        hasChanges,
+      }
+    })
+  }, [])
+
+  const removeAssignment = useCallback((projectMemberId: string) => {
+    setState(prev => {
+      const newFormData = {
+        ...prev.formData,
+        assignedMembers: (prev.formData.assignedMembers || []).filter(
+          member => member.projectMemberId !== projectMemberId
+        ),
+      }
+
+      const hasChanges = prev.originalPunchlistItem ? 
+        hasFormChanges(punchlistItemToUpdateFormData(prev.originalPunchlistItem), newFormData) : false
+
+      return {
+        ...prev,
+        formData: newFormData,
+        hasChanges,
+      }
+    })
+  }, [])
+
+  const updateAssignmentRole = useCallback((projectMemberId: string, role: 'primary' | 'secondary' | 'inspector' | 'supervisor') => {
+    setState(prev => {
+      let updatedAssignments = prev.formData.assignedMembers || []
+      
+      // If changing to primary, remove existing primary role from others
+      if (role === 'primary') {
+        updatedAssignments = updatedAssignments.map(member => 
+          member.role === 'primary' && member.projectMemberId !== projectMemberId
+            ? { ...member, role: 'secondary' }
+            : member
+        )
+      }
+
+      // Update the specific assignment
+      updatedAssignments = updatedAssignments.map(member => 
+        member.projectMemberId === projectMemberId
+          ? { ...member, role }
+          : member
+      )
+
+      const newFormData = {
+        ...prev.formData,
+        assignedMembers: updatedAssignments,
+      }
+
+      const hasChanges = prev.originalPunchlistItem ? 
+        hasFormChanges(punchlistItemToUpdateFormData(prev.originalPunchlistItem), newFormData) : false
+
+      return {
+        ...prev,
+        formData: newFormData,
+        hasChanges,
+      }
+    })
+  }, [])
+
+  const clearAssignments = useCallback(() => {
+    setState(prev => {
+      const newFormData = {
+        ...prev.formData,
+        assignedMembers: [],
+      }
+
+      const hasChanges = prev.originalPunchlistItem ? 
+        hasFormChanges(punchlistItemToUpdateFormData(prev.originalPunchlistItem), newFormData) : false
+
+      return {
+        ...prev,
+        formData: newFormData,
         hasChanges,
       }
     })
@@ -204,7 +327,7 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
       
       validation.error.errors.forEach((error) => {
         const field = error.path.join('.')
-        newErrors[field as keyof UpdatePunchlistItemFormErrors] = error.message
+        newErrors[field as keyof UpdatePunchlistItemFormErrors] = [error.message]
       })
 
       setState(prev => ({ ...prev, errors: newErrors }))
@@ -220,7 +343,7 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
   // ==============================================
   const updatePunchlistItem = useCallback(async (data?: UpdatePunchlistItemData) => {
     try {
-      setState(prev => ({ ...prev, state: 'saving', errors: {} }))
+      setState(prev => ({ ...prev, state: 'loading', errors: {} }))
 
       // Use provided data or transform form data
       const submissionData = data || transformUpdateFormDataToApiData(state.formData)
@@ -231,7 +354,7 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
         const newErrors: UpdatePunchlistItemFormErrors = {}
         validation.error.errors.forEach((error) => {
           const field = error.path.join('.')
-          newErrors[field as keyof UpdatePunchlistItemFormErrors] = error.message
+          newErrors[field as keyof UpdatePunchlistItemFormErrors] = [error.message]
         })
         setState(prev => ({ ...prev, state: 'error', errors: newErrors }))
         return
@@ -244,10 +367,6 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
         state: 'success',
         result: response,
         hasChanges: false,
-        formData: {
-          ...prev.formData,
-          hasUnsavedChanges: false,
-        },
       }))
 
       // Update the original data with the new data
@@ -267,12 +386,12 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
       if (error instanceof Error) {
         // Try to parse validation errors from API response
         if (error.message.includes('Validation failed')) {
-          newErrors.general = error.message
+          newErrors._form = [error.message]
         } else {
-          newErrors.general = error.message
+          newErrors._form = [error.message]
         }
       } else {
-        newErrors.general = 'An unexpected error occurred'
+        newErrors._form = ['An unexpected error occurred']
       }
 
       setState(prev => ({ 
@@ -294,7 +413,7 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
         formData,
         hasChanges: false,
         errors: {},
-        state: 'editing',
+        state: 'idle',
       }))
     }
   }, [state.originalPunchlistItem])
@@ -331,6 +450,11 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
     canSubmit,
     isInitialized,
 
+    // NEW: Assignment computed properties
+    assignedMemberCount,
+    hasPrimaryAssignee,
+    primaryAssignee,
+
     // Actions
     initializeForm,
     updateFormData,
@@ -341,8 +465,13 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
     updatePunchlistItem,
     resetForm,
     reset,
+
+    // NEW: Assignment management actions
+    addAssignment,
+    removeAssignment,
+    updateAssignmentRole,
+    clearAssignments,
   }
 }
 
-// Export default
 export default useUpdatePunchlistItem

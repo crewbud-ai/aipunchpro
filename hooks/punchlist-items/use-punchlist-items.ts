@@ -4,7 +4,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { punchlistItemsApi } from '@/lib/api/punchlist-items'
-import { 
+import {
   type PunchlistItemSummary,
   type PunchlistItemFilters,
   type PunchlistItemsState,
@@ -40,7 +40,7 @@ interface UsePunchlistItemsActions {
   setPage: (page: number) => void
   setLimit: (limit: number) => void
   clearError: () => void
-  
+
   // Enhanced search actions
   searchByTitle: (titleQuery: string) => void
   filterByProject: (projectId: string | undefined) => void
@@ -65,7 +65,7 @@ interface UsePunchlistItemsReturn extends UsePunchlistItemsState, UsePunchlistIt
   hasActiveFilters: boolean
   currentPage: number
   totalPages: number
-  
+
   // Analytics
   punchlistItemsByStatus: Record<string, PunchlistItemSummary[]>
   punchlistItemsByPriority: Record<string, PunchlistItemSummary[]>
@@ -195,7 +195,7 @@ export const usePunchlistItems = (initialFilters: Partial<PunchlistItemFilters> 
   const overdueItems = useMemo(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    
+
     return state.punchlistItems.filter(item => {
       if (!item.dueDate || item.status === 'completed') return false
       const dueDate = new Date(item.dueDate)
@@ -206,22 +206,22 @@ export const usePunchlistItems = (initialFilters: Partial<PunchlistItemFilters> 
 
   // Analytics - High priority items
   const highPriorityItems = useMemo(() => {
-    return state.punchlistItems.filter(item => 
+    return state.punchlistItems.filter(item =>
       item.priority === 'high' || item.priority === 'critical'
     )
   }, [state.punchlistItems])
 
   // Analytics - Items requiring inspection
   const requiresInspectionItems = useMemo(() => {
-    return state.punchlistItems.filter(item => 
-      item.status === 'pending_review' || 
+    return state.punchlistItems.filter(item =>
+      item.status === 'pending_review' ||
       (item.requiresInspection && item.status !== 'completed')
     )
   }, [state.punchlistItems])
 
   // Analytics - Totals
   const totalOpenItems = useMemo(() => {
-    return state.punchlistItems.filter(item => 
+    return state.punchlistItems.filter(item =>
       item.status !== 'completed' && item.status !== 'rejected'
     ).length
   }, [state.punchlistItems])
@@ -360,8 +360,8 @@ export const usePunchlistItems = (initialFilters: Partial<PunchlistItemFilters> 
   }, [state.filters.limit, updateFilters, loadPunchlistItems])
 
   const setLimit = useCallback((limit: number) => {
-    updateFilters({ 
-      limit, 
+    updateFilters({
+      limit,
       offset: 0  // Reset to first page when changing limit
     })
     loadPunchlistItems({ limit, offset: 0 })
@@ -498,48 +498,74 @@ export const usePunchlistItems = (initialFilters: Partial<PunchlistItemFilters> 
 // STATS HOOK
 // ==============================================
 export const usePunchlistItemStats = (): PunchlistItemStats => {
-  const { 
-    punchlistItems, 
-    punchlistItemsByStatus, 
-    punchlistItemsByPriority, 
+  const {
+    punchlistItems,
+    punchlistItemsByStatus,
+    punchlistItemsByPriority,
     punchlistItemsByIssueType,
     overdueItems,
     completionRate,
     pagination
   } = usePunchlistItems()
 
-  return useMemo(() => ({
-    total: pagination.total,
-    byStatus: {
-      open: punchlistItemsByStatus.open?.length || 0,
-      assigned: punchlistItemsByStatus.assigned?.length || 0,
-      in_progress: punchlistItemsByStatus.in_progress?.length || 0,
-      pending_review: punchlistItemsByStatus.pending_review?.length || 0,
-      completed: punchlistItemsByStatus.completed?.length || 0,
-      rejected: punchlistItemsByStatus.rejected?.length || 0,
-      on_hold: punchlistItemsByStatus.on_hold?.length || 0,
-    },
-    byPriority: {
-      low: punchlistItemsByPriority.low?.length || 0,
-      medium: punchlistItemsByPriority.medium?.length || 0,
-      high: punchlistItemsByPriority.high?.length || 0,
-      critical: punchlistItemsByPriority.critical?.length || 0,
-    },
-    byIssueType: {
-      defect: punchlistItemsByIssueType.defect?.length || 0,
-      incomplete: punchlistItemsByIssueType.incomplete?.length || 0,
-      change_request: punchlistItemsByIssueType.change_request?.length || 0,
-      safety: punchlistItemsByIssueType.safety?.length || 0,
-      quality: punchlistItemsByIssueType.quality?.length || 0,
-      rework: punchlistItemsByIssueType.rework?.length || 0,
-    },
-    averageResolutionTime: 0, // Would need historical data
-    overdueItems: overdueItems.length,
-    requiresInspection: punchlistItems.filter(item => 
-      item.status === 'pending_review'
-    ).length,
-    completionRate,
-  }), [
+  return useMemo(() => {
+    // Calculate assignment statistics
+    const totalAssignments = punchlistItems.reduce((total, item) => {
+      return total + (item.assignedMemberCount || 0)
+    }, 0)
+
+    const multipleAssignments = punchlistItems.filter(item =>
+      (item.assignedMemberCount || 0) > 1
+    ).length
+
+    const unassignedItems = punchlistItems.filter(item =>
+      (item.assignedMemberCount || 0) === 0
+    ).length
+
+    const averageAssignmentsPerItem = punchlistItems.length > 0
+      ? totalAssignments / punchlistItems.length
+      : 0
+
+    return {
+      total: pagination.total,
+      byStatus: {
+        open: punchlistItemsByStatus.open?.length || 0,
+        assigned: punchlistItemsByStatus.assigned?.length || 0,
+        in_progress: punchlistItemsByStatus.in_progress?.length || 0,
+        pending_review: punchlistItemsByStatus.pending_review?.length || 0,
+        completed: punchlistItemsByStatus.completed?.length || 0,
+        rejected: punchlistItemsByStatus.rejected?.length || 0,
+        on_hold: punchlistItemsByStatus.on_hold?.length || 0,
+      },
+      byPriority: {
+        low: punchlistItemsByPriority.low?.length || 0,
+        medium: punchlistItemsByPriority.medium?.length || 0,
+        high: punchlistItemsByPriority.high?.length || 0,
+        critical: punchlistItemsByPriority.critical?.length || 0,
+      },
+      byIssueType: {
+        defect: punchlistItemsByIssueType.defect?.length || 0,
+        incomplete: punchlistItemsByIssueType.incomplete?.length || 0,
+        change_request: punchlistItemsByIssueType.change_request?.length || 0,
+        safety: punchlistItemsByIssueType.safety?.length || 0,
+        quality: punchlistItemsByIssueType.quality?.length || 0,
+        rework: punchlistItemsByIssueType.rework?.length || 0,
+      },
+      averageResolutionTime: 0, // Would need historical data
+      overdueItems: overdueItems.length,
+      requiresInspection: punchlistItems.filter(item =>
+        item.status === 'pending_review'
+      ).length,
+      completionRate,
+      // NEW: Assignment statistics
+      assignmentStats: {
+        totalAssignments,
+        multipleAssignments,
+        unassignedItems,
+        averageAssignmentsPerItem: Math.round(averageAssignmentsPerItem * 100) / 100, // Round to 2 decimal places
+      },
+    }
+  }, [
     punchlistItems,
     punchlistItemsByStatus,
     punchlistItemsByPriority,

@@ -447,6 +447,108 @@ export class PunchlistItemDatabaseService {
         return data
     }
 
+    async updatePunchlistItemAssignments(
+        punchlistItemId: string,
+        companyId: string,
+        newAssignments: Array<{ projectMemberId: string; role: 'primary' | 'secondary' | 'inspector' | 'supervisor' }>,
+        assignedBy: string
+    ): Promise<void> {
+        try {
+            // Get current assignments
+            const currentAssignments = await this.getAssignmentsForPunchlistItem(punchlistItemId)
+
+            // Create a map of current assignments by project member ID
+            const currentAssignmentMap = new Map(
+                currentAssignments.map(assignment => [assignment.projectMemberId, assignment])
+            )
+
+            // Create a map of new assignments by project member ID
+            const newAssignmentMap = new Map(
+                newAssignments.map(assignment => [assignment.projectMemberId, assignment])
+            )
+
+            // Find assignments to remove (in current but not in new)
+            const assignmentsToRemove = currentAssignments.filter(
+                assignment => !newAssignmentMap.has(assignment.projectMemberId)
+            )
+
+            // Find assignments to add (in new but not in current)
+            const assignmentsToAdd = newAssignments.filter(
+                assignment => !currentAssignmentMap.has(assignment.projectMemberId)
+            )
+
+            // Find assignments to update (role changed)
+            const assignmentsToUpdate = newAssignments.filter(assignment => {
+                const current = currentAssignmentMap.get(assignment.projectMemberId)
+                return current && current.role !== assignment.role
+            })
+
+            // Remove assignments
+            if (assignmentsToRemove.length > 0) {
+                const assignmentIdsToRemove = assignmentsToRemove.map(a => a.id)
+                const { error: removeError } = await this.supabaseClient
+                    .from('punchlist_item_assignments')
+                    .update({
+                        is_active: false,
+                        removed_at: new Date().toISOString(),
+                        removed_by: assignedBy
+                    })
+                    .in('id', assignmentIdsToRemove)
+                    .eq('company_id', companyId)
+
+                if (removeError) {
+                    console.error('Error removing assignments:', removeError)
+                    throw new Error('Failed to remove assignments')
+                }
+            }
+
+            // Add new assignments
+            if (assignmentsToAdd.length > 0) {
+                const newAssignmentRecords = assignmentsToAdd.map(assignment => ({
+                    company_id: companyId,
+                    punchlist_item_id: punchlistItemId,
+                    project_member_id: assignment.projectMemberId,
+                    role: assignment.role,
+                    assigned_by: assignedBy,
+                    is_active: true
+                }))
+
+                const { error: addError } = await this.supabaseClient
+                    .from('punchlist_item_assignments')
+                    .insert(newAssignmentRecords)
+
+                if (addError) {
+                    console.error('Error adding assignments:', addError)
+                    throw new Error('Failed to add assignments')
+                }
+            }
+
+            // Update existing assignments (role changes)
+            for (const assignment of assignmentsToUpdate) {
+                const currentAssignment = currentAssignmentMap.get(assignment.projectMemberId)
+                if (currentAssignment) {
+                    const { error: updateError } = await this.supabaseClient
+                        .from('punchlist_item_assignments')
+                        .update({
+                            role: assignment.role,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', currentAssignment.id)
+                        .eq('company_id', companyId)
+
+                    if (updateError) {
+                        console.error('Error updating assignment:', updateError)
+                        throw new Error('Failed to update assignment')
+                    }
+                }
+            }
+
+        } catch (error) {
+            console.error('Error updating punchlist item assignments:', error)
+            throw error
+        }
+    }
+
     async quickUpdatePunchlistStatus(
         punchlistItemId: string,
         companyId: string,
@@ -715,23 +817,27 @@ export class PunchlistItemDatabaseService {
     // ==============================================
     // HELPER METHODS
     // ==============================================
-
     async getAssignmentsForPunchlistItem(punchlistItemId: string): Promise<PunchlistItemAssignment[]> {
         const { data: assignments, error } = await this.supabaseClient
             .from('punchlist_item_assignments')
             .select(`
+            id,
+            project_member_id,
+            role,
+            assigned_at,
+            assigned_by,
+            is_active,
+            project_members!inner(
                 id,
-                project_member_id,
-                role,
-                assigned_at,
-                assigned_by,
-                is_active,
-                project_members!inner(
-                    id,
-                    hourly_rate,
-                    users!inner(first_name, last_name, email, trade_specialty)
+                hourly_rate,
+                users!inner(
+                    first_name, 
+                    last_name, 
+                    email, 
+                    trade_specialty
                 )
-            `)
+            )
+        `)
             .eq('punchlist_item_id', punchlistItemId)
             .eq('is_active', true)
             .order('assigned_at', { ascending: true })
@@ -741,21 +847,32 @@ export class PunchlistItemDatabaseService {
             return []
         }
 
-        return (assignments || []).map(assignment => ({
-            id: assignment.id,
-            projectMemberId: assignment.project_member_id,
-            role: assignment.role as 'primary' | 'secondary' | 'inspector' | 'supervisor',
-            assignedAt: assignment.assigned_at,
-            assignedBy: assignment.assigned_by,
-            isActive: assignment.is_active,
-            user: {
-                firstName: assignment.project_members.users.first_name,
-                lastName: assignment.project_members.users.last_name,
-                email: assignment.project_members.users.email,
-                tradeSpecialty: assignment.project_members.users.trade_specialty,
-            },
-            hourlyRate: assignment.project_members.hourly_rate,
-        }))
+        return (assignments || []).map(assignment => {
+            // Since Supabase returns arrays even with !inner, we need to access the first element
+            const projectMember = Array.isArray(assignment.project_members)
+                ? assignment.project_members[0]
+                : assignment.project_members
+
+            const user = Array.isArray(projectMember.users)
+                ? projectMember.users[0]
+                : projectMember.users
+
+            return {
+                id: assignment.id,
+                projectMemberId: assignment.project_member_id,
+                role: assignment.role as 'primary' | 'secondary' | 'inspector' | 'supervisor',
+                assignedAt: assignment.assigned_at,
+                assignedBy: assignment.assigned_by,
+                isActive: assignment.is_active,
+                user: {
+                    firstName: user.first_name,
+                    lastName: user.last_name,
+                    email: user.email,
+                    tradeSpecialty: user.trade_specialty,
+                },
+                hourlyRate: projectMember.hourly_rate,
+            }
+        })
     }
 
     async getRelatedScheduleProject(scheduleProjectId: string) {

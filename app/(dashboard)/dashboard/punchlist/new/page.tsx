@@ -1,5 +1,5 @@
 // ==============================================
-// app/(dashboard)/dashboard/punchlist/new/page.tsx
+// app/(dashboard)/dashboard/punchlist/new/page.tsx - UPDATED for Multiple Assignments
 // ==============================================
 
 "use client"
@@ -62,6 +62,10 @@ export default function CreatePunchlistPage() {
         uploadAttachments,
         removePhoto,
         removeAttachment,
+
+        // NEW: Assignment management from hook
+        assignedMemberCount,
+        hasPrimaryAssignee,
     } = useCreatePunchlistItem()
 
     // Projects data
@@ -96,9 +100,8 @@ export default function CreatePunchlistPage() {
         project.status === 'on_track'
     ), [projects])
 
-    // Get project-filtered team members - SIMPLIFIED VERSION
+    // Get project-filtered team members
     const availableTeamMembers = useMemo(() => {
-
         if (!formData.projectId) {
             console.log('❌ No project selected, returning empty array')
             return []
@@ -120,8 +123,6 @@ export default function CreatePunchlistPage() {
 
     // Form validation for each step
     const stepValidation = useMemo(() => {
-
-        // TEMPORARY: Simplified validation for testing
         const step1Valid = formData.title.trim().length > 0
 
         const step2Valid =
@@ -130,7 +131,7 @@ export default function CreatePunchlistPage() {
 
         const step3Valid = true // Assignment is optional
 
-        // ✅ UPDATED: Include upload state in step 4 validation
+        // Include upload state in step 4 validation
         const step4Valid = canSubmit && !isUploadingFiles
 
         return {
@@ -138,7 +139,7 @@ export default function CreatePunchlistPage() {
             2: step2Valid,
             3: step3Valid,
             4: step4Valid
-        } as Record<number, boolean> // Add index signature
+        } as Record<number, boolean>
     }, [formData, errors, canSubmit, currentStep, isUploadingFiles])
 
     const canProceedToNext = stepValidation[currentStep] || false
@@ -153,8 +154,8 @@ export default function CreatePunchlistPage() {
         const project = activeProjects.find(p => p.id === projectId)
         setSelectedProject(project)
 
-        // Reset team member selection when project changes
-        updateFormData('assignedProjectMemberId', '')
+        // UPDATED: Reset assignments when project changes
+        updateFormData('assignedMembers', [])
     }, [updateFormData, activeProjects])
 
     // Form submission
@@ -163,9 +164,8 @@ export default function CreatePunchlistPage() {
         await createPunchlistItem()
     }, [canSubmit, createPunchlistItem, isUploadingFiles])
 
-    // Navigation handlers - BYPASS HOOK VALIDATION TEMPORARILY
+    // Navigation handlers
     const handleNext = React.useCallback(() => {
-
         if (currentStep < totalSteps && canProceedToNext) {
             goToNextStep()
         } else {
@@ -174,7 +174,7 @@ export default function CreatePunchlistPage() {
                 ourCanProceed: canProceedToNext
             })
         }
-    }, [currentStep, totalSteps, canProceedToNext, goToNextStep, stepValidation, updateFormData])
+    }, [currentStep, totalSteps, canProceedToNext, goToNextStep])
 
     const handlePrevious = React.useCallback(() => {
         if (currentStep > 1 && !isUploadingFiles) {
@@ -210,10 +210,11 @@ export default function CreatePunchlistPage() {
         handleProjectChange,
     }
 
+    // UPDATED: Step 3 props for multiple assignments
     const step3Props = {
         mode: 'create' as const,
         formData: {
-            assignedProjectMemberId: formData.assignedProjectMemberId,
+            assignedMembers: formData.assignedMembers, // FIXED: Use assignedMembers array
             dueDate: formData.dueDate,
             resolutionNotes: formData.resolutionNotes,
         },
@@ -227,15 +228,15 @@ export default function CreatePunchlistPage() {
         refreshTeamMembers,
     }
 
-    // ✅ UPDATED: Step 4 props with complete formData and upload props
+    // Step 4 props with complete formData and upload props
     const step4Props = {
         mode: 'create' as const,
-        formData, // ✅ FIXED: Pass complete formData object
+        formData,
         errors,
         updateFormData: updateFormData as (field: string, value: any) => void,
         clearFieldError,
         
-        // ✅ ADD: File upload props
+        // File upload props
         isUploadingFiles,
         hasPendingFiles,
         pendingFiles,
@@ -270,7 +271,7 @@ export default function CreatePunchlistPage() {
                 return {
                     icon: Users,
                     title: "Assignment & Timeline",
-                    description: "Assign team member and set completion timeline"
+                    description: "Assign team members and set completion timeline" // UPDATED: plural
                 }
             case 4:
                 return {
@@ -355,7 +356,7 @@ export default function CreatePunchlistPage() {
                             {/* Render Current Step */}
                             {renderStepContent()}
 
-                            {/* ✅ ADD: Show upload progress globally */}
+                            {/* Show upload progress globally */}
                             {isUploadingFiles && (
                                 <Alert>
                                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -365,7 +366,7 @@ export default function CreatePunchlistPage() {
                                 </Alert>
                             )}
 
-                            {/* ✅ ADD: Show upload error globally */}
+                            {/* Show upload error globally */}
                             {uploadError && (
                                 <Alert variant="destructive">
                                     <AlertCircle className="h-4 w-4" />
@@ -390,7 +391,7 @@ export default function CreatePunchlistPage() {
                                             type="button"
                                             variant="outline"
                                             onClick={handlePrevious}
-                                            disabled={isUploadingFiles} // ✅ ADD: Disable during upload
+                                            disabled={isUploadingFiles}
                                             className="flex-1 sm:flex-none"
                                         >
                                             <ChevronLeft className="mr-2 h-4 w-4" />
@@ -403,7 +404,7 @@ export default function CreatePunchlistPage() {
                                             <Button 
                                                 variant="outline" 
                                                 className="w-full"
-                                                disabled={isUploadingFiles} // ✅ ADD: Disable during upload
+                                                disabled={isUploadingFiles}
                                             >
                                                 Cancel
                                             </Button>
@@ -414,10 +415,8 @@ export default function CreatePunchlistPage() {
                                 {currentStep < totalSteps ? (
                                     <Button
                                         type="button"
-                                        onClick={() => {
-                                            handleNext()
-                                        }}
-                                        disabled={!canProceedToNext || isUploadingFiles} // ✅ ADD: Disable during upload
+                                        onClick={handleNext}
+                                        disabled={!canProceedToNext || isUploadingFiles}
                                         className="flex-1 sm:flex-none"
                                     >
                                         Next
@@ -427,7 +426,7 @@ export default function CreatePunchlistPage() {
                                     <Button
                                         type="button"
                                         onClick={handleSubmit}
-                                        disabled={!canSubmit || isUploadingFiles} // ✅ ADD: Disable during upload
+                                        disabled={!canSubmit || isUploadingFiles}
                                         className="flex-1 sm:flex-none"
                                     >
                                         {(isLoading || isUploadingFiles) ? (
@@ -448,7 +447,25 @@ export default function CreatePunchlistPage() {
                     </form>
                 </Card>
 
-                {/* ✅ ADD: File upload summary (visible on all steps) */}
+                {/* Assignment Summary (visible on all steps when assignments exist) */}
+                {assignedMemberCount > 0 && currentStep !== 3 && (
+                    <Card className="mt-4">
+                        <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Users className="h-4 w-4 text-gray-500" />
+                                    <span className="text-sm font-medium">Assignments:</span>
+                                    <span className="text-sm text-gray-600">
+                                        {assignedMemberCount} team member{assignedMemberCount !== 1 ? 's' : ''} assigned
+                                        {hasPrimaryAssignee && ' (has primary)'}
+                                    </span>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* File upload summary (visible on all steps) */}
                 {(hasPendingFiles || (formData.photos && formData.photos.length > 0) || (formData.attachments && formData.attachments.length > 0)) && currentStep !== 4 && (
                     <Card className="mt-4">
                         <CardContent className="p-4">
