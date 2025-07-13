@@ -501,8 +501,8 @@ export function punchlistItemToUpdateFormData(punchlistItem: PunchlistItemWithDe
     assignedMembers: punchlistItem.assignedMembers?.map(member => ({
       projectMemberId: member.projectMemberId,
       role: member.role,
-      projectMemberName: `${member.user.firstName} ${member.user.lastName}`,
-      projectMemberTrade: member.user.tradeSpecialty
+      projectMemberName: `${member.user?.firstName} ${member.user?.lastName}`,
+      projectMemberTrade: member.user?.tradeSpecialty
     })) || [],
     tradeCategory: punchlistItem.tradeCategory,
     priority: punchlistItem.priority,

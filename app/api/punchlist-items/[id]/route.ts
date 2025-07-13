@@ -11,6 +11,61 @@ import { PunchlistItemDatabaseService } from '@/lib/database/services/punchlist-
 import { ProjectDatabaseService } from '@/lib/database/services/projects'
 import { ScheduleProjectDatabaseService } from '@/lib/database/services/schedule-projects'
 
+export function toCamelCase(str: string): string {
+    return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+}
+
+export function transformObjectKeys<T = any>(obj: any): T {
+    if (obj === null || obj === undefined) {
+        return obj
+    }
+    
+    if (Array.isArray(obj)) {
+        return obj.map(item => transformObjectKeys(item)) as T
+    }
+    
+    if (typeof obj === 'object' && obj.constructor === Object) {
+        const transformed: any = {}
+        
+        for (const [key, value] of Object.entries(obj)) {
+            const camelKey = toCamelCase(key)
+            transformed[camelKey] = transformObjectKeys(value)
+        }
+        
+        return transformed as T
+    }
+    
+    return obj
+}
+
+
+export function transformPunchlistItem(rawPunchlistItem: any) {
+    if (!rawPunchlistItem) return null
+
+    // Transform the main object
+    const transformed = transformObjectKeys(rawPunchlistItem)
+
+    // Handle special cases and ensure proper structure
+    return {
+        ...transformed,
+        // Ensure these arrays exist
+        photos: transformed.photos || [],
+        attachments: transformed.attachments || [],
+        
+        // Handle nested objects
+        project: transformed.project ? transformObjectKeys(transformed.project) : null,
+        reporter: transformed.reporter ? transformObjectKeys(transformed.reporter) : null,
+        inspector: transformed.inspector ? transformObjectKeys(transformed.inspector) : null,
+        relatedScheduleProject: transformed.relatedScheduleProject ? transformObjectKeys(transformed.relatedScheduleProject) : null,
+        
+        // ✅ FIXED: Transform assignedMembers array (no duplicate)
+        assignedMembers: (transformed.assignedMembers || []).map((member: any) => ({
+            ...transformObjectKeys(member),
+            user: member.user ? transformObjectKeys(member.user) : null
+        }))
+    }
+}
+
 // ==============================================
 // HELPER FUNCTION - Status Transformation
 // ==============================================
@@ -98,11 +153,14 @@ export async function GET(
             )
         }
 
+        const transformedPunchlistItem = transformPunchlistItem(punchlistItem)
+
+
         return NextResponse.json(
             {
                 success: true,
                 data: {
-                    punchlistItem: punchlistItem
+                    punchlistItem: transformedPunchlistItem
                 },
                 message: 'Punchlist item retrieved successfully.',
             },

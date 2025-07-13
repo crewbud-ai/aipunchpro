@@ -1,5 +1,5 @@
 // ==============================================
-// app/(dashboard)/dashboard/punchlist/[id]/page.tsx - Comprehensive Punchlist Item Details Page
+// UPDATED: Punchlist Item Details Page with Multiple Assignments
 // ==============================================
 
 "use client"
@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
+import { toast } from "@/hooks/use-toast" // ✅ ADD: Toast instead of alert
 import {
     ArrowLeft,
     Edit,
@@ -48,7 +49,11 @@ import {
     X,
     Wrench,
     Timer,
-    Flag
+    Flag,
+    Crown,
+    Shield,
+    UserCheck,
+    UserPlus
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -66,7 +71,8 @@ import {
     getPunchlistPriorityColor,
     getIssueTypeLabel,
     getTradeCategoryLabel,
-    type PunchlistStatus
+    type PunchlistStatus,
+    type PunchlistItemAssignment
 } from "@/types/punchlist-items"
 import { withPermission } from "@/lib/permissions"
 import {
@@ -112,14 +118,29 @@ export default function PunchlistItemPage() {
         })
     }
 
-    const formatCurrency = (amount?: number) => {
-        if (!amount) return "$0"
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(amount)
+    // ✅ ADD: Role formatting and icons
+    const getRoleIcon = (role: string) => {
+        switch (role) {
+            case 'primary': return Crown
+            case 'secondary': return User
+            case 'inspector': return Shield
+            case 'supervisor': return UserCheck
+            default: return User
+        }
+    }
+
+    const getRoleColor = (role: string) => {
+        switch (role) {
+            case 'primary': return 'bg-orange-100 text-orange-800 border-orange-200'
+            case 'secondary': return 'bg-blue-100 text-blue-800 border-blue-200'
+            case 'inspector': return 'bg-purple-100 text-purple-800 border-purple-200'
+            case 'supervisor': return 'bg-green-100 text-green-800 border-green-200'
+            default: return 'bg-gray-100 text-gray-800 border-gray-200'
+        }
+    }
+
+    const formatRoleLabel = (role: string) => {
+        return role.charAt(0).toUpperCase() + role.slice(1)
     }
 
     // ==============================================
@@ -149,23 +170,55 @@ export default function PunchlistItemPage() {
     }, [punchlistItemId, punchlistItem, loadPunchlistItem])
 
     // ==============================================
-    // COMPUTED VALUES
+    // ✅ UPDATED: Computed values for multiple assignments
     // ==============================================
     const project = punchlistItem?.project || projects.find(p => p.id === punchlistItem?.projectId)
     
-    // Handle both current single assignment and future multiple assignments
-    const assignedMember = punchlistItem?.assignedMembers
-    
-    // Ensure assignedMembers is always an array
-    const assignedMembers = React.useMemo(() => {
-        if (punchlistItem?.assignedMembers && Array.isArray(punchlistItem.assignedMembers)) {
-            return punchlistItem.assignedMembers
-        } else if (assignedMember) {
-            return [assignedMember]
-        } else {
+    // ✅ UPDATED: Handle multiple assignments properly
+    const assignedMembers = useMemo(() => {
+        if (!punchlistItem?.assignedMembers) {
             return []
         }
-    }, [punchlistItem?.assignedMembers, assignedMember])
+        
+        // If it's already an array, use it
+        if (Array.isArray(punchlistItem.assignedMembers)) {
+            return punchlistItem.assignedMembers
+        }
+        
+        // If it's a single assignment (backward compatibility)
+        if (punchlistItem.assignedMember) {
+            return [{
+                id: punchlistItem.assignedMember.id,
+                projectMemberId: punchlistItem.assignedMember.id,
+                role: 'primary',
+                assignedAt: punchlistItem.createdAt,
+                assignedBy: punchlistItem.reportedBy,
+                isActive: true,
+                user: punchlistItem.assignedMember.user,
+                hourlyRate: null
+            }]
+        }
+        
+        return []
+    }, [punchlistItem])
+
+    // ✅ ADD: Assignment analysis
+    const assignmentStats = useMemo(() => {
+        const primaryAssignee = assignedMembers.find(member => member.role === 'primary')
+        const secondaryAssignees = assignedMembers.filter(member => member.role === 'secondary')
+        const inspectors = assignedMembers.filter(member => member.role === 'inspector')
+        const supervisors = assignedMembers.filter(member => member.role === 'supervisor')
+
+        return {
+            total: assignedMembers.length,
+            primary: primaryAssignee,
+            secondary: secondaryAssignees,
+            inspectors,
+            supervisors,
+            hasInspector: inspectors.length > 0,
+            hasSupervisor: supervisors.length > 0
+        }
+    }, [assignedMembers])
     
     const reporter = punchlistItem?.reporter
 
@@ -285,9 +338,23 @@ export default function PunchlistItemPage() {
                     status: newStatus,
                     resolutionNotes: `Status changed to ${newStatus}`,
                 })
+                
+                // ✅ SUCCESS TOAST instead of alert
+                toast({
+                    title: "Status Updated",
+                    description: `Punchlist item status changed to ${PUNCHLIST_STATUS_OPTIONS.find(s => s.value === newStatus)?.label}.`,
+                })
+                
                 refreshPunchlistItem()
             } catch (error) {
                 console.error('Failed to update status:', error)
+                
+                // ✅ ERROR TOAST instead of alert
+                toast({
+                    title: "Update Failed",
+                    description: "Failed to update status. Please try again.",
+                    variant: "destructive",
+                })
             } finally {
                 setIsUpdatingStatus(false)
             }
@@ -475,7 +542,7 @@ export default function PunchlistItemPage() {
                 </div>
             </div>
 
-            {/* Quick Stats Cards */}
+            {/* ✅ UPDATED: Quick Stats Cards with multiple assignment support */}
             <div className="grid gap-4 md:grid-cols-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -522,16 +589,22 @@ export default function PunchlistItemPage() {
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Team</CardTitle>
-                        <User className="h-4 w-4 text-muted-foreground" />
+                        <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            {assignedMembers.length}
+                            {assignmentStats.total}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                            {assignedMembers.length === 0 ? 'Unassigned' : 
-                             assignedMembers.length === 1 ? 'member assigned' : 'members assigned'}
+                            {assignmentStats.total === 0 ? 'Unassigned' : 
+                             assignmentStats.total === 1 ? 'member assigned' : 'members assigned'}
                         </p>
+                        {/* ✅ ADD: Show primary assignee */}
+                        {assignmentStats.primary && (
+                            <p className="text-xs text-orange-600 mt-1">
+                                Primary: {assignmentStats.primary.user?.firstName} {assignmentStats.primary.user?.lastName}
+                            </p>
+                        )}
                     </CardContent>
                 </Card>
             </div>
@@ -541,7 +614,9 @@ export default function PunchlistItemPage() {
                 <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="photos">Photos & Files</TabsTrigger>
-                    <TabsTrigger value="team">Assignment</TabsTrigger>
+                    <TabsTrigger value="team">
+                        Team ({assignmentStats.total})
+                    </TabsTrigger>
                     <TabsTrigger value="activity">Activity</TabsTrigger>
                 </TabsList>
 
@@ -570,6 +645,7 @@ export default function PunchlistItemPage() {
                                         <div>
                                             <h4 className="font-medium mb-1">Issue Type</h4>
                                             <Badge variant="outline">
+                                                {/* {console.log(punchlistItem, 'punchlistItem')} */}
                                                 {getIssueTypeLabel(punchlistItem.issueType)}
                                             </Badge>
                                         </div>
@@ -841,79 +917,268 @@ export default function PunchlistItemPage() {
                     )}
                 </TabsContent>
 
+                {/* ✅ UPDATED: Team tab with multiple assignment support */}
                 <TabsContent value="team" className="space-y-6">
-                    {/* Assignment Details */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Users className="h-5 w-5" />
-                                Assignment Details
+                                Team Assignments ({assignmentStats.total})
                             </CardTitle>
+                            <CardDescription>
+                                Multiple team members can be assigned with different roles
+                            </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            {/* Assigned Members */}
-                            {assignedMembers.length > 0 ? (
-                                <div>
-                                    <h4 className="font-medium text-gray-900 mb-3">
-                                        Assigned To ({assignedMembers.length} {assignedMembers.length === 1 ? 'member' : 'members'})
-                                    </h4>
-                                    <div className="space-y-3">
-                                        {assignedMembers.map((member, index) => (
-                                            <div key={member?.id || index} className="flex items-center gap-4 p-4 border rounded-lg">
-                                                <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-                                                    <User className="h-6 w-6 text-gray-600" />
+                            {/* ✅ UPDATED: Multiple assignments display */}
+                            {assignmentStats.total > 0 ? (
+                                <div className="space-y-6">
+                                    {/* Primary Assignee */}
+                                    {assignmentStats.primary && (
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Crown className="h-4 w-4 text-orange-600" />
+                                                <h4 className="font-medium text-gray-900">Primary Assignee</h4>
+                                            </div>
+                                            <div className="flex items-center gap-4 p-4 border-2 border-orange-200 bg-orange-50 rounded-lg">
+                                                <div className="w-12 h-12 bg-orange-200 rounded-full flex items-center justify-center">
+                                                    <Crown className="h-6 w-6 text-orange-600" />
                                                 </div>
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2 mb-1">
-                                                        <p className="font-medium">
-                                                            {member?.user?.firstName} {member?.user?.lastName}
+                                                        <p className="font-medium text-gray-900">
+                                                            {assignmentStats.primary.user?.firstName} {assignmentStats.primary.user?.lastName}
                                                         </p>
-                                                        {member?.user?.tradeSpecialty && (
+                                                        <Badge className={getRoleColor('primary')}>
+                                                            Primary
+                                                        </Badge>
+                                                        {assignmentStats.primary.user?.tradeSpecialty && (
                                                             <Badge variant="outline" className="text-xs">
-                                                                {member.user.tradeSpecialty}
+                                                                {assignmentStats.primary.user.tradeSpecialty}
                                                             </Badge>
                                                         )}
                                                     </div>
-                                                    <p className="text-sm text-gray-600">{member?.role || 'Team Member'}</p>
-                                                    {member?.user?.email && (
+                                                    <p className="text-sm text-gray-600">Lead responsible for completion</p>
+                                                    {assignmentStats.primary.user?.email && (
                                                         <div className="flex items-center gap-2 mt-2">
                                                             <Mail className="h-3 w-3 text-gray-400" />
-                                                            <a href={`mailto:${member.user.email}`} className="text-sm text-blue-600 hover:underline">
-                                                                {member.user.email}
+                                                            <a 
+                                                                href={`mailto:${assignmentStats.primary.user.email}`} 
+                                                                className="text-sm text-blue-600 hover:underline"
+                                                            >
+                                                                {assignmentStats.primary.user.email}
                                                             </a>
                                                         </div>
                                                     )}
-                                                    {member?.hourlyRate && (
+                                                    {assignmentStats.primary.hourlyRate && (
                                                         <p className="text-xs text-gray-500 mt-1">
-                                                            Rate: ${member.hourlyRate}/hr
+                                                            Rate: ${assignmentStats.primary.hourlyRate}/hr
                                                         </p>
                                                     )}
                                                 </div>
                                             </div>
-                                        ))}
+                                        </div>
+                                    )}
+
+                                    {/* Secondary Assignees */}
+                                    {assignmentStats.secondary.length > 0 && (
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <User className="h-4 w-4 text-blue-600" />
+                                                <h4 className="font-medium text-gray-900">
+                                                    Secondary Assignees ({assignmentStats.secondary.length})
+                                                </h4>
+                                            </div>
+                                            <div className="space-y-3">
+                                                {assignmentStats.secondary.map((member, index) => (
+                                                    <div key={member.id || index} className="flex items-center gap-4 p-4 border border-blue-200 bg-blue-50 rounded-lg">
+                                                        <div className="w-10 h-10 bg-blue-200 rounded-full flex items-center justify-center">
+                                                            <User className="h-5 w-5 text-blue-600" />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <p className="font-medium text-gray-900">
+                                                                    {member.user?.firstName} {member.user?.lastName}
+                                                                </p>
+                                                                <Badge className={getRoleColor('secondary')}>
+                                                                    Secondary
+                                                                </Badge>
+                                                                {member.user?.tradeSpecialty && (
+                                                                    <Badge variant="outline" className="text-xs">
+                                                                        {member.user.tradeSpecialty}
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-sm text-gray-600">Supporting team member</p>
+                                                            {member.user?.email && (
+                                                                <div className="flex items-center gap-2 mt-1">
+                                                                    <Mail className="h-3 w-3 text-gray-400" />
+                                                                    <a 
+                                                                        href={`mailto:${member.user.email}`} 
+                                                                        className="text-sm text-blue-600 hover:underline"
+                                                                    >
+                                                                        {member.user.email}
+                                                                    </a>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Inspectors */}
+                                    {assignmentStats.inspectors.length > 0 && (
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Shield className="h-4 w-4 text-purple-600" />
+                                                <h4 className="font-medium text-gray-900">
+                                                    Inspectors ({assignmentStats.inspectors.length})
+                                                </h4>
+                                            </div>
+                                            <div className="space-y-3">
+                                                {assignmentStats.inspectors.map((member, index) => (
+                                                    <div key={member.id || index} className="flex items-center gap-4 p-4 border border-purple-200 bg-purple-50 rounded-lg">
+                                                        <div className="w-10 h-10 bg-purple-200 rounded-full flex items-center justify-center">
+                                                            <Shield className="h-5 w-5 text-purple-600" />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <p className="font-medium text-gray-900">
+                                                                    {member.user?.firstName} {member.user?.lastName}
+                                                                </p>
+                                                                <Badge className={getRoleColor('inspector')}>
+                                                                    Inspector
+                                                                </Badge>
+                                                                {member.user?.tradeSpecialty && (
+                                                                    <Badge variant="outline" className="text-xs">
+                                                                        {member.user.tradeSpecialty}
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-sm text-gray-600">Quality control and inspection</p>
+                                                            {member.user?.email && (
+                                                                <div className="flex items-center gap-2 mt-1">
+                                                                    <Mail className="h-3 w-3 text-gray-400" />
+                                                                    <a 
+                                                                        href={`mailto:${member.user.email}`} 
+                                                                        className="text-sm text-blue-600 hover:underline"
+                                                                    >
+                                                                        {member.user.email}
+                                                                    </a>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Supervisors */}
+                                    {assignmentStats.supervisors.length > 0 && (
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <UserCheck className="h-4 w-4 text-green-600" />
+                                                <h4 className="font-medium text-gray-900">
+                                                    Supervisors ({assignmentStats.supervisors.length})
+                                                </h4>
+                                            </div>
+                                            <div className="space-y-3">
+                                                {assignmentStats.supervisors.map((member, index) => (
+                                                    <div key={member.id || index} className="flex items-center gap-4 p-4 border border-green-200 bg-green-50 rounded-lg">
+                                                        <div className="w-10 h-10 bg-green-200 rounded-full flex items-center justify-center">
+                                                            <UserCheck className="h-5 w-5 text-green-600" />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <p className="font-medium text-gray-900">
+                                                                    {member.user?.firstName} {member.user?.lastName}
+                                                                </p>
+                                                                <Badge className={getRoleColor('supervisor')}>
+                                                                    Supervisor
+                                                                </Badge>
+                                                                {member.user?.tradeSpecialty && (
+                                                                    <Badge variant="outline" className="text-xs">
+                                                                        {member.user.tradeSpecialty}
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-sm text-gray-600">Project oversight and management</p>
+                                                            {member.user?.email && (
+                                                                <div className="flex items-center gap-2 mt-1">
+                                                                    <Mail className="h-3 w-3 text-gray-400" />
+                                                                    <a 
+                                                                        href={`mailto:${member.user.email}`} 
+                                                                        className="text-sm text-blue-600 hover:underline"
+                                                                    >
+                                                                        {member.user.email}
+                                                                    </a>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Assignment Summary */}
+                                    <div className="pt-4 border-t">
+                                        <h4 className="font-medium text-gray-900 mb-3">Assignment Summary</h4>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                            <div className="text-center p-3 bg-orange-50 rounded-lg">
+                                                <Crown className="h-5 w-5 text-orange-600 mx-auto mb-1" />
+                                                <p className="font-medium text-orange-800">Primary</p>
+                                                <p className="text-orange-600">{assignmentStats.primary ? 1 : 0}</p>
+                                            </div>
+                                            <div className="text-center p-3 bg-blue-50 rounded-lg">
+                                                <User className="h-5 w-5 text-blue-600 mx-auto mb-1" />
+                                                <p className="font-medium text-blue-800">Secondary</p>
+                                                <p className="text-blue-600">{assignmentStats.secondary.length}</p>
+                                            </div>
+                                            <div className="text-center p-3 bg-purple-50 rounded-lg">
+                                                <Shield className="h-5 w-5 text-purple-600 mx-auto mb-1" />
+                                                <p className="font-medium text-purple-800">Inspectors</p>
+                                                <p className="text-purple-600">{assignmentStats.inspectors.length}</p>
+                                            </div>
+                                            <div className="text-center p-3 bg-green-50 rounded-lg">
+                                                <UserCheck className="h-5 w-5 text-green-600 mx-auto mb-1" />
+                                                <p className="font-medium text-green-800">Supervisors</p>
+                                                <p className="text-green-600">{assignmentStats.supervisors.length}</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
                                 <div>
-                                    <h4 className="font-medium text-gray-900 mb-3">Assigned To</h4>
                                     <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
-                                        <Users className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                                        <p className="text-gray-500">Not assigned to anyone</p>
-                                        <p className="text-xs text-gray-400 mt-1">Multiple team members can be assigned</p>
+                                        <UserPlus className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                                        <p className="text-gray-500 font-medium">No team members assigned</p>
+                                        <p className="text-xs text-gray-400 mt-1">Multiple team members can be assigned with different roles</p>
+                                        {canEdit && (
+                                            <Button variant="outline" size="sm" className="mt-3" asChild>
+                                                <Link href={`/dashboard/punchlist/${punchlistItem.id}/edit`}>
+                                                    <UserPlus className="h-4 w-4 mr-2" />
+                                                    Assign Team Members
+                                                </Link>
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                             )}
 
-                            {/* Reporter */}
+                            {/* Reporter Section */}
                             {reporter && (
-                                <div>
+                                <div className="pt-6 border-t">
                                     <h4 className="font-medium text-gray-900 mb-3">Reported By</h4>
                                     <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                                         <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
                                             <User className="h-5 w-5 text-gray-600" />
                                         </div>
                                         <div>
-                                            <p className="font-medium">
+                                            <p className="font-medium text-gray-900">
                                                 {reporter.firstName} {reporter.lastName}
                                             </p>
                                             <p className="text-sm text-gray-600">
@@ -922,7 +1187,10 @@ export default function PunchlistItemPage() {
                                             {reporter.email && (
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <Mail className="h-3 w-3 text-gray-400" />
-                                                    <a href={`mailto:${reporter.email}`} className="text-sm text-blue-600 hover:underline">
+                                                    <a 
+                                                        href={`mailto:${reporter.email}`} 
+                                                        className="text-sm text-blue-600 hover:underline"
+                                                    >
                                                         {reporter.email}
                                                     </a>
                                                 </div>
@@ -936,7 +1204,7 @@ export default function PunchlistItemPage() {
                 </TabsContent>
 
                 <TabsContent value="activity" className="space-y-6">
-                    {/* Activity Log */}
+                    {/* ✅ UPDATED: Activity Log with assignment tracking */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -963,6 +1231,37 @@ export default function PunchlistItemPage() {
                                         </p>
                                     </div>
                                 </div>
+
+                                {/* Assignment Activity */}
+                                {assignmentStats.total > 0 && (
+                                    <div className="flex items-start gap-3 pb-4">
+                                        <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center mt-0.5">
+                                            <Users className="h-4 w-4 text-orange-600" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <p className="font-medium text-sm">Team members assigned</p>
+                                                <span className="text-xs text-gray-500">
+                                                    {formatDateTime(punchlistItem.createdAt)}
+                                                </span>
+                                            </div>
+                                            <div className="text-sm text-gray-600 space-y-1">
+                                                {assignmentStats.primary && (
+                                                    <p>• Primary: {assignmentStats.primary.user?.firstName} {assignmentStats.primary.user?.lastName}</p>
+                                                )}
+                                                {assignmentStats.secondary.length > 0 && (
+                                                    <p>• Secondary: {assignmentStats.secondary.length} member(s)</p>
+                                                )}
+                                                {assignmentStats.inspectors.length > 0 && (
+                                                    <p>• Inspectors: {assignmentStats.inspectors.length} member(s)</p>
+                                                )}
+                                                {assignmentStats.supervisors.length > 0 && (
+                                                    <p>• Supervisors: {assignmentStats.supervisors.length} member(s)</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Status Changes */}
                                 {punchlistItem.status !== 'open' && (
@@ -999,16 +1298,18 @@ export default function PunchlistItemPage() {
                                             </div>
                                             <p className="text-sm text-gray-600">
                                                 Punchlist item marked as completed
+                                                {assignmentStats.primary && ` by ${assignmentStats.primary.user?.firstName} ${assignmentStats.primary.user?.lastName}`}
                                             </p>
                                         </div>
                                     </div>
                                 )}
 
                                 {/* Empty State */}
-                                {punchlistItem.status === 'open' && !punchlistItem.completedAt && (
+                                {punchlistItem.status === 'open' && !punchlistItem.completedAt && assignmentStats.total === 0 && (
                                     <div className="text-center py-8 text-gray-500">
                                         <Clock className="h-8 w-8 mx-auto mb-2 text-gray-400" />
                                         <p className="text-sm">More activity will appear as work progresses</p>
+                                        <p className="text-xs text-gray-400 mt-1">Assign team members to get started</p>
                                     </div>
                                 )}
                             </div>
@@ -1017,7 +1318,7 @@ export default function PunchlistItemPage() {
                 </TabsContent>
             </Tabs>
 
-            {/* Image Modal */}
+            {/* Same Image Modal as before */}
             {selectedImageIndex !== null && punchlistItem.photos && (
                 <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
                     <div className="relative max-w-4xl max-h-full p-4">

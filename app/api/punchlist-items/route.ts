@@ -80,6 +80,12 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        console.log('🔍 DEBUG: Project Member Validation', {
+            projectId: validation.data.projectId,
+            assignedMembers: validation.data.assignedMembers,
+            companyId
+        })
+
         // UPDATED: Verify assigned project members if provided
         let validatedAssignments: Array<{
             projectMemberId: string
@@ -88,55 +94,107 @@ export async function POST(request: NextRequest) {
 
         if (validation.data.assignedMembers && validation.data.assignedMembers.length > 0) {
             try {
-                const projectMembers = await punchlistService.getProjectMembersForProject(validation.data.projectId, companyId)
-                const projectMemberIds = projectMembers.map(pm => pm.id)
+                console.log('🔍 DEBUG: Starting project member validation', {
+                    projectId: validation.data.projectId,
+                    companyId,
+                    assignedMembers: validation.data.assignedMembers
+                })
 
-                // Validate each assignment
+                const projectMembers = await punchlistService.getProjectMembersForProject(validation.data.projectId, companyId)
+
+                console.log('🔍 DEBUG: Retrieved project members', {
+                    count: projectMembers.length,
+                    members: projectMembers.map(pm => ({
+                        projectMemberId: pm.id,
+                        userId: pm.userId ,
+                        userName: `${pm.user?.firstName || 'Unknown'} ${pm.user?.lastName || 'User'}`,
+                        isActive: pm.isActive !== undefined ? pm.isActive : pm.status === 'active',
+                        status: pm.status || 'unknown'
+                    }))
+                })
+
+                // ✅ NEW: Convert assignments from userId to projectMemberId
                 for (const assignment of validation.data.assignedMembers) {
-                    if (!projectMemberIds.includes(assignment.projectMemberId)) {
-                        return NextResponse.json(
-                            {
-                                success: false,
-                                error: 'Invalid assignment',
-                                message: `Project member ${assignment.projectMemberId} is not assigned to this project.`,
-                                debug: {
-                                    invalidMemberId: assignment.projectMemberId,
-                                    availableMembers: projectMemberIds
-                                }
-                            },
-                            { status: 400 }
+                    console.log('🔍 DEBUG: Processing assignment', {
+                        submittedId: assignment.projectMemberId,
+                        role: assignment.role,
+                        lookingFor: 'userId or projectMemberId match'
+                    })
+
+                    // Try to find by projectMemberId first, then by userId
+                    let matchingMember = projectMembers.find(pm => pm.id === assignment.projectMemberId)
+
+                    if (!matchingMember) {
+                        // If not found by projectMemberId, try to find by userId
+                        matchingMember = projectMembers.find(pm =>
+                            (pm.userId ) === assignment.projectMemberId
                         )
+
+                        if (matchingMember) {
+                            console.log('🔄 CONVERTING: Found member by userId, converting to projectMemberId', {
+                                submittedUserId: assignment.projectMemberId,
+                                foundProjectMemberId: matchingMember.id,
+                                memberName: `${matchingMember.user?.firstName} ${matchingMember.user?.lastName}`
+                            })
+                        }
                     }
 
+                    if (!matchingMember) {
+                        console.error('🚨 VALIDATION FAILED', {
+                            submittedId: assignment.projectMemberId,
+                            availableProjectMembers: projectMembers.map(pm => ({
+                                projectMemberId: pm.id,
+                                userId: pm.userId ,
+                                name: `${pm.user?.firstName} ${pm.user?.lastName}`
+                            })),
+                            projectId: validation.data.projectId,
+                            companyId
+                        })
+
+                        return NextResponse.json({
+                            success: false,
+                            error: 'Invalid assignment',
+                            message: `Team member with ID ${assignment.projectMemberId} is not assigned to this project.`,
+                            debug: {
+                                submittedId: assignment.projectMemberId,
+                                availableMembers: projectMembers.map(pm => ({
+                                    projectMemberId: pm.id,
+                                    userId: pm.userId ,
+                                    name: `${pm.user?.firstName || 'Unknown'} ${pm.user?.lastName || 'User'}`,
+                                    status: pm.status,
+                                    isActive: pm.isActive
+                                })),
+                                projectId: validation.data.projectId,
+                                companyId,
+                                hint: 'Make sure you are using either the correct userId or projectMemberId'
+                            }
+                        }, { status: 400 })
+                    }
+
+                    // ✅ Store the correct projectMemberId for database insertion
                     validatedAssignments.push({
-                        projectMemberId: assignment.projectMemberId,
+                        projectMemberId: matchingMember.id, // Always use the actual projectMemberId
                         role: assignment.role || 'primary'
                     })
                 }
 
-                // Ensure only one primary assignment
-                const primaryCount = validatedAssignments.filter(a => a.role === 'primary').length
-                if (primaryCount > 1) {
-                    return NextResponse.json(
-                        {
-                            success: false,
-                            error: 'Invalid assignments',
-                            message: 'Only one primary assignee is allowed per punchlist item.',
-                        },
-                        { status: 400 }
-                    )
-                }
+                console.log('✅ All assignments validated and converted successfully', {
+                    originalAssignments: validation.data.assignedMembers,
+                    convertedAssignments: validatedAssignments
+                })
 
             } catch (memberError) {
                 console.error('🚨 Error fetching project members:', memberError)
-                return NextResponse.json(
-                    {
-                        success: false,
-                        error: 'Database error',
-                        message: 'Failed to verify project member assignments.',
-                    },
-                    { status: 500 }
-                )
+                return NextResponse.json({
+                    success: false,
+                    error: 'Database error',
+                    message: 'Failed to verify project member assignments.',
+                    debug: {
+                        error: memberError instanceof Error ? memberError.message : 'Unknown error',
+                        projectId: validation.data.projectId,
+                        companyId
+                    }
+                }, { status: 500 })
             }
         }
 
@@ -207,6 +265,62 @@ export async function POST(request: NextRequest) {
     }
 }
 
+
+export function toCamelCase(str: string): string {
+    return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+}
+
+export function transformObjectKeys<T = any>(obj: any): T {
+    if (obj === null || obj === undefined) {
+        return obj
+    }
+    
+    if (Array.isArray(obj)) {
+        return obj.map(item => transformObjectKeys(item)) as T
+    }
+    
+    if (typeof obj === 'object' && obj.constructor === Object) {
+        const transformed: any = {}
+        
+        for (const [key, value] of Object.entries(obj)) {
+            const camelKey = toCamelCase(key)
+            transformed[camelKey] = transformObjectKeys(value)
+        }
+        
+        return transformed as T
+    }
+    
+    return obj
+}
+
+
+export function transformPunchlistItem(rawPunchlistItem: any) {
+    if (!rawPunchlistItem) return null
+
+    // Transform the main object
+    const transformed = transformObjectKeys(rawPunchlistItem)
+
+    // Handle special cases and ensure proper structure
+    return {
+        ...transformed,
+        // Ensure these arrays exist
+        photos: transformed.photos || [],
+        attachments: transformed.attachments || [],
+        
+        // Handle nested objects
+        project: transformed.project ? transformObjectKeys(transformed.project) : null,
+        reporter: transformed.reporter ? transformObjectKeys(transformed.reporter) : null,
+        inspector: transformed.inspector ? transformObjectKeys(transformed.inspector) : null,
+        relatedScheduleProject: transformed.relatedScheduleProject ? transformObjectKeys(transformed.relatedScheduleProject) : null,
+        
+        // ✅ FIXED: Transform assignedMembers array (no duplicate)
+        assignedMembers: (transformed.assignedMembers || []).map((member: any) => ({
+            ...transformObjectKeys(member),
+            user: member.user ? transformObjectKeys(member.user) : null
+        }))
+    }
+}
+
 // ==============================================
 // GET /api/punchlist-items - Get Punchlist Items (UPDATED)
 // ==============================================
@@ -240,10 +354,10 @@ export async function GET(request: NextRequest) {
             reportedBy: searchParams.get('reportedBy') || undefined,
             dueDateFrom: searchParams.get('dueDateFrom') || undefined,
             dueDateTo: searchParams.get('dueDateTo') || undefined,
-            requiresInspection: searchParams.get('requiresInspection') === 'true' ? true : 
-                                searchParams.get('requiresInspection') === 'false' ? false : undefined,
-            isOverdue: searchParams.get('isOverdue') === 'true' ? true : 
-                      searchParams.get('isOverdue') === 'false' ? false : undefined,
+            requiresInspection: searchParams.get('requiresInspection') === 'true' ? true :
+                searchParams.get('requiresInspection') === 'false' ? false : undefined,
+            isOverdue: searchParams.get('isOverdue') === 'true' ? true :
+                searchParams.get('isOverdue') === 'false' ? false : undefined,
             search: searchParams.get('search') || undefined,
             limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20,
             offset: searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : 0,
@@ -254,19 +368,22 @@ export async function GET(request: NextRequest) {
         // Create service instance
         const punchlistService = new PunchlistItemDatabaseService(true, false)
 
-        // Get punchlist items
-        const result = await punchlistService.getPunchlistItems(companyId, filters)
+
+        const { data: punchlistItems, totalCount } = await punchlistService.getPunchlistItems(companyId, filters)
+
+        // ✅ TRANSFORM: Convert all items to camelCase
+        const transformedItems = punchlistItems.map(item => transformPunchlistItem(item))
 
         return NextResponse.json(
             {
                 success: true,
                 data: {
-                    punchlistItems: result.data,
+                    punchlistItems: transformedItems,
                     pagination: {
-                        total: result.totalCount,
+                        total: totalCount,
                         limit: filters.limit,
                         offset: filters.offset,
-                        hasMore: (filters.offset + filters.limit) < result.totalCount,
+                        hasMore: (filters.offset + filters.limit) < totalCount,
                     },
                     filters,
                 },
@@ -302,6 +419,6 @@ function transformStatusForDatabase(status: string): 'open' | 'assigned' | 'in_p
         'rejected': 'rejected',
         'on_hold': 'on_hold'
     }
-    
+
     return statusMap[status] || 'open'
 }

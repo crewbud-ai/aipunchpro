@@ -11,7 +11,7 @@ import { z } from 'zod'
 // Issue Types
 export const ISSUE_TYPE = [
   'defect',
-  'incomplete', 
+  'incomplete',
   'change_request',
   'safety',
   'quality',
@@ -23,7 +23,7 @@ export type IssueType = typeof ISSUE_TYPE[number]
 // Punchlist Status  
 export const PUNCHLIST_STATUS = [
   'open',
-  'assigned', 
+  'assigned',
   'in_progress',
   'pending_review',
   'completed',
@@ -36,7 +36,7 @@ export type PunchlistStatus = typeof PUNCHLIST_STATUS[number]
 // Punchlist Priority
 export const PUNCHLIST_PRIORITY = [
   'low',
-  'medium', 
+  'medium',
   'high',
   'critical'
 ] as const
@@ -47,7 +47,7 @@ export type PunchlistPriority = typeof PUNCHLIST_PRIORITY[number]
 export const TRADE_CATEGORY = [
   'general',
   'electrical',
-  'plumbing', 
+  'plumbing',
   'hvac',
   'framing',
   'drywall',
@@ -76,19 +76,39 @@ export type AssignmentRole = typeof ASSIGNMENT_ROLE[number]
 // ASSIGNMENT INTERFACES
 // ==============================================
 export interface PunchlistItemAssignment {
-  id: string
-  projectMemberId: string
-  role: AssignmentRole
-  assignedAt: string
-  assignedBy: string
-  isActive: boolean
-  user: {
-    firstName: string
-    lastName: string
-    email: string
-    tradeSpecialty?: string
-  }
-  hourlyRate?: number
+    id: string
+    projectMemberId: string
+    role: 'primary' | 'secondary' | 'inspector' | 'supervisor'
+    assignedAt: string
+    assignedBy: string
+    isActive: boolean
+    user: {
+        id?: string
+        firstName: string
+        lastName: string
+        email?: string
+        tradeSpecialty?: string
+    } | null                    // ✅ This allows null
+    hourlyRate?: number         // ✅ This allows undefined (not null)
+}
+
+
+
+export interface SafePunchlistItemAssignment {
+    id: string
+    projectMemberId: string
+    role: 'primary' | 'secondary' | 'inspector' | 'supervisor'
+    assignedAt: string
+    assignedBy: string
+    isActive: boolean
+    user: {
+        id?: string
+        firstName: string
+        lastName: string
+        email?: string
+        tradeSpecialty?: string
+    } | null
+    hourlyRate?: number
 }
 
 export interface AssignmentInput {
@@ -104,44 +124,44 @@ export interface PunchlistItem {
   companyId: string
   projectId: string
   relatedScheduleProjectId?: string
-  
+
   // Issue Details
   title: string
   description?: string
   issueType: IssueType
   location?: string
   roomArea?: string
-  
+
   // REMOVED: Single assignment
   // assignedProjectMemberId?: string // REMOVED
-  
+
   tradeCategory?: TradeCategory
   reportedBy: string
-  
+
   // Priority & Status
   priority: PunchlistPriority
   status: PunchlistStatus
-  
+
   // Media & Documentation
   photos?: string[]
   attachments?: string[]
-  
+
   // Scheduling & Estimates
   dueDate?: string
   estimatedHours?: number
   actualHours?: number
-  
+
   // Resolution Details
   resolutionNotes?: string
   rejectionReason?: string
-  
+
   // Quality Control
   requiresInspection?: boolean
   inspectedBy?: string
   inspectedAt?: string
   inspectionPassed?: boolean
   inspectionNotes?: string
-  
+
   // Metadata
   createdAt: string
   updatedAt: string
@@ -159,7 +179,7 @@ export interface PunchlistItemWithDetails extends PunchlistItem {
     status: string
     projectNumber?: string
   }
-  
+
   // Related schedule project
   relatedScheduleProject?: {
     id: string
@@ -168,28 +188,29 @@ export interface PunchlistItemWithDetails extends PunchlistItem {
     startDate: string
     endDate: string
   }
-  
+
   // NEW: Multiple assignments
   assignedMembers?: PunchlistItemAssignment[]
-  
+
   // DEPRECATED: Keep for backward compatibility
   assignedMember?: {
     id: string
     userId: string
     user: {
+      email: string
       firstName: string
       lastName: string
       tradeSpecialty?: string
     }
   }
-  
+
   // Reporter details
   reporter?: {
     firstName: string
     lastName: string
     email: string
   }
-  
+
   // Inspector details  
   inspector?: {
     firstName: string
@@ -206,13 +227,13 @@ export interface PunchlistItemSummary {
   companyId: string
   projectId: string
   relatedScheduleProjectId?: string
-  
+
   // Issue Details
   title: string
   description?: string
   issueType: IssueType
   location?: string
-  
+
   // UPDATED: Multiple assignment info
   assignedMemberCount: number
   assignedMemberNames: string[]
@@ -221,25 +242,25 @@ export interface PunchlistItemSummary {
     name: string
     tradeSpecialty?: string
   }
-  
+
   tradeCategory?: TradeCategory
   reportedBy: string
-  
+
   // Priority & Status
   priority: PunchlistPriority
   status: PunchlistStatus
-  
+
   // Quality Control (added for analytics)
   requiresInspection?: boolean
-  
+
   // Timeline
   dueDate?: string
   estimatedHours?: number
-  
+
   // Metadata
   createdAt: string
   updatedAt: string
-  
+
   // Basic related info for list view
   project?: {
     id: string
@@ -263,25 +284,25 @@ export interface PunchlistItemFilters {
   priority?: PunchlistPriority
   issueType?: IssueType
   tradeCategory?: TradeCategory
-  
+
   // Assignment filters (UPDATED)
   assignedToUserId?: string  // Any user assigned to the item
   reportedBy?: string
-  
+
   // Date filters
   dueDateFrom?: string
   dueDateTo?: string
   createdFrom?: string
   createdTo?: string
-  
+
   // Special filters
   requiresInspection?: boolean
   isOverdue?: boolean
   hasPhotos?: boolean
-  
+
   // Search
   search?: string
-  
+
   // Pagination & Sorting
   limit?: number
   offset?: number
@@ -295,34 +316,34 @@ export interface PunchlistItemFilters {
 export interface CreatePunchlistItemData {
   projectId: string
   relatedScheduleProjectId?: string
-  
+
   // Issue Details
   title: string
   description?: string
   issueType: IssueType
   location?: string
   roomArea?: string
-  
+
   // UPDATED: Multiple assignments
   assignedMembers?: AssignmentInput[]
-  
+
   tradeCategory?: TradeCategory
-  
+
   // Priority & Status
   priority: PunchlistPriority
   status?: PunchlistStatus
-  
+
   // Media & Documentation
   photos?: string[]
   attachments?: string[]
-  
+
   // Scheduling & Estimates
   dueDate?: string
   estimatedHours?: number
-  
+
   // Quality Control
   requiresInspection?: boolean
-  
+
   // Additional Notes
   resolutionNotes?: string
 }
@@ -348,10 +369,10 @@ export interface UpdatePunchlistItemData {
   issueType?: IssueType
   location?: string
   roomArea?: string
-  
+
   // UPDATED: Multiple assignments
   assignedMembers?: AssignmentInput[]
-  
+
   tradeCategory?: TradeCategory
   priority?: PunchlistPriority
   status?: PunchlistStatus
@@ -480,7 +501,7 @@ export interface CreatePunchlistItemFormData {
   projectId: string
   relatedScheduleProjectId: string
   issueType: IssueType | ''
-  
+
   // Step 2: Location & Assignment (UPDATED)
   location: string
   roomArea: string
@@ -494,13 +515,13 @@ export interface CreatePunchlistItemFormData {
     }
   }>
   tradeCategory: TradeCategory | ''
-  
+
   // Step 3: Priority & Timeline
   priority: PunchlistPriority
   status: PunchlistStatus
   dueDate: string
   estimatedHours: number | ''
-  
+
   // Step 4: Quality & Documentation
   requiresInspection: boolean
   photos: string[]
@@ -521,7 +542,7 @@ export interface UpdatePunchlistItemFormData {
   issueType: IssueType | ''
   location: string
   roomArea: string
-  
+
   // UPDATED: Multiple assignments
   assignedMembers: Array<{
     projectMemberId: string
@@ -532,7 +553,7 @@ export interface UpdatePunchlistItemFormData {
       tradeSpecialty?: string
     }
   }>
-  
+
   tradeCategory: TradeCategory | ''
   priority: PunchlistPriority
   status: PunchlistStatus
@@ -546,7 +567,7 @@ export interface UpdatePunchlistItemFormData {
   inspectionNotes: string
   photos: string[]
   attachments: string[]
-  
+
   // UI state
   hasUnsavedChanges?: boolean
   modifiedFields?: string[]
@@ -578,7 +599,7 @@ export interface PunchlistItemFieldErrors {
   inspectionNotes?: string
   photos?: string
   attachments?: string
-  
+
   // General errors
   general?: string
   submit?: string
@@ -784,44 +805,44 @@ export const getAssigneesByRole = (assignments: PunchlistItemAssignment[], role:
 }
 
 export const formatAssigneeNames = (assignments: PunchlistItemAssignment[]): string[] => {
-  return assignments.map(assignment => `${assignment.user.firstName} ${assignment.user.lastName}`)
+  return assignments.map(assignment => `${assignment.user?.firstName} ${assignment.user?.lastName}`)
 }
 
 export const getAssignmentSummary = (assignments: PunchlistItemAssignment[]): string => {
   if (assignments.length === 0) return 'Unassigned'
-  if (assignments.length === 1) return `${assignments[0].user.firstName} ${assignments[0].user.lastName}`
-  
+  if (assignments.length === 1) return `${assignments[0].user?.firstName} ${assignments[0].user?.lastName}`
+
   const primary = getPrimaryAssignee(assignments)
   if (primary) {
     const others = assignments.length - 1
-    return `${primary.user.firstName} ${primary.user.lastName}${others > 0 ? ` +${others} other${others > 1 ? 's' : ''}` : ''}`
+    return `${primary.user?.firstName} ${primary.user?.lastName}${others > 0 ? ` +${others} other${others > 1 ? 's' : ''}` : ''}`
   }
-  
+
   return `${assignments.length} members assigned`
 }
 
 // ==============================================
 // FORM STATE TYPES
 // ==============================================
-export type CreatePunchlistItemState = 
+export type CreatePunchlistItemState =
   | 'idle'           // Initial state
   | 'loading'        // Creating punchlist item
   | 'success'        // Punchlist item created
   | 'error'          // Creation failed
 
-export type UpdatePunchlistItemState = 
+export type UpdatePunchlistItemState =
   | 'idle'           // Initial state
   | 'loading'        // Updating punchlist item
   | 'success'        // Punchlist item updated
   | 'error'          // Update failed
 
-export type PunchlistItemsState = 
+export type PunchlistItemsState =
   | 'loading'        // Loading punchlist items list
   | 'loaded'         // Punchlist items loaded successfully
   | 'error'          // Error loading punchlist items
   | 'empty'          // No punchlist items found
 
-export type PunchlistItemState = 
+export type PunchlistItemState =
   | 'loading'        // Loading single punchlist item
   | 'loaded'         // Punchlist item loaded
   | 'error'          // Error loading punchlist item

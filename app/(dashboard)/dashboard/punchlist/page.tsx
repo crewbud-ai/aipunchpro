@@ -1,5 +1,5 @@
 // ==============================================
-// app/(dashboard)/dashboard/punchlist/page.tsx - Main Punchlist Page
+// app/(dashboard)/dashboard/punchlist/page.tsx - UPDATED for Multiple Assignments
 // ==============================================
 
 "use client"
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { toast } from "@/hooks/use-toast" // ✅ ADD: Toast instead of alert
 import { 
   Plus, 
   Search, 
@@ -31,14 +32,17 @@ import {
   XCircle,
   Pause,
   Building2,
-  Users,
+  Users, // ✅ UPDATED: Users icon for multiple assignments
   RefreshCw,
   AlertCircle,
-  Loader2
+  Loader2,
+  Crown, // ✅ ADD: For primary assignee
+  Shield, // ✅ ADD: For inspector
+  UserCheck // ✅ ADD: For supervisor
 } from "lucide-react"
 import Link from "next/link"
 
-// Import our real hooks and types following established patterns
+// Import our real hooks and types
 import { usePunchlistItems } from "@/hooks/punchlist-items"
 import { useProjects } from "@/hooks/projects"
 import { useTeamMembers } from "@/hooks/team-members"
@@ -50,7 +54,8 @@ import {
   getPunchlistStatusColor,
   getPunchlistPriorityColor,
   getIssueTypeLabel,
-  getTradeCategoryLabel
+  getTradeCategoryLabel,
+  type PunchlistItemAssignment // ✅ ADD: Import assignment type
 } from "@/types/punchlist-items"
 import { withPermission } from "@/lib/permissions"
 
@@ -61,10 +66,9 @@ export default function PunchlistPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
   // ==============================================
-  // HOOKS FOR REAL DATA (Following team/schedule patterns)
+  // HOOKS FOR REAL DATA
   // ==============================================
   
-  // Main punchlist items hook
   const {
     punchlistItems,
     isLoading,
@@ -94,17 +98,13 @@ export default function PunchlistPage() {
     sortPunchlistItems,
   } = usePunchlistItems()
 
-  // Projects for filtering (following schedule pattern)
   const { projects } = useProjects()
-
-  // Team members for display and filtering
   const { teamMembers } = useTeamMembers()
 
   // ==============================================
   // COMPUTED VALUES
   // ==============================================
   
-  // Active projects for filter dropdown
   const activeProjects = useMemo(() => {
     return projects.filter(project => 
       project.status === 'in_progress' || 
@@ -114,7 +114,7 @@ export default function PunchlistPage() {
   }, [projects])
 
   // ==============================================
-  // UTILITY FUNCTIONS (Following established patterns)
+  // ✅ UPDATED: Utility functions for multiple assignments
   // ==============================================
   
   const getStatusIcon = (status: string) => {
@@ -147,31 +147,120 @@ export default function PunchlistPage() {
     return new Date(dueDate) < new Date()
   }
 
-  const getAssignedMemberName = (assignedProjectMemberId?: string) => {
-    if (!assignedProjectMemberId) return "Unassigned"
-    
-    const teamMember = teamMembers.find(member => 
-      member.id === assignedProjectMemberId
-    )
-    return teamMember ? `${teamMember.firstName} ${teamMember.lastName}` : "Unknown"
+  // ✅ UPDATED: Get assigned members info - works with both full objects and summary data
+  const getAssignedMembersInfo = (item: any) => {
+    // Handle full assignment objects (from detail view)
+    if (item.assignedMembers && Array.isArray(item.assignedMembers)) {
+      const assignedMembers = item.assignedMembers
+      
+      if (assignedMembers.length === 0) {
+        return {
+          count: 0,
+          display: "Unassigned",
+          primary: null,
+          hasMultiple: false
+        }
+      }
+
+      const primaryAssignee = assignedMembers.find((member: any) => member.role === 'primary')
+      const count = assignedMembers.length
+
+      if (count === 1) {
+        const member = assignedMembers[0]
+        const name = member.user 
+          ? `${member.user.firstName} ${member.user.lastName}`
+          : "Unknown User"
+        
+        return {
+          count: 1,
+          display: name,
+          primary: member,
+          hasMultiple: false
+        }
+      }
+
+      // Multiple assignments
+      const primaryName = primaryAssignee?.user 
+        ? `${primaryAssignee.user.firstName} ${primaryAssignee.user.lastName}`
+        : "Unknown Primary"
+
+      return {
+        count,
+        display: `${primaryName} +${count - 1} more`,
+        primary: primaryAssignee,
+        hasMultiple: true
+      }
+    }
+
+    // Handle summary data with assignedMemberNames (from list view)
+    if (item.assignedMemberNames && Array.isArray(item.assignedMemberNames)) {
+      const names = item.assignedMemberNames
+      const count = item.assignedMemberCount || names.length
+
+      if (count === 0) {
+        return {
+          count: 0,
+          display: "Unassigned",
+          primary: null,
+          hasMultiple: false
+        }
+      }
+
+      if (count === 1) {
+        return {
+          count: 1,
+          display: names[0] || "Unknown User",
+          primary: null, // No role info in summary
+          hasMultiple: false
+        }
+      }
+
+      // Multiple assignments
+      const primaryName = names[0] || "Unknown"
+      return {
+        count,
+        display: `${primaryName} +${count - 1} more`,
+        primary: null, // No role info in summary
+        hasMultiple: true
+      }
+    }
+
+    // Fallback for unassigned
+    return {
+      count: 0,
+      display: "Unassigned",
+      primary: null,
+      hasMultiple: false
+    }
   }
 
   const getProjectName = (projectId: string) => {
+    console.log(projectId, 'projectId')
+    console.log(projects, 'projects')
     const project = projects.find(p => p.id === projectId)
     return project?.name || "Unknown Project"
   }
 
-  // Filter punchlist items locally (in addition to server-side filtering)
+  // ✅ UPDATED: Get role icon for assignments
+  const getRoleIcon = (role: string) => {
+    switch (role) {
+      case 'primary': return <Crown className="h-3 w-3 text-orange-600" />
+      case 'secondary': return <User className="h-3 w-3 text-blue-600" />
+      case 'inspector': return <Shield className="h-3 w-3 text-purple-600" />
+      case 'supervisor': return <UserCheck className="h-3 w-3 text-green-600" />
+      default: return <User className="h-3 w-3 text-gray-600" />
+    }
+  }
+
+  // Filter punchlist items locally
   const filteredPunchlistItems = useMemo(() => {
     return punchlistItems.filter((item) => {
-      // This provides additional client-side filtering if needed
-      // Most filtering should be done server-side via the hooks
-      return true
+      return true // Most filtering should be done server-side
     })
   }, [punchlistItems])
 
   // ==============================================
-  // LOADING STATE (Following team pattern)
+  // LOADING STATE
   // ==============================================
   if (isLoading) {
     return (
@@ -212,7 +301,7 @@ export default function PunchlistPage() {
   }
 
   // ==============================================
-  // ERROR STATE (Following team pattern)
+  // ERROR STATE
   // ==============================================
   if (hasError) {
     return (
@@ -231,7 +320,13 @@ export default function PunchlistPage() {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={refreshPunchlistItems}
+              onClick={() => {
+                refreshPunchlistItems()
+                toast({
+                  title: "Refreshing",
+                  description: "Reloading punchlist items...",
+                })
+              }}
               className="ml-2"
             >
               <RefreshCw className="h-3 w-3 mr-1" />
@@ -248,7 +343,7 @@ export default function PunchlistPage() {
   // ==============================================
   return (
     <div className="space-y-6">
-      {/* Header (Following team pattern) */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Punchlist</h1>
@@ -264,7 +359,7 @@ export default function PunchlistPage() {
         )}
       </div>
 
-      {/* Search and Filters (Following team/schedule pattern) */}
+      {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         {/* Search */}
         <div className="relative flex-1">
@@ -344,7 +439,7 @@ export default function PunchlistPage() {
           </SelectContent>
         </Select>
 
-        {/* View Mode Toggle (Following team pattern) */}
+        {/* View Mode Toggle */}
         <div className="flex border rounded-md">
           <Button
             variant={viewMode === 'grid' ? 'default' : 'ghost'}
@@ -365,7 +460,7 @@ export default function PunchlistPage() {
         </div>
       </div>
 
-      {/* Punchlist Count (Following team pattern) */}
+      {/* Punchlist Count */}
       {punchlistItems.length > 0 && (
         <div className="flex items-center justify-between text-sm text-gray-600">
           <div className="flex items-center gap-2">
@@ -382,7 +477,7 @@ export default function PunchlistPage() {
         </div>
       )}
 
-      {/* Empty State (Following team pattern) */}
+      {/* Empty State */}
       {isEmpty && !hasError && (
         <div className="text-center py-12">
           <AlertTriangle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -403,171 +498,219 @@ export default function PunchlistPage() {
         </div>
       )}
 
-      {/* Punchlist Items Grid View */}
       {filteredPunchlistItems.length > 0 && viewMode === 'grid' && (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredPunchlistItems.map((item) => (
-            <Card key={item.id} className="hover:shadow-lg transition-shadow group">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(item.status)}
-                    <Badge className={getPunchlistStatusColor(item.status)}>
-                      {PUNCHLIST_STATUS_OPTIONS.find(s => s.value === item.status)?.label || item.status}
-                    </Badge>
-                  </div>
-                  <Badge className={getPunchlistPriorityColor(item.priority)}>
-                    {PUNCHLIST_PRIORITY_OPTIONS.find(p => p.value === item.priority)?.label || item.priority}
-                  </Badge>
-                </div>
-
-                <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                  {item.title}
-                </h3>
-
-                {item.description && (
-                  <p className="text-gray-600 mb-4 line-clamp-2">
-                    {item.description}
-                  </p>
-                )}
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-gray-400" />
-                    <span className="font-medium">Project:</span>
-                    <span className="text-gray-600 truncate">
-                      {getProjectName(item.projectId)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-gray-400" />
-                    <span className="font-medium">Assigned:</span>
-                    <span className="text-gray-600 truncate">
-                      {getAssignedMemberName(item.assignedProjectMemberId)}
-                    </span>
-                  </div>
-
-                  {item.location && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-gray-400" />
-                      <span className="font-medium">Location:</span>
-                      <span className="text-gray-600 truncate">{item.location}</span>
-                    </div>
-                  )}
-
-                  {item.dueDate && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-gray-400" />
-                      <span className="font-medium">Due:</span>
-                      <span className={`${isOverdue(item.dueDate) ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
-                        {formatDate(item.dueDate)}
-                      </span>
-                    </div>
-                  )}
-
-                  {item.issueType && (
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-gray-400" />
-                      <span className="font-medium">Type:</span>
-                      <span className="text-gray-600">
-                        {getIssueTypeLabel(item.issueType)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2 mt-4">
-                  <Link href={`/dashboard/punchlist/${item.id}`} className="flex-1">
-                    <Button variant="outline" size="sm" className="w-full">
-                      <Eye className="h-3 w-3 mr-1" />
-                      View
-                    </Button>
-                  </Link>
-                  {withPermission('punchlist', 'edit',
-                    <Link href={`/dashboard/punchlist/${item.id}/edit`} className="flex-1">
-                      <Button variant="outline" size="sm" className="w-full">
-                        <Edit className="h-3 w-3 mr-1" />
-                        Edit
-                      </Button>
-                    </Link>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Punchlist Items List View */}
-      {filteredPunchlistItems.length > 0 && viewMode === 'list' && (
-        <div className="space-y-3">
-          {filteredPunchlistItems.map((item) => (
-            <Card key={item.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
+          {filteredPunchlistItems.map((item) => {
+            const assignedInfo = getAssignedMembersInfo(item) // ✅ FIXED: Pass the whole item
+            
+            return (
+              <Card key={item.id} className="hover:shadow-lg transition-shadow group">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
                       {getStatusIcon(item.status)}
                       <Badge className={getPunchlistStatusColor(item.status)}>
                         {PUNCHLIST_STATUS_OPTIONS.find(s => s.value === item.status)?.label || item.status}
                       </Badge>
-                      <Badge className={getPunchlistPriorityColor(item.priority)}>
-                        {PUNCHLIST_PRIORITY_OPTIONS.find(p => p.value === item.priority)?.label || item.priority}
-                      </Badge>
                     </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 truncate mb-1">
-                        {item.title}
-                      </h3>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <Building2 className="h-3 w-3" />
-                          <span className="truncate">{getProjectName(item.projectId)}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          <span className="truncate">{getAssignedMemberName(item.assignedProjectMemberId)}</span>
-                        </div>
-                        {item.dueDate && (
+                    <Badge className={getPunchlistPriorityColor(item.priority)}>
+                      {PUNCHLIST_PRIORITY_OPTIONS.find(p => p.value === item.priority)?.label || item.priority}
+                    </Badge>
+                  </div>
+
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                    {item.title}
+                  </h3>
+
+                  {item.description && (
+                    <p className="text-gray-600 mb-4 line-clamp-2">
+                      {item.description}
+                    </p>
+                  )}
+
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-gray-400" />
+                      <span className="font-medium">Project:</span>
+                      <span className="text-gray-600 truncate">
+                        {getProjectName(item.projectId)}
+                      </span>
+                    </div>
+
+                    {/* ✅ UPDATED: Team assignment display */}
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-gray-400" />
+                      <span className="font-medium">Team:</span>
+                      <div className="flex items-center gap-1 flex-1 min-w-0">
+                        {assignedInfo.count === 0 ? (
+                          <span className="text-gray-500">Unassigned</span>
+                        ) : assignedInfo.count === 1 ? (
                           <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            <span className={isOverdue(item.dueDate) ? 'text-red-600 font-medium' : ''}>
-                              {formatDate(item.dueDate)}
-                            </span>
+                            {assignedInfo.primary && getRoleIcon(assignedInfo.primary.role)}
+                            <span className="text-gray-600 truncate">{assignedInfo.display}</span>
                           </div>
-                        )}
-                        {item.location && (
+                        ) : (
                           <div className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            <span className="truncate">{item.location}</span>
+                            <span className="text-gray-600 text-xs bg-gray-100 px-2 py-1 rounded-full">
+                              {assignedInfo.count} members
+                            </span>
+                            {assignedInfo.primary && (
+                              <div className="flex items-center gap-1">
+                                {getRoleIcon(assignedInfo.primary.role)}
+                                <span className="text-gray-600 text-xs truncate">
+                                  {assignedInfo.primary.user?.firstName}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
                     </div>
+
+                    {item.location && (
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-gray-400" />
+                        <span className="font-medium">Location:</span>
+                        <span className="text-gray-600 truncate">{item.location}</span>
+                      </div>
+                    )}
+
+                    {item.dueDate && (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-gray-400" />
+                        <span className="font-medium">Due:</span>
+                        <span className={`${isOverdue(item.dueDate) ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
+                          {formatDate(item.dueDate)}
+                        </span>
+                      </div>
+                    )}
+
+                    {item.issueType && (
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-gray-400" />
+                        <span className="font-medium">Type:</span>
+                        <span className="text-gray-600">
+                          {getIssueTypeLabel(item.issueType)}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-2 ml-4">
-                    <Link href={`/dashboard/punchlist/${item.id}`}>
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-3 w-3" />
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 mt-4">
+                    <Link href={`/dashboard/punchlist/${item.id}`} className="flex-1">
+                      <Button variant="outline" size="sm" className="w-full">
+                        <Eye className="h-3 w-3 mr-1" />
+                        View
                       </Button>
                     </Link>
                     {withPermission('punchlist', 'edit',
-                      <Link href={`/dashboard/punchlist/${item.id}/edit`}>
-                        <Button variant="outline" size="sm">
-                          <Edit className="h-3 w-3" />
+                      <Link href={`/dashboard/punchlist/${item.id}/edit`} className="flex-1">
+                        <Button variant="outline" size="sm" className="w-full">
+                          <Edit className="h-3 w-3 mr-1" />
+                          Edit
                         </Button>
                       </Link>
                     )}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
+
+      {filteredPunchlistItems.length > 0 && viewMode === 'list' && (
+        <div className="space-y-3">
+          {filteredPunchlistItems.map((item) => {
+            const assignedInfo = getAssignedMembersInfo(item) // ✅ FIXED: Pass the whole item
+            
+            return (
+              <Card key={item.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(item.status)}
+                        <Badge className={getPunchlistStatusColor(item.status)}>
+                          {PUNCHLIST_STATUS_OPTIONS.find(s => s.value === item.status)?.label || item.status}
+                        </Badge>
+                        <Badge className={getPunchlistPriorityColor(item.priority)}>
+                          {PUNCHLIST_PRIORITY_OPTIONS.find(p => p.value === item.priority)?.label || item.priority}
+                        </Badge>
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-900 truncate mb-1">
+                          {item.title}
+                        </h3>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-1">
+                            <Building2 className="h-3 w-3" />
+                            <span className="truncate">{getProjectName(item.projectId)}</span>
+                          </div>
+                          
+                          {/* ✅ UPDATED: Team display in list view */}
+                          <div className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {assignedInfo.count === 0 ? (
+                              <span className="text-gray-500">Unassigned</span>
+                            ) : assignedInfo.count === 1 ? (
+                              <div className="flex items-center gap-1">
+                                {assignedInfo.primary && getRoleIcon(assignedInfo.primary.role)}
+                                <span className="truncate">{assignedInfo.display}</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs bg-gray-100 px-1 py-0.5 rounded">
+                                  {assignedInfo.count}
+                                </span>
+                                {assignedInfo.primary && getRoleIcon(assignedInfo.primary.role)}
+                                <span className="truncate text-xs">
+                                  {assignedInfo.primary?.user?.firstName || assignedInfo.display.split(' ')[0]}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {item.dueDate && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              <span className={isOverdue(item.dueDate) ? 'text-red-600 font-medium' : ''}>
+                                {formatDate(item.dueDate)}
+                              </span>
+                            </div>
+                          )}
+                          {item.location && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              <span className="truncate">{item.location}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 ml-4">
+                      <Link href={`/dashboard/punchlist/${item.id}`}>
+                        <Button variant="outline" size="sm">
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                      </Link>
+                      {withPermission('punchlist', 'edit',
+                        <Link href={`/dashboard/punchlist/${item.id}/edit`}>
+                          <Button variant="outline" size="sm">
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       )}
     </div>

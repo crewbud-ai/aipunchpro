@@ -6,6 +6,7 @@ import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { punchlistItemsApi } from '@/lib/api/punchlist-items'
 import { usePunchlistFileUpload } from './use-punchlist-file-upload'
+import { toast } from '@/hooks/use-toast'
 import {
     validateCreatePunchlistItem,
     getDefaultCreatePunchlistItemFormData,
@@ -213,7 +214,7 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
     const addAssignment = useCallback((projectMemberId: string, role: 'primary' | 'secondary' | 'inspector' | 'supervisor' = 'primary') => {
         setState(prev => {
             const currentAssignments = prev.formData.assignedMembers || []
-            
+
             // Check if member is already assigned
             const existingAssignment = currentAssignments.find(member => member.projectMemberId === projectMemberId)
             if (existingAssignment) {
@@ -223,7 +224,7 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
             // If adding a primary role, remove existing primary
             let updatedAssignments = currentAssignments
             if (role === 'primary') {
-                updatedAssignments = currentAssignments.map(member => 
+                updatedAssignments = currentAssignments.map(member =>
                     member.role === 'primary' ? { ...member, role: 'secondary' } : member
                 )
             }
@@ -258,10 +259,10 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
     const updateAssignmentRole = useCallback((projectMemberId: string, role: 'primary' | 'secondary' | 'inspector' | 'supervisor') => {
         setState(prev => {
             let updatedAssignments = prev.formData.assignedMembers || []
-            
+
             // If changing to primary, remove existing primary role from others
             if (role === 'primary') {
-                updatedAssignments = updatedAssignments.map(member => 
+                updatedAssignments = updatedAssignments.map(member =>
                     member.role === 'primary' && member.projectMemberId !== projectMemberId
                         ? { ...member, role: 'secondary' }
                         : member
@@ -269,7 +270,7 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
             }
 
             // Update the specific assignment
-            updatedAssignments = updatedAssignments.map(member => 
+            updatedAssignments = updatedAssignments.map(member =>
                 member.projectMemberId === projectMemberId
                     ? { ...member, role }
                     : member
@@ -369,16 +370,19 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
                     const field = error.path.join('.')
                     newErrors[field as keyof CreatePunchlistItemFormErrors] = error.message
                 })
-                
+
                 // Show validation errors in toast instead of form
                 const errorMessages = Object.values(newErrors).filter(Boolean)
+
                 if (errorMessages.length > 0) {
-                    // You can replace this with your toast implementation
-                    console.error('Validation Errors:', errorMessages)
-                    // For now, just show first error - replace with your toast
-                    alert(`Validation Error: ${errorMessages[0]}`)
+
+                    toast({
+                        title: "Validation Error",
+                        description: errorMessages[0] || "Failed to create punchlist item.",
+                        variant: "destructive",
+                    })
                 }
-                
+
                 setState(prev => ({ ...prev, state: 'idle', errors: {} })) // FIXED: Reset to idle instead of error
                 return
             }
@@ -405,24 +409,27 @@ export function useCreatePunchlistItem(initialProjectId?: string, initialSchedul
 
             if (error instanceof Error) {
                 errorMessage = error.message
-                
+
                 // Check if it's a validation error from API
                 if (error.message.includes('Validation failed') || error.message.includes('validation')) {
-                    // Show in toast instead of form
-                    console.error('API Validation Error:', error.message)
-                    // Replace with your toast implementation
-                    alert(`Validation Error: ${error.message}`)
-                    
+
+                    toast({
+                        title: "Validation Error",
+                        description: error.message || "Failed to create punchlist item.",
+                        variant: "destructive",
+                    })
+
                     setState(prev => ({ ...prev, state: 'idle', errors: {} })) // FIXED: Reset to idle
                     return
                 }
             }
 
-            // For other errors, show in toast as well
-            console.error('Create Error:', errorMessage)
-            // Replace with your toast implementation  
-            alert(`Error: ${errorMessage}`)
-            
+            toast({
+                title: "Validation Error",
+                description: errorMessage || "Failed to create punchlist item.",
+                variant: "destructive",
+            })
+
             setState(prev => ({ ...prev, state: 'idle', errors: {} })) // FIXED: Reset to idle instead of error
         }
     }, [state.formData, router, fileUpload])

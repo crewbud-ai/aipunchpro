@@ -12,25 +12,26 @@ import type {
     ProjectMember,
     ScheduleProject
 } from '@/lib/database/schema'
+import { PunchlistItemAssignment } from '@/types/punchlist-items'
 
 // ==============================================
 // EXTENDED TYPES FOR MULTIPLE ASSIGNMENTS
 // ==============================================
-export interface PunchlistItemAssignment {
-    id: string
-    projectMemberId: string
-    role: 'primary' | 'secondary' | 'inspector' | 'supervisor'
-    assignedAt: string
-    assignedBy: string
-    isActive: boolean
-    user: {
-        firstName: string
-        lastName: string
-        email: string
-        tradeSpecialty?: string
-    }
-    hourlyRate?: number
-}
+// export interface PunchlistItemAssignment {
+//     id: string
+//     projectMemberId: string
+//     role: 'primary' | 'secondary' | 'inspector' | 'supervisor'
+//     assignedAt: string
+//     assignedBy: string
+//     isActive: boolean
+//     user: {
+//         firstName: string
+//         lastName: string
+//         email: string
+//         tradeSpecialty?: string
+//     }
+//     hourlyRate?: number
+// }
 
 // Extended types for joined data
 export interface PunchlistItemWithDetails extends PunchlistItem {
@@ -818,62 +819,206 @@ export class PunchlistItemDatabaseService {
     // HELPER METHODS
     // ==============================================
     async getAssignmentsForPunchlistItem(punchlistItemId: string): Promise<PunchlistItemAssignment[]> {
-        const { data: assignments, error } = await this.supabaseClient
-            .from('punchlist_item_assignments')
-            .select(`
-            id,
-            project_member_id,
-            role,
-            assigned_at,
-            assigned_by,
-            is_active,
-            project_members!inner(
-                id,
-                hourly_rate,
-                users!inner(
-                    first_name, 
-                    last_name, 
-                    email, 
-                    trade_specialty
-                )
-            )
-        `)
-            .eq('punchlist_item_id', punchlistItemId)
-            .eq('is_active', true)
-            .order('assigned_at', { ascending: true })
+        console.log('🔍 DEBUG: Fetching assignments for punchlist item', { punchlistItemId })
 
-        if (error) {
-            console.error('Error fetching assignments:', error)
+        try {
+            const { data: assignments, error } = await this.supabaseClient
+                .from('punchlist_item_assignments')
+                .select(`
+                id,
+                project_member_id,
+                role,
+                assigned_at,
+                assigned_by,
+                is_active,
+                project_members!inner(
+                    id,
+                    hourly_rate,
+                    user:users!project_members_user_id_users_id_fk(
+                        id,
+                        first_name, 
+                        last_name, 
+                        email, 
+                        trade_specialty
+                    )
+                )
+            `)
+                .eq('punchlist_item_id', punchlistItemId)
+                .eq('is_active', true)
+                .order('assigned_at', { ascending: true })
+
+            if (error) {
+                console.error('🚨 Error fetching assignments:', error)
+                console.log('🔄 Trying simpler query approach...')
+                return await this.getAssignmentsSimple(punchlistItemId)
+            }
+
+            console.log('✅ Raw assignments from Supabase', {
+                count: assignments?.length || 0,
+                sampleAssignment: assignments?.[0]
+            })
+
+            if (!assignments || assignments.length === 0) {
+                console.log('📝 No assignments found for this punchlist item')
+                return []
+            }
+
+            // ✅ FIXED: Proper type handling
+            return assignments.map(assignment => {
+                console.log('🔍 Processing assignment', {
+                    id: assignment.id,
+                    project_members: assignment.project_members,
+                    project_members_type: Array.isArray(assignment.project_members) ? 'array' : 'object'
+                })
+
+                // Handle project_members array
+                const projectMember = Array.isArray(assignment.project_members)
+                    ? assignment.project_members[0]
+                    : assignment.project_members
+
+                // Handle user array within project member
+                const userData = projectMember?.user
+                const user = Array.isArray(userData) ? userData[0] : userData
+
+                console.log('🔍 Processed data', {
+                    projectMember,
+                    userData,
+                    user,
+                    hasUser: !!user
+                })
+
+                // ✅ FIXED: Create the assignment object with proper types
+                const assignmentResult: PunchlistItemAssignment = {
+                    id: assignment.id,
+                    projectMemberId: assignment.project_member_id,
+                    role: assignment.role as 'primary' | 'secondary' | 'inspector' | 'supervisor',
+                    assignedAt: assignment.assigned_at,
+                    assignedBy: assignment.assigned_by,
+                    isActive: assignment.is_active,
+                    user: user ? {
+                        id: user.id,
+                        firstName: user.first_name,
+                        lastName: user.last_name,
+                        email: user.email,
+                        tradeSpecialty: user.trade_specialty,
+                    } : null,
+                    hourlyRate: projectMember?.hourly_rate ?? undefined, // ✅ Convert null to undefined
+                }
+
+                return assignmentResult
+            })
+
+        } catch (error) {
+            console.error('🚨 Unexpected error fetching assignments:', error)
             return []
         }
-
-        return (assignments || []).map(assignment => {
-            // Since Supabase returns arrays even with !inner, we need to access the first element
-            const projectMember = Array.isArray(assignment.project_members)
-                ? assignment.project_members[0]
-                : assignment.project_members
-
-            const user = Array.isArray(projectMember.users)
-                ? projectMember.users[0]
-                : projectMember.users
-
-            return {
-                id: assignment.id,
-                projectMemberId: assignment.project_member_id,
-                role: assignment.role as 'primary' | 'secondary' | 'inspector' | 'supervisor',
-                assignedAt: assignment.assigned_at,
-                assignedBy: assignment.assigned_by,
-                isActive: assignment.is_active,
-                user: {
-                    firstName: user.first_name,
-                    lastName: user.last_name,
-                    email: user.email,
-                    tradeSpecialty: user.trade_specialty,
-                },
-                hourlyRate: projectMember.hourly_rate,
-            }
-        })
     }
+
+    async getAssignmentsSimple(punchlistItemId: string): Promise<PunchlistItemAssignment[]> {
+        try {
+            console.log('🔄 Using simple assignment query')
+
+            // Step 1: Get basic assignment data
+            const { data: assignments, error: assignmentError } = await this.supabaseClient
+                .from('punchlist_item_assignments')
+                .select('id, project_member_id, role, assigned_at, assigned_by, is_active')
+                .eq('punchlist_item_id', punchlistItemId)
+                .eq('is_active', true)
+                .order('assigned_at', { ascending: true })
+
+            if (assignmentError) {
+                console.error('🚨 Error in simple assignment query:', assignmentError)
+                return []
+            }
+
+            if (!assignments || assignments.length === 0) {
+                console.log('📝 No assignments found in simple query')
+                return []
+            }
+
+            console.log('✅ Found assignments, enriching with user data', { count: assignments.length })
+
+            // Step 2: Get project member and user data for each assignment
+            const enrichedAssignments: PunchlistItemAssignment[] = []
+
+            for (const assignment of assignments) {
+                try {
+                    // Get project member data
+                    const { data: projectMember, error: memberError } = await this.supabaseClient
+                        .from('project_members')
+                        .select('id, user_id, hourly_rate')
+                        .eq('id', assignment.project_member_id)
+                        .single()
+
+                    if (memberError || !projectMember) {
+                        console.error('🚨 Error fetching project member:', memberError)
+                        // Still add the assignment but without user data
+                        enrichedAssignments.push({
+                            id: assignment.id,
+                            projectMemberId: assignment.project_member_id,
+                            role: assignment.role as 'primary' | 'secondary' | 'inspector' | 'supervisor',
+                            assignedAt: assignment.assigned_at,
+                            assignedBy: assignment.assigned_by,
+                            isActive: assignment.is_active,
+                            user: null,
+                            hourlyRate: undefined, // ✅ Use undefined instead of null
+                        })
+                        continue
+                    }
+
+                    // Get user data
+                    const { data: user, error: userError } = await this.supabaseClient
+                        .from('users')
+                        .select('id, first_name, last_name, email, trade_specialty')
+                        .eq('id', projectMember.user_id)
+                        .single()
+
+                    enrichedAssignments.push({
+                        id: assignment.id,
+                        projectMemberId: assignment.project_member_id,
+                        role: assignment.role as 'primary' | 'secondary' | 'inspector' | 'supervisor',
+                        assignedAt: assignment.assigned_at,
+                        assignedBy: assignment.assigned_by,
+                        isActive: assignment.is_active,
+                        user: (userError || !user) ? null : {
+                            id: user.id,
+                            firstName: user.first_name,
+                            lastName: user.last_name,
+                            email: user.email,
+                            tradeSpecialty: user.trade_specialty,
+                        },
+                        hourlyRate: projectMember.hourly_rate ?? undefined, // ✅ Convert null to undefined
+                    })
+
+                } catch (error) {
+                    console.error('🚨 Error enriching assignment:', error)
+                    // Add assignment with null user data
+                    enrichedAssignments.push({
+                        id: assignment.id,
+                        projectMemberId: assignment.project_member_id,
+                        role: assignment.role as 'primary' | 'secondary' | 'inspector' | 'supervisor',
+                        assignedAt: assignment.assigned_at,
+                        assignedBy: assignment.assigned_by,
+                        isActive: assignment.is_active,
+                        user: null,
+                        hourlyRate: undefined, // ✅ Use undefined instead of null
+                    })
+                }
+            }
+
+            console.log('✅ Enriched assignments completed', {
+                total: enrichedAssignments.length,
+                withUsers: enrichedAssignments.filter(a => a.user !== null).length
+            })
+
+            return enrichedAssignments
+
+        } catch (error) {
+            console.error('🚨 Error in simple assignments method:', error)
+            return []
+        }
+    }
+
 
     async getRelatedScheduleProject(scheduleProjectId: string) {
         const { data: scheduleProject, error } = await this.supabaseClient
@@ -890,18 +1035,30 @@ export class PunchlistItemDatabaseService {
         return scheduleProject
     }
 
+    // ==============================================
+    // FIXED: getProjectMembersForProject without role column
+    // ==============================================
+
     async getProjectMembersForProject(projectId: string, companyId: string) {
+        console.log('🔍 DEBUG: Fetching project members', { projectId, companyId })
+
         const { data: projectMembers, error } = await this.supabaseClient
             .from('project_members')
             .select(`
+            id,
+            user_id,
+            user:users!project_members_user_id_users_id_fk(
                 id,
-                user_id,
-                user:users!project_members_user_id_users_id_fk(first_name, last_name, trade_specialty),
-                hourly_rate,
-                status,
-                joined_at,
-                notes
-            `)
+                first_name, 
+                last_name, 
+                email,
+                trade_specialty
+            ),
+            hourly_rate,
+            status,
+            joined_at,
+            notes
+        `)
             .eq('project_id', projectId)
             .eq('company_id', companyId)
             .eq('status', 'active')
@@ -909,10 +1066,51 @@ export class PunchlistItemDatabaseService {
 
         if (error) {
             console.error('🚨 Error fetching project members:', error)
-            throw new Error('Failed to fetch project members')
+            throw new Error(`Failed to fetch project members: ${error.message}`)
         }
 
-        return projectMembers || []
+        console.log('🔍 DEBUG: Raw database response', {
+            count: projectMembers?.length || 0,
+            sampleMember: projectMembers?.[0],
+            userStructure: projectMembers?.[0]?.user
+        })
+
+        // Transform and handle user array
+        const transformedMembers = projectMembers?.map(pm => {
+            // Handle user being an array - take the first item
+            const userData = Array.isArray(pm.user) ? pm.user[0] : pm.user
+
+            return {
+                id: pm.id,
+                userId: pm.user_id,
+                role: 'member', // ✅ FIXED: Default role since column doesn't exist
+                hourlyRate: pm.hourly_rate,
+                isActive: pm.status === 'active',
+                status: pm.status,
+                joinedAt: pm.joined_at,
+                notes: pm.notes,
+                user: userData ? {
+                    id: userData.id,
+                    firstName: userData.first_name,
+                    lastName: userData.last_name,
+                    email: userData.email,
+                    tradeSpecialty: userData.trade_specialty
+                } : null
+            }
+        }) || []
+
+        console.log('🔍 DEBUG: Transformed project members', {
+            count: transformedMembers.length,
+            members: transformedMembers.map(pm => ({
+                id: pm.id,
+                userId: pm.userId,
+                userName: `${pm.user?.firstName || 'Unknown'} ${pm.user?.lastName || 'User'}`,
+                isActive: pm.isActive,
+                status: pm.status
+            }))
+        })
+
+        return transformedMembers
     }
 
     async checkPunchlistItemExists(punchlistItemId: string, companyId: string): Promise<boolean> {
