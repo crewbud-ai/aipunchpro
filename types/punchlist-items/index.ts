@@ -27,6 +27,12 @@ import type {
   GetPunchlistItemResult
 } from './punchlist-item'
 
+// ✅ FIXED: Import from upload-photos.ts (note: you had 'upload-photes' - typo)
+import type {
+  BulkPhotoUploadResult,
+  PhotoUploadResult
+} from './upload-photos'
+
 // ==============================================
 // MAIN PUNCHLIST ITEM TYPES
 // ==============================================
@@ -45,13 +51,13 @@ export type {
   GetPunchlistItemResult,
   DeletePunchlistItemResult,
   PunchlistItemFiltersFormData,
-  
+
   // Enum types
   IssueType,
   PunchlistStatus,
   PunchlistPriority,
   TradeCategory,
-  
+
   // Form option interfaces
   IssueTypeOption,
   PunchlistStatusOption,
@@ -65,19 +71,19 @@ export {
   PUNCHLIST_STATUS,
   PUNCHLIST_PRIORITY,
   TRADE_CATEGORY,
-  
+
   // Form option data
   ISSUE_TYPE_OPTIONS,
   PUNCHLIST_STATUS_OPTIONS,
   PUNCHLIST_PRIORITY_OPTIONS,
   TRADE_CATEGORY_OPTIONS,
-  
+
   // Utility functions
   getPunchlistStatusColor,
   getPunchlistPriorityColor,
   getIssueTypeLabel,
   getTradeCategoryLabel,
-  
+
   // Validation helpers
   isValidPunchlistStatus,
   isValidPunchlistPriority,
@@ -91,13 +97,13 @@ export {
 export {
   // Step configuration
   CREATE_PUNCHLIST_ITEM_STEPS,
-  
+
   // Default values
   DEFAULT_CREATE_PUNCHLIST_ITEM_FORM_DATA,
-  
+
   // Validation rules
   CREATE_PUNCHLIST_ITEM_VALIDATION_RULES,
-  
+
   // Transformation functions
   transformCreateFormDataToApiData,
   getDefaultCreatePunchlistItemFormData
@@ -110,22 +116,22 @@ export type {
   CreatePunchlistItemFormData,
   CreatePunchlistItemFormErrors,
   CreatePunchlistItemValidation,
-  
+
   // State types
   CreatePunchlistItemState,
-  
+
   // Step interfaces
   CreatePunchlistItemStep,
-  
+
   // Related interfaces
   ProjectMemberForPunchlist,
   ScheduleProjectForPunchlist,
   SubmitCreatePunchlistItemData,
-  
+
   // File upload interfaces
   PunchlistFileUpload,
   PunchlistFileUploadResult,
-  
+
   // Utility types
   FieldValidationState,
   StepCompletionStatus,
@@ -139,13 +145,13 @@ export {
   // Status workflow rules
   PUNCHLIST_STATUS_TRANSITIONS,
   REQUIRED_FIELDS_FOR_STATUS,
-  
+
   // Default values
   DEFAULT_UPDATE_PUNCHLIST_ITEM_FORM_DATA,
-  
+
   // Validation rules
   UPDATE_PUNCHLIST_ITEM_VALIDATION_RULES,
-  
+
   // Utility functions
   isValidStatusTransition,
   getAvailableStatusTransitions,
@@ -167,28 +173,37 @@ export type {
   UpdatePunchlistItemFormData,
   UpdatePunchlistItemFormErrors,
   UpdatePunchlistItemValidation,
-  
+
   // Quick status update
   QuickUpdatePunchlistStatusData,
   QuickUpdatePunchlistStatusResult,
-  
+
   // State types
   UpdatePunchlistItemState,
-  
+
   // Submission interfaces
   SubmitUpdatePunchlistItemData,
-  
+
   // Status workflow
   PunchlistStatusTransition,
   PunchlistStatusWorkflow,
-  
+
   // Bulk update
   BulkUpdatePunchlistItemsData,
   BulkUpdatePunchlistItemsResult,
-  
+
   // Change tracking
   FieldChange
 } from './update-punchlist-item'
+
+// ==============================================
+// 📸 PHOTO UPLOAD TYPES (NEW SECTION)
+// ==============================================
+export type {
+  // Photo upload result types
+  PhotoUploadResult,
+  BulkPhotoUploadResult,
+} from './upload-photos'
 
 // ==============================================
 // VALIDATION EXPORTS
@@ -242,6 +257,9 @@ export type PunchlistItemMutationResult = CreatePunchlistItemResult | UpdatePunc
 // Form state types
 export type PunchlistItemFormState = CreatePunchlistItemState | UpdatePunchlistItemState
 
+// 📸 Photo upload convenience types
+export type PhotoUploadApiResult = PhotoUploadResult | BulkPhotoUploadResult
+
 // ==============================================
 // TYPE GUARDS
 // ==============================================
@@ -293,4 +311,17 @@ export const isQuickUpdatePunchlistStatusResult = (
   result: PunchlistItemMutationResult
 ): result is QuickUpdatePunchlistStatusResult => {
   return 'data' in result && 'punchlistItem' in result.data
+}
+
+// 📸 Photo upload type guards
+export const isPhotoUploadResult = (
+  result: PhotoUploadApiResult
+): result is PhotoUploadResult => {
+  return 'data' in result && result.data !== undefined && 'url' in result.data
+}
+
+export const isBulkPhotoUploadResult = (
+  result: PhotoUploadApiResult
+): result is BulkPhotoUploadResult => {
+  return 'data' in result && result.data !== undefined && 'uploadedPhotos' in result.data
 }

@@ -9,18 +9,26 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
-import { 
-    Camera, 
-    X, 
-    AlertCircle, 
-    CheckCircle
+import { Progress } from "@/components/ui/progress"
+import {
+    Camera,
+    X,
+    AlertCircle,
+    CheckCircle,
+    Upload,
+    ImageIcon,
+    Loader2,
+    Paperclip,
+    FileText,
+    Trash2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import Image from "next/image"
 
 // Import types
-import { 
+import {
     type CreatePunchlistItemFormData,
-    type UpdatePunchlistItemFormData 
+    type UpdatePunchlistItemFormData
 } from "@/types/punchlist-items"
 
 // ==============================================
@@ -28,176 +36,24 @@ import {
 // ==============================================
 interface PhotosReviewStepProps {
     mode?: 'create' | 'edit'
-    formData: {
-        title: string
-        issueType: string
-        priority: string
-        location: string
-        roomArea: string
-        assignedProjectMemberId: string
-        dueDate: string
-        resolutionNotes: string
-        photos: string[]
-        status?: string // Only in edit mode
-        projectId?: string // Only in create mode
-    }
+    formData: CreatePunchlistItemFormData | UpdatePunchlistItemFormData
     errors: any
     updateFormData: (field: string, value: any) => void
     clearFieldError: (field: string) => void
+
+    // ✅ File upload props from your updated hook
+    isUploadingFiles?: boolean
+    hasPendingFiles?: boolean
+    pendingFiles?: File[]
+    uploadProgress?: number
+    uploadError?: string | null
+    addPendingFiles?: (files: File[]) => void
+    removePendingFile?: (index: number) => void
+    uploadPhotos?: (files?: File[]) => Promise<string[]>
+    uploadAttachments?: (files?: File[]) => Promise<string[]>
+    removePhoto?: (photoUrl: string) => Promise<void>
+    removeAttachment?: (attachmentUrl: string) => Promise<void>
 }
-
-// ==============================================
-// PHOTO UPLOAD COMPONENT
-// ==============================================
-interface PhotoUploadProps {
-    photos: string[]
-    onPhotosChange: (photos: string[]) => void
-    maxPhotos?: number
-    disabled?: boolean
-}
-
-const PhotoUpload = React.memo<PhotoUploadProps>(({ 
-    photos, 
-    onPhotosChange, 
-    maxPhotos = 5,
-    disabled = false 
-}) => {
-    const [dragActive, setDragActive] = useState(false)
-
-    const handleDrag = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        e.stopPropagation()
-        if (e.type === "dragenter" || e.type === "dragover") {
-            setDragActive(true)
-        } else if (e.type === "dragleave") {
-            setDragActive(false)
-        }
-    }, [])
-
-    const handleDrop = useCallback((e: React.DragEvent) => {
-        e.preventDefault()
-        e.stopPropagation()
-        setDragActive(false)
-        
-        if (disabled) return
-
-        const files = Array.from(e.dataTransfer.files)
-        const imageFiles = files.filter(file => file.type.startsWith('image/'))
-        
-        // For demo purposes - in real implementation this would upload files
-        // and return URLs to add to the photos array
-        console.log('Files dropped:', imageFiles)
-        // TODO: Upload files and get URLs, then add to photos array
-    }, [disabled])
-
-    const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        if (disabled) return
-        
-        const files = Array.from(e.target.files || [])
-        const imageFiles = files.filter(file => file.type.startsWith('image/'))
-        
-        // For demo purposes - in real implementation this would upload files
-        // and return URLs to add to the photos array
-        console.log('Files selected:', imageFiles)
-        // TODO: Upload files and get URLs, then add to photos array
-    }, [disabled])
-
-    const removePhoto = useCallback((index: number) => {
-        if (disabled) return
-        const newPhotos = photos.filter((_, i) => i !== index)
-        onPhotosChange(newPhotos)
-    }, [photos, onPhotosChange, disabled])
-
-    return (
-        <div className="space-y-4">
-            {/* Upload Area */}
-            <div
-                className={cn(
-                    "border-2 border-dashed rounded-lg p-6 text-center transition-colors",
-                    dragActive && "border-blue-500 bg-blue-50",
-                    !dragActive && "border-gray-300 hover:border-gray-400",
-                    disabled && "opacity-50 cursor-not-allowed",
-                    photos.length >= maxPhotos && "opacity-50"
-                )}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-            >
-                <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleFileInput}
-                    disabled={disabled || photos.length >= maxPhotos}
-                    className="hidden"
-                    id="photo-upload"
-                />
-                
-                <div className="space-y-2">
-                    <div className="flex justify-center">
-                        <div className="p-2 bg-gray-100 rounded-full">
-                            <Camera className="h-6 w-6 text-gray-600" />
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <Label htmlFor="photo-upload" className="cursor-pointer">
-                            <span className="text-sm font-medium text-blue-600 hover:text-blue-500">
-                                Click to upload photos
-                            </span>
-                        </Label>
-                        <p className="text-xs text-gray-500">or drag and drop images here</p>
-                    </div>
-                    
-                    <p className="text-xs text-gray-400">
-                        PNG, JPG, JPEG up to 10MB each • Max {maxPhotos} photos
-                    </p>
-                    
-                    {photos.length > 0 && (
-                        <p className="text-xs text-gray-600">
-                            {photos.length} of {maxPhotos} photos uploaded
-                        </p>
-                    )}
-                </div>
-            </div>
-
-            {/* Photo Preview Grid */}
-            {photos.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {photos.map((photoUrl, index) => (
-                        <div key={index} className="relative group">
-                            <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                                <img
-                                    src={photoUrl}
-                                    alt={`Photo ${index + 1}`}
-                                    className="w-full h-full object-cover"
-                                />
-                            </div>
-                            
-                            {!disabled && (
-                                <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    onClick={() => removePhoto(index)}
-                                >
-                                    <X className="h-3 w-3" />
-                                </Button>
-                            )}
-                            
-                            <div className="absolute bottom-2 left-2">
-                                <div className="bg-black/50 text-white text-xs px-2 py-1 rounded">
-                                    {index + 1}
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    )
-})
 
 // ==============================================
 // MAIN COMPONENT
@@ -208,145 +64,558 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
     errors,
     updateFormData,
     clearFieldError,
+
+    // File upload props
+    isUploadingFiles = false,
+    hasPendingFiles = false,
+    pendingFiles = [],
+    uploadProgress = 0,
+    uploadError = null,
+    addPendingFiles,
+    removePendingFile,
+    uploadPhotos,
+    uploadAttachments,
+    removePhoto,
+    removeAttachment,
 }: PhotosReviewStepProps) => {
-    
-    // ==============================================
-    // EVENT HANDLERS
-    // ==============================================
-    
-    const handlePhotosChange = (photos: string[]) => {
-        updateFormData('photos', photos)
-        if (errors.photos) clearFieldError('photos')
-    }
 
     // ==============================================
-    // FORM SUMMARY DATA
+    // LOCAL STATE
     // ==============================================
-    const getSummaryData = () => {
-        return {
-            title: formData.title || 'Untitled Issue',
-            issueType: formData.issueType || 'Not specified',
-            priority: formData.priority || 'Not specified',
-            location: formData.location || 'Not specified',
-            roomArea: formData.roomArea || 'Not specified',
-            assignedProjectMemberId: formData.assignedProjectMemberId || 'Unassigned',
-            dueDate: formData.dueDate || 'Not set',
-            resolutionNotes: formData.resolutionNotes || 'No additional notes',
-            photos: formData.photos || [],
-            status: formData.status || 'open'
+    const [dragActive, setDragActive] = useState(false)
+    const [uploadType, setUploadType] = useState<'photos' | 'attachments'>('photos')
+    const [deletingFiles, setDeletingFiles] = useState<Set<string>>(new Set())
+
+    // ==============================================
+    // FILE HANDLING
+    // ==============================================
+    const handleDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setDragActive(false)
+
+        if (isUploadingFiles) return
+
+        const files = Array.from(e.dataTransfer.files)
+
+        if (uploadType === 'photos') {
+            const imageFiles = files.filter(file => file.type.startsWith('image/'))
+            if (imageFiles.length > 0 && addPendingFiles) {
+                addPendingFiles(imageFiles)
+            }
+        } else {
+            // For attachments, accept all file types
+            if (files.length > 0 && addPendingFiles) {
+                addPendingFiles(files)
+            }
         }
-    }
+    }, [uploadType, addPendingFiles, isUploadingFiles])
 
-    const summary = getSummaryData()
+    const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || [])
+
+        if (uploadType === 'photos') {
+            const imageFiles = files.filter(file => file.type.startsWith('image/'))
+            if (imageFiles.length > 0 && addPendingFiles) {
+                addPendingFiles(imageFiles)
+            }
+        } else {
+            if (files.length > 0 && addPendingFiles) {
+                addPendingFiles(files)
+            }
+        }
+
+        // Reset input
+        e.target.value = ''
+    }, [uploadType, addPendingFiles])
+
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setDragActive(true)
+    }, [])
+
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setDragActive(false)
+    }, [])
 
     // ==============================================
-    // RENDER
+    // UPLOAD HANDLERS
     // ==============================================
-    return (
-        <div className="space-y-6">
-            {/* Photo Upload Section */}
-            <div className="space-y-4">
-                <Label className="text-sm font-medium flex items-center gap-2">
-                    <Camera className="h-4 w-4" />
-                    {mode === 'edit' ? 'Update Photos' : 'Issue Photos'}
-                    <span className="text-xs text-gray-500 ml-auto">
-                        Optional but recommended
-                    </span>
-                </Label>
+    const handleUploadPendingFiles = useCallback(async () => {
+        if (!hasPendingFiles || isUploadingFiles) return
 
-                <PhotoUpload
-                    photos={summary.photos}
-                    onPhotosChange={handlePhotosChange}
-                    maxPhotos={5}
-                    disabled={false}
-                />
+        try {
+            if (uploadType === 'photos' && uploadPhotos) {
+                const photoFiles = pendingFiles.filter(file => file.type.startsWith('image/'))
+                if (photoFiles.length > 0) {
+                    await uploadPhotos(photoFiles)
+                }
+            } else if (uploadType === 'attachments' && uploadAttachments) {
+                const attachmentFiles = pendingFiles.filter(file => !file.type.startsWith('image/'))
+                if (attachmentFiles.length > 0) {
+                    await uploadAttachments(attachmentFiles)
+                }
+            }
+        } catch (error) {
+            console.error('Upload error:', error)
+        }
+    }, [uploadType, hasPendingFiles, isUploadingFiles, pendingFiles, uploadPhotos, uploadAttachments])
 
-                {errors.photos && (
-                    <Alert variant="destructive" className="py-2">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription className="text-sm">
-                            {errors.photos}
-                        </AlertDescription>
-                    </Alert>
+    const handleRemoveUploadedPhoto = useCallback(async (photoUrl: string) => {
+        if (!removePhoto) return
+
+        try {
+            setDeletingFiles(prev => new Set(prev).add(photoUrl))
+            await removePhoto(photoUrl)
+        } catch (error) {
+            console.error('Error removing photo:', error)
+        } finally {
+            setDeletingFiles(prev => {
+                const next = new Set(prev)
+                next.delete(photoUrl)
+                return next
+            })
+        }
+    }, [removePhoto])
+
+
+    const handleRemoveUploadedAttachment = useCallback(async (attachmentUrl: string) => {
+        if (!removeAttachment) return
+
+        try {
+            setDeletingFiles(prev => new Set(prev).add(attachmentUrl))
+            await removeAttachment(attachmentUrl)
+        } catch (error) {
+            console.error('Error removing attachment:', error)
+        } finally {
+            setDeletingFiles(prev => {
+                const next = new Set(prev)
+                next.delete(attachmentUrl)
+                return next
+            })
+        }
+    }, [removeAttachment])
+
+    const handleRemovePendingFile = useCallback((index: number) => {
+        if (removePendingFile) {
+            removePendingFile(index)
+        }
+    }, [removePendingFile])
+
+    // ==============================================
+    // RENDER FORM SUMMARY
+    // ==============================================
+    const renderFormSummary = () => (
+        <div className="space-y-4">
+            <Label className="text-lg font-semibold">Review Your Punchlist Item</Label>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                <div>
+                    <Label className="text-sm font-medium text-gray-600">Title</Label>
+                    <p className="text-sm">{formData.title || 'Not specified'}</p>
+                </div>
+
+                <div>
+                    <Label className="text-sm font-medium text-gray-600">Issue Type</Label>
+                    <p className="text-sm">{formData.issueType || 'Not specified'}</p>
+                </div>
+
+                <div>
+                    <Label className="text-sm font-medium text-gray-600">Priority</Label>
+                    <p className="text-sm">{formData.priority || 'Not specified'}</p>
+                </div>
+
+                <div>
+                    <Label className="text-sm font-medium text-gray-600">Location</Label>
+                    <p className="text-sm">{formData.location || 'Not specified'}</p>
+                </div>
+
+                {formData.roomArea && (
+                    <div>
+                        <Label className="text-sm font-medium text-gray-600">Room/Area</Label>
+                        <p className="text-sm">{formData.roomArea}</p>
+                    </div>
+                )}
+
+                {formData.dueDate && (
+                    <div>
+                        <Label className="text-sm font-medium text-gray-600">Due Date</Label>
+                        <p className="text-sm">{formData.dueDate}</p>
+                    </div>
                 )}
             </div>
 
-            <Separator />
-
-            {/* Review Summary */}
-            <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <Label className="text-base font-medium">
-                        {mode === 'edit' ? 'Review Changes' : 'Review Details'}
-                    </Label>
+            {formData.resolutionNotes && (
+                <div>
+                    <Label className="text-sm font-medium text-gray-600">Resolution Notes</Label>
+                    <p className="text-sm p-3 bg-gray-50 rounded border">
+                        {formData.resolutionNotes}
+                    </p>
                 </div>
-
-                {/* Summary Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div>
-                        <Label className="text-xs font-medium text-gray-700">Issue Title</Label>
-                        <p className="text-sm text-gray-900 mt-1">{summary.title}</p>
-                    </div>
-                    <div>
-                        <Label className="text-xs font-medium text-gray-700">Type & Priority</Label>
-                        <p className="text-sm text-gray-900 mt-1">
-                            {summary.issueType} • {summary.priority}
-                        </p>
-                    </div>
-                    <div>
-                        <Label className="text-xs font-medium text-gray-700">Location</Label>
-                        <p className="text-sm text-gray-900 mt-1">
-                            {summary.location}
-                            {summary.roomArea && ` • ${summary.roomArea}`}
-                        </p>
-                    </div>
-                    <div>
-                        <Label className="text-xs font-medium text-gray-700">Due Date</Label>
-                        <p className="text-sm text-gray-900 mt-1">{summary.dueDate}</p>
-                    </div>
-                    {mode === 'edit' && (
-                        <div>
-                            <Label className="text-xs font-medium text-gray-700">Status</Label>
-                            <p className="text-sm text-gray-900 mt-1">{summary.status}</p>
-                        </div>
-                    )}
-                    <div>
-                        <Label className="text-xs font-medium text-gray-700">Photos</Label>
-                        <p className="text-sm text-gray-900 mt-1">
-                            {summary.photos.length > 0 
-                                ? `${summary.photos.length} photo${summary.photos.length > 1 ? 's' : ''} attached`
-                                : 'No photos attached'
-                            }
-                        </p>
-                    </div>
-                </div>
-
-                {/* Notes */}
-                {summary.resolutionNotes && summary.resolutionNotes !== 'No additional notes' && (
-                    <div>
-                        <Label className="text-xs font-medium text-gray-700">Notes</Label>
-                        <p className="text-sm text-gray-900 mt-1 p-3 bg-gray-50 rounded-lg">{summary.resolutionNotes}</p>
-                    </div>
-                )}
-            </div>
-
-            {/* Validation Errors */}
-            {Object.keys(errors).length > 0 && (
-                <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                        Please fix the following errors before {mode === 'edit' ? 'updating' : 'creating'}:
-                        <ul className="list-disc list-inside mt-2 space-y-1">
-                            {Object.entries(errors).map(([field, error]) => (
-                                <li key={field} className="text-xs">
-                                    {field}: {String(error)}
-                                </li>
-                            ))}
-                        </ul>
-                    </AlertDescription>
-                </Alert>
             )}
         </div>
     )
+
+    // ==============================================
+    // RENDER DROP ZONE
+    // ==============================================
+    const renderDropZone = () => (
+        <div className="space-y-4">
+            {/* Upload Type Selector */}
+            <div className="flex items-center gap-4">
+                <Label className="text-sm font-medium">Upload Type:</Label>
+                <div className="flex gap-2">
+                    <Button
+                        type="button"
+                        variant={uploadType === 'photos' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setUploadType('photos')}
+                        disabled={isUploadingFiles}
+                    >
+                        <Camera className="mr-2 h-4 w-4" />
+                        Photos
+                    </Button>
+                    <Button
+                        type="button"
+                        variant={uploadType === 'attachments' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setUploadType('attachments')}
+                        disabled={isUploadingFiles}
+                    >
+                        <Paperclip className="mr-2 h-4 w-4" />
+                        Attachments
+                    </Button>
+                </div>
+            </div>
+
+            {/* Universal Drop Zone */}
+            <div
+                className={cn(
+                    "border-2 border-dashed rounded-lg p-8 text-center transition-all",
+                    dragActive
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-300 hover:border-gray-400",
+                    isUploadingFiles && "opacity-50 cursor-not-allowed"
+                )}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+            >
+                {uploadType === 'photos' ? (
+                    <>
+                        <Camera className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            Add Photos to Document the Issue
+                        </h3>
+                        <p className="text-gray-600 mb-4">
+                            Drag and drop image files here, or click to select
+                        </p>
+                    </>
+                ) : (
+                    <>
+                        <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            Add Supporting Documents
+                        </h3>
+                        <p className="text-gray-600 mb-4">
+                            Drag and drop any files here, or click to select
+                        </p>
+                    </>
+                )}
+
+                <input
+                    type="file"
+                    multiple
+                    accept={uploadType === 'photos' ? 'image/*' : '*'}
+                    onChange={handleFileInput}
+                    className="hidden"
+                    id="file-upload"
+                    disabled={isUploadingFiles}
+                />
+                <label
+                    htmlFor="file-upload"
+                    className={cn(
+                        "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer",
+                        isUploadingFiles && "cursor-not-allowed opacity-50"
+                    )}
+                >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Select {uploadType === 'photos' ? 'Photos' : 'Files'}
+                </label>
+                <p className="text-xs text-gray-500 mt-2">
+                    {uploadType === 'photos'
+                        ? 'Supports: JPG, PNG, GIF, WebP (Max 10MB per file)'
+                        : 'Supports: All file types (Max 10MB per file)'
+                    }
+                </p>
+            </div>
+        </div>
+    )
+
+    // ==============================================
+    // RENDER PENDING FILES
+    // ==============================================
+    const renderPendingFiles = () => {
+        if (pendingFiles.length === 0) return null
+
+        const relevantFiles = uploadType === 'photos'
+            ? pendingFiles.filter(file => file.type.startsWith('image/'))
+            : pendingFiles.filter(file => !file.type.startsWith('image/'))
+
+        if (relevantFiles.length === 0) return null
+
+        return (
+            <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">
+                        {uploadType === 'photos' ? 'Photos' : 'Files'} Ready to Upload ({relevantFiles.length})
+                    </Label>
+                    <Button
+                        type="button"
+                        onClick={handleUploadPendingFiles}
+                        disabled={isUploadingFiles}
+                        size="sm"
+                        className="bg-orange-600 hover:bg-orange-700"
+                    >
+                        {isUploadingFiles ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Uploading...
+                            </>
+                        ) : (
+                            <>
+                                <Upload className="mr-2 h-4 w-4" />
+                                Upload All
+                            </>
+                        )}
+                    </Button>
+                </div>
+
+                {isUploadingFiles && (
+                    <div className="space-y-2">
+                        <Progress value={uploadProgress} className="w-full" />
+                        <p className="text-sm text-gray-600">Uploading files... {uploadProgress}%</p>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {relevantFiles.map((file, index) => {
+                        const globalIndex = pendingFiles.indexOf(file)
+                        return (
+                            <div key={globalIndex} className="relative group">
+                                <div className="aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center">
+                                    {file.type.startsWith('image/') ? (
+                                        <Image
+                                            src={URL.createObjectURL(file)}
+                                            alt={file.name}
+                                            width={200}
+                                            height={200}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="text-center p-4">
+                                            <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                                            <p className="text-xs text-gray-600 truncate">{file.name}</p>
+                                        </div>
+                                    )}
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="sm"
+                                    className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    // ✅ FIXED: Use handleRemovePendingFile instead of handleRemoveUploadedAttachment
+                                    onClick={() => handleRemovePendingFile(globalIndex)}
+                                    disabled={isUploadingFiles}
+                                >
+                                    <X className="h-3 w-3" />
+                                </Button>
+                                {!file.type.startsWith('image/') && (
+                                    <div className="absolute bottom-1 left-1 right-1">
+                                        <p className="text-xs text-white bg-black bg-opacity-60 px-1 py-0.5 rounded truncate">
+                                            {file.name}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+        )
+    }
+
+    // ==============================================
+    // RENDER UPLOADED PHOTOS
+    // ==============================================
+    const renderUploadedPhotos = () => {
+        if (!formData.photos || formData.photos.length === 0) return null
+
+        return (
+            <div className="space-y-3">
+                <Label className="text-sm font-medium">Uploaded Photos ({formData.photos.length})</Label>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {formData.photos.map((photoUrl, index) => {
+                        const isDeleting = deletingFiles.has(photoUrl)
+
+                        return (
+                            <div key={index} className={cn(
+                                "relative group",
+                                isDeleting && "opacity-50"
+                            )}>
+                                <div className="aspect-square rounded-lg overflow-hidden border border-gray-200">
+                                    <Image
+                                        src={photoUrl}
+                                        alt={`Photo ${index + 1}`}
+                                        width={200}
+                                        height={200}
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="sm"
+                                    className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => handleRemoveUploadedPhoto(photoUrl)}
+                                    disabled={isUploadingFiles || isDeleting}
+                                >
+                                    {isDeleting ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                        <X className="h-3 w-3" />
+                                    )}
+                                </Button>
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+        )
+    }
+
+    // ==============================================
+    // RENDER UPLOADED ATTACHMENTS
+    // ==============================================
+    const renderUploadedAttachments = () => {
+        if (!formData.attachments || formData.attachments.length === 0) return null
+
+        return (
+            <div className="space-y-3">
+                <Label className="text-sm font-medium">Uploaded Attachments ({formData.attachments.length})</Label>
+                <div className="space-y-2">
+                    {formData.attachments.map((attachmentUrl, index) => {
+                        const fileName = attachmentUrl.split('/').pop() || `Attachment ${index + 1}`
+                        const isDeleting = deletingFiles.has(attachmentUrl)
+
+                        return (
+                            <div key={index} className={cn(
+                                "flex items-center justify-between p-3 border rounded-lg",
+                                isDeleting && "opacity-50"
+                            )}>
+                                <div className="flex items-center gap-2">
+                                    <Paperclip className="h-4 w-4 text-gray-400" />
+                                    <span className="text-sm">{fileName}</span>
+                                    {isDeleting && (
+                                        <span className="text-xs text-gray-500">(Deleting...)</span>
+                                    )}
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRemoveUploadedAttachment(attachmentUrl)}
+                                    disabled={isUploadingFiles || isDeleting} // ✅ ADD: || isDeleting
+                                >
+                                    {isDeleting ? ( // ✅ ADD THIS CONDITIONAL
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <X className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+        )
+    }
+
+    // ==============================================
+    // MAIN RENDER
+    // ==============================================
+    return (
+        <div className="space-y-8">
+            {/* Form Summary */}
+            {renderFormSummary()}
+
+            <Separator />
+
+            {/* File Upload Section */}
+            <div className="space-y-6">
+                <div>
+                    <Label className="text-lg font-semibold">Files & Documentation</Label>
+                    <p className="text-sm text-gray-600 mt-1">
+                        Add photos and supporting documents to help resolve this issue effectively.
+                    </p>
+                </div>
+
+                {/* Universal Upload Zone */}
+                {renderDropZone()}
+
+                {/* Error Display */}
+                {(errors.photos || errors.attachments || uploadError) && (
+                    <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                            {errors.photos || errors.attachments || uploadError}
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {/* Upload Status */}
+                {isUploadingFiles && (
+                    <Alert>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <AlertDescription>
+                            Uploading files... Please don't close this page.
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {/* Pending Files */}
+                {renderPendingFiles()}
+
+                {/* Uploaded Content */}
+                {renderUploadedPhotos()}
+                {renderUploadedAttachments()}
+
+                {/* Success Message */}
+                {((formData.photos && formData.photos.length > 0) || (formData.attachments && formData.attachments.length > 0)) && (
+                    <Alert>
+                        <CheckCircle className="h-4 w-4" />
+                        <AlertDescription>
+                            {(formData.photos?.length || 0) + (formData.attachments?.length || 0)} file(s) uploaded successfully.
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {/* Guidelines */}
+                <Alert>
+                    <Camera className="h-4 w-4" />
+                    <AlertDescription>
+                        <strong>Tip:</strong> Clear photos and relevant documents help resolve issues faster.
+                        Include multiple angles and any supporting documentation like specifications or invoices.
+                    </AlertDescription>
+                </Alert>
+            </div>
+        </div>
+    )
 })
+
+PhotosReviewStep.displayName = "PhotosReviewStep"
+
+export default PhotosReviewStep

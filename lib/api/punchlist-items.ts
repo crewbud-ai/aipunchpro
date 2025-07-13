@@ -24,7 +24,11 @@ import type {
     GetPunchlistItemsResult,
     GetPunchlistItemResult,
     DeletePunchlistItemResult,
-} from '@/types/punchlist-items'
+
+    PhotoUploadResult,
+    BulkPhotoUploadResult,
+} from '@/types/punchlist-items';
+import { createBrowserClient } from '@/lib/supabase/client'
 
 // ==============================================
 // API CLIENT CONFIGURATION
@@ -98,6 +102,54 @@ async function apiCall<T>(
     }
 }
 
+async function apiUpload<T>(
+    endpoint: string,
+    formData: FormData
+): Promise<T> {
+    const url = `${API_BASE_URL}${endpoint}`
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData,
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+            const errorMessage = data.message || data.error || `HTTP ${response.status}: ${response.statusText}`
+            const errorDetails = data.details || []
+
+            console.error('Upload API Error:', {
+                status: response.status,
+                message: errorMessage,
+                details: errorDetails,
+                url,
+                data
+            })
+
+            throw new ApiError(
+                response.status,
+                errorMessage,
+                errorDetails
+            )
+        }
+
+        return data
+    } catch (error) {
+        if (error instanceof ApiError) {
+            throw error
+        }
+
+        // ✅ Same network error handling as your apiCall
+        console.error('Upload Network Error:', error)
+        throw new ApiError(
+            0,
+            'Network error. Please check your connection and try again.'
+        )
+    }
+}
+
 // ==============================================
 // EXPORT API SERVICE OBJECT
 // ==============================================
@@ -109,7 +161,7 @@ export const punchlistItemsApi = {
         try {
             // Build query parameters
             const params = new URLSearchParams()
-            
+
             // Basic filters
             if (filters.projectId) params.append('projectId', filters.projectId)
             if (filters.relatedScheduleProjectId) params.append('relatedScheduleProjectId', filters.relatedScheduleProjectId)
@@ -117,17 +169,17 @@ export const punchlistItemsApi = {
             if (filters.priority) params.append('priority', filters.priority)
             if (filters.issueType) params.append('issueType', filters.issueType)
             if (filters.tradeCategory) params.append('tradeCategory', filters.tradeCategory)
-            
+
             // Assignment filters
             if (filters.assignedToUserId) params.append('assignedToUserId', filters.assignedToUserId)
             if (filters.reportedBy) params.append('reportedBy', filters.reportedBy)
-            
+
             // Date filters
             if (filters.dueDateFrom) params.append('dueDateFrom', filters.dueDateFrom)
             if (filters.dueDateTo) params.append('dueDateTo', filters.dueDateTo)
             if (filters.createdFrom) params.append('createdFrom', filters.createdFrom)
             if (filters.createdTo) params.append('createdTo', filters.createdTo)
-            
+
             // Special filters
             if (filters.requiresInspection !== undefined) {
                 params.append('requiresInspection', filters.requiresInspection.toString())
@@ -138,10 +190,10 @@ export const punchlistItemsApi = {
             if (filters.hasPhotos !== undefined) {
                 params.append('hasPhotos', filters.hasPhotos.toString())
             }
-            
+
             // Search
             if (filters.search) params.append('search', filters.search)
-            
+
             // Pagination & Sorting
             if (filters.limit) params.append('limit', filters.limit.toString())
             if (filters.offset) params.append('offset', filters.offset.toString())
@@ -439,7 +491,9 @@ export const punchlistItemsApi = {
     // ==============================================
     async uploadFiles(
         files: File[],
-        type: 'photos' | 'attachments' = 'photos'
+        type: 'photos' | 'attachments' | 'documents' | 'avatars' = 'photos',
+        category: string = 'punchlist',
+        entityId?: string
     ): Promise<{ success: boolean; urls: string[]; errors?: string[] }> {
         try {
             if (!files || files.length === 0) {
@@ -451,19 +505,33 @@ export const punchlistItemsApi = {
                     const formData = new FormData()
                     formData.append('file', file)
                     formData.append('type', type)
+                    formData.append('category', category)
 
-                    const response = await fetch(`${API_BASE_URL}/api/upload/punchlist-files`, {
+                    if (entityId) {
+                        formData.append('entityId', entityId)
+                    }
+
+                    // Note: For FormData, we need to remove Content-Type header to let browser set it
+                    const response = await apiCall<{
+                        success: boolean
+                        url: string
+                        fileName: string
+                        fileSize: number
+                        fileType: string
+                        message: string
+                    }>('/api/upload', {
                         method: 'POST',
+                        headers: {
+                            // Remove Content-Type for FormData - let browser set it
+                        },
                         body: formData,
                     })
 
-                    const result = await response.json()
-
-                    if (!response.ok) {
-                        throw new Error(result.message || 'Upload failed')
+                    if (!response.success) {
+                        throw new Error(response.message || 'Upload failed')
                     }
 
-                    return result.url
+                    return response.url
                 })
             )
 
@@ -499,13 +567,55 @@ export const punchlistItemsApi = {
                 errors: errors.length > 0 ? errors : undefined
             }
         } catch (error) {
-            console.error('Error uploading punchlist item files:', error)
+            console.error('Error uploading files:', error)
             toast({
                 title: "Upload Failed",
                 description: "Unable to upload files. Please try again.",
                 variant: "destructive",
             })
             throw error
+        }
+    },
+
+    async deleteFile(fileUrl: string): Promise<{ success: boolean; error?: string }> {
+        try {
+            if (!fileUrl) {
+                throw new ApiError(400, 'File URL is required')
+            }
+
+            // Use your existing apiCall helper for consistency
+            const response = await apiCall<{
+                success: boolean
+                message: string
+            }>('/api/upload', {
+                method: 'DELETE',
+                body: JSON.stringify({ url: fileUrl }),
+            })
+
+            if (response.success) {
+                toast({
+                    title: "File Deleted",
+                    description: "File has been removed successfully.",
+                })
+            }
+
+            return { success: response.success }
+
+        } catch (error) {
+            console.error('Error deleting file:', error)
+
+            const errorMessage = error instanceof Error ? error.message : 'Failed to delete file'
+
+            toast({
+                title: "Delete Failed",
+                description: errorMessage,
+                variant: "destructive",
+            })
+
+            return {
+                success: false,
+                error: errorMessage
+            }
         }
     },
 } as const
@@ -521,38 +631,38 @@ export default punchlistItemsApi
 
 // Get punchlist items by project
 export const getPunchlistItemsByProject = async (
-  projectId: string, 
-  additionalFilters: Omit<PunchlistItemFilters, 'projectId'> = {}
+    projectId: string,
+    additionalFilters: Omit<PunchlistItemFilters, 'projectId'> = {}
 ) => {
-  return punchlistItemsApi.getPunchlistItems({ ...additionalFilters, projectId })
+    return punchlistItemsApi.getPunchlistItems({ ...additionalFilters, projectId })
 }
 
 // Get punchlist items by schedule project
 export const getPunchlistItemsByScheduleProject = async (
-  relatedScheduleProjectId: string, 
-  additionalFilters: Omit<PunchlistItemFilters, 'relatedScheduleProjectId'> = {}
+    relatedScheduleProjectId: string,
+    additionalFilters: Omit<PunchlistItemFilters, 'relatedScheduleProjectId'> = {}
 ) => {
-  return punchlistItemsApi.getPunchlistItems({ ...additionalFilters, relatedScheduleProjectId })
+    return punchlistItemsApi.getPunchlistItems({ ...additionalFilters, relatedScheduleProjectId })
 }
 
 // Get punchlist items by status
 export const getPunchlistItemsByStatus = async (
-  status: string, 
-  additionalFilters: Omit<PunchlistItemFilters, 'status'> = {}
+    status: string,
+    additionalFilters: Omit<PunchlistItemFilters, 'status'> = {}
 ) => {
-  return punchlistItemsApi.getPunchlistItems({ ...additionalFilters, status: status as any })
+    return punchlistItemsApi.getPunchlistItems({ ...additionalFilters, status: status as any })
 }
 
 // Get overdue punchlist items
 export const getOverduePunchlistItems = async (
-  additionalFilters: Omit<PunchlistItemFilters, 'isOverdue'> = {}
+    additionalFilters: Omit<PunchlistItemFilters, 'isOverdue'> = {}
 ) => {
-  return punchlistItemsApi.getPunchlistItems({ ...additionalFilters, isOverdue: true })
+    return punchlistItemsApi.getPunchlistItems({ ...additionalFilters, isOverdue: true })
 }
 
 // Get punchlist items requiring inspection
 export const getPunchlistItemsRequiringInspection = async (
-  additionalFilters: Omit<PunchlistItemFilters, 'requiresInspection'> = {}
+    additionalFilters: Omit<PunchlistItemFilters, 'requiresInspection'> = {}
 ) => {
-  return punchlistItemsApi.getPunchlistItems({ ...additionalFilters, requiresInspection: true })
+    return punchlistItemsApi.getPunchlistItems({ ...additionalFilters, requiresInspection: true })
 }

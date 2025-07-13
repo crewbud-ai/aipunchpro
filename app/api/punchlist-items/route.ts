@@ -264,7 +264,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
             {
                 success: true,
-                data: punchlistItemWithDetails,
+                data: {
+                    punchlistItem: punchlistItemWithDetails
+                },
                 message: 'Punchlist item created successfully.',
             },
             { status: 201 }
