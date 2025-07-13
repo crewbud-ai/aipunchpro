@@ -1,12 +1,20 @@
 // ==============================================
-// types/punchlist-items/create-punchlist-item.ts - Create Punchlist Item Types
+// types/punchlist-items/create-punchlist-item.ts - UPDATED FOR MULTIPLE ASSIGNMENTS
 // ==============================================
 
 import { z } from 'zod'
-import type { PunchlistItem, IssueType, PunchlistStatus, PunchlistPriority, TradeCategory } from './punchlist-item'
+import type { 
+    PunchlistItem, 
+    IssueType, 
+    PunchlistStatus, 
+    PunchlistPriority, 
+    TradeCategory,
+    AssignmentRole,
+    AssignmentInput 
+} from './punchlist-item'
 
 // ==============================================
-// VALIDATION SCHEMAS
+// VALIDATION SCHEMAS (UPDATED)
 // ==============================================
 export const createPunchlistItemSchema = z.object({
   projectId: z.string().uuid('Invalid project ID').min(1, 'Project is required'),
@@ -16,7 +24,13 @@ export const createPunchlistItemSchema = z.object({
   issueType: z.enum(['defect', 'incomplete', 'change_request', 'safety', 'quality', 'rework']),
   location: z.string().max(255, 'Location too long').optional(),
   roomArea: z.string().max(100, 'Room/area too long').optional(),
-  assignedProjectMemberId: z.string().uuid().optional(),
+  
+  // UPDATED: Multiple assignments
+  assignedMembers: z.array(z.object({
+    projectMemberId: z.string().uuid('Invalid project member ID'),
+    role: z.enum(['primary', 'secondary', 'inspector', 'supervisor']).default('primary')
+  })).min(0).max(5).default([]).optional(),
+  
   tradeCategory: z.enum(['general', 'electrical', 'plumbing', 'hvac', 'framing', 'drywall', 'flooring', 'painting', 'roofing', 'concrete', 'masonry', 'landscaping', 'cleanup']).optional(),
   priority: z.enum(['low', 'medium', 'high', 'critical']),
   status: z.enum(['open', 'assigned', 'in_progress', 'pending_review', 'completed', 'rejected', 'on_hold']).default('open'),
@@ -36,7 +50,7 @@ export function validateCreatePunchlistItem(data: unknown) {
 }
 
 // ==============================================
-// CREATE PUNCHLIST ITEM INTERFACES
+// CREATE PUNCHLIST ITEM INTERFACES (UPDATED)
 // ==============================================
 export interface CreatePunchlistItemData {
   projectId: string
@@ -49,8 +63,9 @@ export interface CreatePunchlistItemData {
   location?: string
   roomArea?: string
   
-  // Assignment
-  assignedProjectMemberId?: string
+  // UPDATED: Multiple assignments
+  assignedMembers?: AssignmentInput[]
+  
   tradeCategory?: TradeCategory
   
   // Priority & Status
@@ -93,7 +108,7 @@ export type CreatePunchlistItemState =
   | 'error'          // Creation failed
 
 // ==============================================
-// FORM DATA INTERFACE (for frontend forms)
+// FORM DATA INTERFACE (UPDATED)
 // ==============================================
 export interface CreatePunchlistItemFormData {
   // Step 1: Issue Information
@@ -103,10 +118,18 @@ export interface CreatePunchlistItemFormData {
   relatedScheduleProjectId: string
   issueType: IssueType | ''
   
-  // Step 2: Location & Assignment
+  // Step 2: Location & Assignment (UPDATED)
   location: string
   roomArea: string
-  assignedProjectMemberId: string
+  assignedMembers: Array<{
+    projectMemberId: string
+    role: AssignmentRole
+    user?: {
+      firstName: string
+      lastName: string
+      tradeSpecialty?: string
+    }
+  }>
   tradeCategory: TradeCategory | ''
   
   // Step 3: Priority & Timeline
@@ -129,7 +152,7 @@ export interface CreatePunchlistItemFormData {
 }
 
 // ==============================================
-// FORM ERRORS INTERFACE
+// FORM ERRORS INTERFACE (UPDATED)
 // ==============================================
 export interface CreatePunchlistItemFormErrors {
   // Issue Information errors
@@ -139,10 +162,10 @@ export interface CreatePunchlistItemFormErrors {
   relatedScheduleProjectId?: string
   issueType?: string
   
-  // Location & Assignment errors
+  // Location & Assignment errors (UPDATED)
   location?: string
   roomArea?: string
-  assignedProjectMemberId?: string
+  assignedMembers?: string  // For multiple assignments validation
   tradeCategory?: string
   
   // Priority & Timeline errors
@@ -162,7 +185,7 @@ export interface CreatePunchlistItemFormErrors {
 }
 
 // ==============================================
-// FORM STEP INTERFACES
+// FORM STEP INTERFACES (UPDATED)
 // ==============================================
 export interface CreatePunchlistItemStep {
   id: number
@@ -187,10 +210,10 @@ export const CREATE_PUNCHLIST_ITEM_STEPS: CreatePunchlistItemStep[] = [
   {
     id: 2,
     title: 'Location & Assignment',
-    description: 'Specify location and assign to team member',
-    fields: ['location', 'roomArea', 'assignedProjectMemberId', 'tradeCategory'],
+    description: 'Specify location and assign to team members',
+    fields: ['location', 'roomArea', 'assignedMembers', 'tradeCategory'],
     isOptional: false,
-    validation: (data) => Boolean(data.assignedProjectMemberId)
+    validation: (data) => Boolean(data.assignedMembers.length > 0)
   },
   {
     id: 3,
@@ -211,7 +234,7 @@ export const CREATE_PUNCHLIST_ITEM_STEPS: CreatePunchlistItemStep[] = [
 ]
 
 // ==============================================
-// DATA TRANSFORMATION FUNCTIONS
+// DATA TRANSFORMATION FUNCTIONS (UPDATED)
 // ==============================================
 export function transformCreateFormDataToApiData(
   formData: CreatePunchlistItemFormData
@@ -224,7 +247,10 @@ export function transformCreateFormDataToApiData(
     issueType: formData.issueType as IssueType,
     location: formData.location.trim() || undefined,
     roomArea: formData.roomArea.trim() || undefined,
-    assignedProjectMemberId: formData.assignedProjectMemberId || undefined,
+    assignedMembers: formData.assignedMembers.map(member => ({
+      projectMemberId: member.projectMemberId,
+      role: member.role
+    })),
     tradeCategory: formData.tradeCategory as TradeCategory || undefined,
     priority: formData.priority,
     status: formData.status,
@@ -246,10 +272,10 @@ export function getDefaultCreatePunchlistItemFormData(): CreatePunchlistItemForm
     relatedScheduleProjectId: '',
     issueType: '',
     
-    // Step 2: Location & Assignment
+    // Step 2: Location & Assignment (UPDATED)
     location: '',
     roomArea: '',
-    assignedProjectMemberId: '',
+    assignedMembers: [],
     tradeCategory: '',
     
     // Step 3: Priority & Timeline
@@ -285,7 +311,7 @@ export interface CreatePunchlistItemValidation {
 }
 
 // ==============================================
-// PROJECT MEMBER SELECTION INTERFACE
+// PROJECT MEMBER SELECTION INTERFACE (UPDATED)
 // ==============================================
 export interface ProjectMemberForPunchlist {
   id: string
@@ -323,7 +349,7 @@ export interface ScheduleProjectForPunchlist {
 }
 
 // ==============================================
-// FORM SUBMISSION INTERFACE
+// FORM SUBMISSION INTERFACE (UPDATED)
 // ==============================================
 export interface SubmitCreatePunchlistItemData {
   // Core data (cleaned and transformed)
@@ -334,7 +360,7 @@ export interface SubmitCreatePunchlistItemData {
   issueType: IssueType
   location?: string
   roomArea?: string
-  assignedProjectMemberId?: string
+  assignedMembers: AssignmentInput[]
   tradeCategory?: TradeCategory
   priority: PunchlistPriority
   status: PunchlistStatus
@@ -366,19 +392,6 @@ export interface PunchlistFileUploadResult {
 }
 
 // ==============================================
-// UTILITY TYPES
-// ==============================================
-
-// Form field validation state
-export type FieldValidationState = 'idle' | 'validating' | 'valid' | 'invalid'
-
-// Step completion status
-export type StepCompletionStatus = 'incomplete' | 'completed' | 'has_errors'
-
-// Form submission state
-export type FormSubmissionState = 'idle' | 'submitting' | 'success' | 'error'
-
-// ==============================================
 // DEFAULT VALUES
 // ==============================================
 export const DEFAULT_CREATE_PUNCHLIST_ITEM_FORM_DATA: CreatePunchlistItemFormData = {
@@ -389,10 +402,10 @@ export const DEFAULT_CREATE_PUNCHLIST_ITEM_FORM_DATA: CreatePunchlistItemFormDat
   relatedScheduleProjectId: '',
   issueType: '',
   
-  // Step 2: Location & Assignment
+  // Step 2: Location & Assignment (UPDATED)
   location: '',
   roomArea: '',
-  assignedProjectMemberId: '',
+  assignedMembers: [],
   tradeCategory: '',
   
   // Step 3: Priority & Timeline
@@ -413,44 +426,3 @@ export const DEFAULT_CREATE_PUNCHLIST_ITEM_FORM_DATA: CreatePunchlistItemFormDat
   hasUnsavedChanges: false,
   modifiedFields: []
 }
-
-// ==============================================
-// VALIDATION RULES
-// ==============================================
-export const CREATE_PUNCHLIST_ITEM_VALIDATION_RULES = {
-  title: {
-    required: true,
-    minLength: 3,
-    maxLength: 255
-  },
-  description: {
-    required: false,
-    maxLength: 1000
-  },
-  projectId: {
-    required: true,
-    format: 'uuid'
-  },
-  location: {
-    required: false,
-    maxLength: 255
-  },
-  roomArea: {
-    required: false,
-    maxLength: 100
-  },
-  estimatedHours: {
-    required: false,
-    min: 0.1,
-    max: 999.99
-  },
-  dueDate: {
-    required: false,
-    format: 'date',
-    minDate: 'today'
-  },
-  resolutionNotes: {
-    required: false,
-    maxLength: 1000
-  }
-} as const

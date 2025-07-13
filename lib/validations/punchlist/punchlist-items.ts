@@ -1,19 +1,33 @@
 // ==============================================
-// lib/validations/punchlist/punchlist-items.ts - Punchlist Items Validation Schemas
+// lib/validations/punchlist/punchlist-items.ts - UPDATED FOR MULTIPLE ASSIGNMENTS
 // ==============================================
 
 import { z } from 'zod'
 
 // ==============================================
-// ENUM CONSTANTS
+// ENUM CONSTANTS (UPDATED)
 // ==============================================
 export const ISSUE_TYPE = ['defect', 'incomplete', 'change_request', 'safety', 'quality', 'rework'] as const
 export const PUNCHLIST_STATUS = ['open', 'assigned', 'in_progress', 'pending_review', 'completed', 'rejected', 'on_hold'] as const
 export const PUNCHLIST_PRIORITY = ['low', 'medium', 'high', 'critical'] as const
 export const TRADE_CATEGORY = ['general', 'electrical', 'plumbing', 'hvac', 'framing', 'drywall', 'flooring', 'painting', 'roofing', 'concrete', 'masonry', 'landscaping', 'cleanup'] as const
+export const ASSIGNMENT_ROLE = ['primary', 'secondary', 'inspector', 'supervisor'] as const
 
 // ==============================================
-// CREATE PUNCHLIST ITEM VALIDATION SCHEMA
+// ASSIGNMENT OBJECT SCHEMA
+// ==============================================
+const assignmentSchema = z.object({
+  projectMemberId: z
+    .string()
+    .uuid('Invalid project member ID'),
+  
+  role: z
+    .enum(ASSIGNMENT_ROLE)
+    .default('primary'),
+})
+
+// ==============================================
+// CREATE PUNCHLIST ITEM VALIDATION SCHEMA (UPDATED)
 // ==============================================
 const baseCreatePunchlistItemSchema = z.object({
   projectId: z
@@ -53,9 +67,12 @@ const baseCreatePunchlistItemSchema = z.object({
     .max(100, 'Room/area must be less than 100 characters')
     .optional(),
 
-  assignedProjectMemberId: z
-    .string()
-    .uuid('Invalid project member ID')
+  // UPDATED: Multiple assignments with roles
+  assignedMembers: z
+    .array(assignmentSchema)
+    .min(0, 'At least 0 team members can be assigned')
+    .max(5, 'Cannot assign more than 5 team members')
+    .default([])
     .optional(),
 
   tradeCategory: z
@@ -117,9 +134,38 @@ export const createPunchlistItemSchema = baseCreatePunchlistItemSchema
       path: ['dueDate'],
     }
   )
+  .refine(
+    (data) => {
+      // Only one primary assignment allowed
+      if (data.assignedMembers && data.assignedMembers.length > 0) {
+        const primaryCount = data.assignedMembers.filter(a => a.role === 'primary').length
+        return primaryCount <= 1
+      }
+      return true
+    },
+    {
+      message: 'Only one primary assignee is allowed',
+      path: ['assignedMembers'],
+    }
+  )
+  .refine(
+    (data) => {
+      // No duplicate project member assignments
+      if (data.assignedMembers && data.assignedMembers.length > 0) {
+        const memberIds = data.assignedMembers.map(a => a.projectMemberId)
+        const uniqueIds = new Set(memberIds)
+        return uniqueIds.size === memberIds.length
+      }
+      return true
+    },
+    {
+      message: 'Cannot assign the same team member multiple times',
+      path: ['assignedMembers'],
+    }
+  )
 
 // ==============================================
-// UPDATE PUNCHLIST ITEM VALIDATION SCHEMA
+// UPDATE PUNCHLIST ITEM VALIDATION SCHEMA (UPDATED)
 // ==============================================
 export const updatePunchlistItemSchema = z.object({
   id: z
@@ -152,9 +198,11 @@ export const updatePunchlistItemSchema = z.object({
     .max(100, 'Room/area must be less than 100 characters')
     .optional(),
 
-  assignedProjectMemberId: z
-    .string()
-    .uuid('Invalid project member ID')
+  // UPDATED: Multiple assignments for updates
+  assignedMembers: z
+    .array(assignmentSchema)
+    .min(0, 'At least 0 team members can be assigned')
+    .max(5, 'Cannot assign more than 5 team members')
     .optional(),
 
   tradeCategory: z
@@ -230,9 +278,38 @@ export const updatePunchlistItemSchema = z.object({
     path: ['rejectionReason'],
   }
 )
+.refine(
+  (data) => {
+    // Only one primary assignment allowed in updates too
+    if (data.assignedMembers && data.assignedMembers.length > 0) {
+      const primaryCount = data.assignedMembers.filter(a => a.role === 'primary').length
+      return primaryCount <= 1
+    }
+    return true
+  },
+  {
+    message: 'Only one primary assignee is allowed',
+    path: ['assignedMembers'],
+  }
+)
+.refine(
+  (data) => {
+    // No duplicate project member assignments in updates
+    if (data.assignedMembers && data.assignedMembers.length > 0) {
+      const memberIds = data.assignedMembers.map(a => a.projectMemberId)
+      const uniqueIds = new Set(memberIds)
+      return uniqueIds.size === memberIds.length
+    }
+    return true
+  },
+  {
+    message: 'Cannot assign the same team member multiple times',
+    path: ['assignedMembers'],
+  }
+)
 
 // ==============================================
-// QUICK UPDATE STATUS SCHEMA
+// QUICK UPDATE STATUS SCHEMA (UNCHANGED)
 // ==============================================
 export const quickUpdatePunchlistStatusSchema = z.object({
   id: z
@@ -284,7 +361,7 @@ export const quickUpdatePunchlistStatusSchema = z.object({
 )
 
 // ==============================================
-// GET PUNCHLIST ITEMS SCHEMA (FILTERING & PAGINATION)
+// GET PUNCHLIST ITEMS SCHEMA (UPDATED)
 // ==============================================
 export const getPunchlistItemsSchema = z.object({
   limit: z
@@ -338,6 +415,7 @@ export const getPunchlistItemsSchema = z.object({
     .enum(TRADE_CATEGORY)
     .optional(),
 
+  // UPDATED: Filter by any assigned user ID
   assignedToUserId: z
     .string()
     .uuid('Invalid user ID')
@@ -373,7 +451,7 @@ export const getPunchlistItemsSchema = z.object({
 })
 
 // ==============================================
-// DATA TRANSFORMATION HELPERS
+// DATA TRANSFORMATION HELPERS (UPDATED)
 // ==============================================
 export function transformCreatePunchlistItemData(formData: any) {
   const apiData = {
@@ -384,7 +462,8 @@ export function transformCreatePunchlistItemData(formData: any) {
     issueType: formData.issueType,
     location: formData.location?.trim() || undefined,
     roomArea: formData.roomArea?.trim() || undefined,
-    assignedProjectMemberId: formData.assignedProjectMemberId || undefined,
+    // UPDATED: Transform multiple assignments
+    assignedMembers: formData.assignedMembers || [],
     tradeCategory: formData.tradeCategory || undefined,
     priority: formData.priority,
     status: formData.status || 'open',
@@ -400,15 +479,38 @@ export function transformCreatePunchlistItemData(formData: any) {
 }
 
 // ==============================================
-// TYPE EXPORTS
+// ASSIGNMENT MANAGEMENT SCHEMAS
+// ==============================================
+export const addAssignmentSchema = z.object({
+  punchlistItemId: z.string().uuid('Invalid punchlist item ID'),
+  projectMemberId: z.string().uuid('Invalid project member ID'),
+  role: z.enum(ASSIGNMENT_ROLE).default('primary'),
+})
+
+export const removeAssignmentSchema = z.object({
+  punchlistItemId: z.string().uuid('Invalid punchlist item ID'),
+  projectMemberId: z.string().uuid('Invalid project member ID'),
+})
+
+export const updateAssignmentRoleSchema = z.object({
+  punchlistItemId: z.string().uuid('Invalid punchlist item ID'),
+  projectMemberId: z.string().uuid('Invalid project member ID'),
+  role: z.enum(ASSIGNMENT_ROLE),
+})
+
+// ==============================================
+// TYPE EXPORTS (UPDATED)
 // ==============================================
 export type CreatePunchlistItemInput = z.infer<typeof createPunchlistItemSchema>
 export type UpdatePunchlistItemInput = z.infer<typeof updatePunchlistItemSchema>
 export type QuickUpdatePunchlistStatusInput = z.infer<typeof quickUpdatePunchlistStatusSchema>
 export type GetPunchlistItemsInput = z.infer<typeof getPunchlistItemsSchema>
+export type AddAssignmentInput = z.infer<typeof addAssignmentSchema>
+export type RemoveAssignmentInput = z.infer<typeof removeAssignmentSchema>
+export type UpdateAssignmentRoleInput = z.infer<typeof updateAssignmentRoleSchema>
 
 // ==============================================
-// VALIDATION HELPER FUNCTIONS
+// VALIDATION HELPER FUNCTIONS (UPDATED)
 // ==============================================
 export function validateCreatePunchlistItem(data: unknown) {
   return createPunchlistItemSchema.safeParse(data)
@@ -426,8 +528,20 @@ export function validateGetPunchlistItems(data: unknown) {
   return getPunchlistItemsSchema.safeParse(data)
 }
 
+export function validateAddAssignment(data: unknown) {
+  return addAssignmentSchema.safeParse(data)
+}
+
+export function validateRemoveAssignment(data: unknown) {
+  return removeAssignmentSchema.safeParse(data)
+}
+
+export function validateUpdateAssignmentRole(data: unknown) {
+  return updateAssignmentRoleSchema.safeParse(data)
+}
+
 // ==============================================
-// VALIDATION ERROR FORMATTER
+// VALIDATION ERROR FORMATTER (UNCHANGED)
 // ==============================================
 export function formatPunchlistItemErrors(errors: z.ZodError) {
   return errors.errors.map((error) => ({

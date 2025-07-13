@@ -55,7 +55,7 @@ export async function GET(
         }
 
         const punchlistItemId = params.id
-
+        
         if (!punchlistItemId) {
             return NextResponse.json(
                 {
@@ -72,6 +72,7 @@ export async function GET(
 
         // Check if punchlist item exists and belongs to company
         const punchlistItemExists = await punchlistService.checkPunchlistItemExists(punchlistItemId, companyId)
+
         if (!punchlistItemExists) {
             return NextResponse.json(
                 {
@@ -100,7 +101,9 @@ export async function GET(
         return NextResponse.json(
             {
                 success: true,
-                data: punchlistItem,
+                data: {
+                    punchlistItem: punchlistItem
+                },
                 message: 'Punchlist item retrieved successfully.',
             },
             { status: 200 }

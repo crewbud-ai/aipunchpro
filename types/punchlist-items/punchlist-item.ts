@@ -1,5 +1,5 @@
 // ==============================================
-// types/punchlist-items/punchlist-item.ts - Punchlist Item Types
+// types/punchlist-items/punchlist-item.ts - UPDATED FOR MULTIPLE ASSIGNMENTS
 // ==============================================
 
 import { z } from 'zod'
@@ -43,7 +43,7 @@ export const PUNCHLIST_PRIORITY = [
 
 export type PunchlistPriority = typeof PUNCHLIST_PRIORITY[number]
 
-// Trade Categories (matching your existing patterns)
+// Trade Categories
 export const TRADE_CATEGORY = [
   'general',
   'electrical',
@@ -62,60 +62,42 @@ export const TRADE_CATEGORY = [
 
 export type TradeCategory = typeof TRADE_CATEGORY[number]
 
-export interface PunchlistItemSummary {
+// NEW: Assignment Roles
+export const ASSIGNMENT_ROLE = [
+  'primary',      // Main responsible person
+  'secondary',    // Helper/assistant
+  'inspector',    // Quality control
+  'supervisor'    // Oversight
+] as const
+
+export type AssignmentRole = typeof ASSIGNMENT_ROLE[number]
+
+// ==============================================
+// ASSIGNMENT INTERFACES
+// ==============================================
+export interface PunchlistItemAssignment {
   id: string
-  companyId: string
-  projectId: string
-  relatedScheduleProjectId?: string
-  
-  // Issue Details
-  title: string
-  description?: string
-  issueType: IssueType
-  location?: string
-  
-  // Assignment 
-  assignedProjectMemberId?: string
-  tradeCategory?: TradeCategory
-  reportedBy: string
-  
-  // Priority & Status
-  priority: PunchlistPriority
-  status: PunchlistStatus
-  
-  // Quality Control (added for analytics)
-  requiresInspection?: boolean
-  
-  // Timeline
-  dueDate?: string
-  estimatedHours?: number
-  
-  // Metadata
-  createdAt: string
-  updatedAt: string
-  
-  // Basic related info for list view
-  project?: {
-    id: string
-    name: string
-    status: string
-  }
-  assignedProjectMember?: {
-    id: string
-    user: {
-      firstName: string
-      lastName: string
-      tradeSpecialty?: string
-    }
-  }
-  reporter?: {
+  projectMemberId: string
+  role: AssignmentRole
+  assignedAt: string
+  assignedBy: string
+  isActive: boolean
+  user: {
     firstName: string
     lastName: string
+    email: string
+    tradeSpecialty?: string
   }
+  hourlyRate?: number
+}
+
+export interface AssignmentInput {
+  projectMemberId: string
+  role?: AssignmentRole
 }
 
 // ==============================================
-// CORE PUNCHLIST ITEM INTERFACE
+// CORE PUNCHLIST ITEM INTERFACE (UPDATED)
 // ==============================================
 export interface PunchlistItem {
   id: string
@@ -130,8 +112,9 @@ export interface PunchlistItem {
   location?: string
   roomArea?: string
   
-  // Assignment (Single project member)
-  assignedProjectMemberId?: string
+  // REMOVED: Single assignment
+  // assignedProjectMemberId?: string // REMOVED
+  
   tradeCategory?: TradeCategory
   reportedBy: string
   
@@ -163,11 +146,10 @@ export interface PunchlistItem {
   createdAt: string
   updatedAt: string
   completedAt?: string
-  assignedAt?: string
 }
 
 // ==============================================
-// PUNCHLIST ITEM WITH RELATIONSHIPS
+// PUNCHLIST ITEM WITH RELATIONSHIPS (UPDATED)
 // ==============================================
 export interface PunchlistItemWithDetails extends PunchlistItem {
   // Project relationship
@@ -187,24 +169,22 @@ export interface PunchlistItemWithDetails extends PunchlistItem {
     endDate: string
   }
   
-  // Assigned team member
-  assignedProjectMember?: {
+  // NEW: Multiple assignments
+  assignedMembers?: PunchlistItemAssignment[]
+  
+  // DEPRECATED: Keep for backward compatibility
+  assignedMember?: {
     id: string
     userId: string
     user: {
-      id: string
       firstName: string
       lastName: string
-      email: string
       tradeSpecialty?: string
     }
-    hourlyRate?: number
-    role: string
   }
   
   // Reporter details
   reporter?: {
-    id: string
     firstName: string
     lastName: string
     email: string
@@ -212,7 +192,6 @@ export interface PunchlistItemWithDetails extends PunchlistItem {
   
   // Inspector details  
   inspector?: {
-    id: string
     firstName: string
     lastName: string
     email: string
@@ -220,7 +199,61 @@ export interface PunchlistItemWithDetails extends PunchlistItem {
 }
 
 // ==============================================
-// PUNCHLIST ITEM FILTERS & SEARCH
+// SUMMARY INTERFACE (UPDATED)
+// ==============================================
+export interface PunchlistItemSummary {
+  id: string
+  companyId: string
+  projectId: string
+  relatedScheduleProjectId?: string
+  
+  // Issue Details
+  title: string
+  description?: string
+  issueType: IssueType
+  location?: string
+  
+  // UPDATED: Multiple assignment info
+  assignedMemberCount: number
+  assignedMemberNames: string[]
+  primaryAssignee?: {
+    id: string
+    name: string
+    tradeSpecialty?: string
+  }
+  
+  tradeCategory?: TradeCategory
+  reportedBy: string
+  
+  // Priority & Status
+  priority: PunchlistPriority
+  status: PunchlistStatus
+  
+  // Quality Control (added for analytics)
+  requiresInspection?: boolean
+  
+  // Timeline
+  dueDate?: string
+  estimatedHours?: number
+  
+  // Metadata
+  createdAt: string
+  updatedAt: string
+  
+  // Basic related info for list view
+  project?: {
+    id: string
+    name: string
+    status: string
+  }
+  reporter?: {
+    firstName: string
+    lastName: string
+  }
+}
+
+// ==============================================
+// PUNCHLIST ITEM FILTERS & SEARCH (UPDATED)
 // ==============================================
 export interface PunchlistItemFilters {
   // Basic filters
@@ -231,8 +264,8 @@ export interface PunchlistItemFilters {
   issueType?: IssueType
   tradeCategory?: TradeCategory
   
-  // Assignment filters
-  assignedToUserId?: string
+  // Assignment filters (UPDATED)
+  assignedToUserId?: string  // Any user assigned to the item
   reportedBy?: string
   
   // Date filters
@@ -257,49 +290,272 @@ export interface PunchlistItemFilters {
 }
 
 // ==============================================
-// PUNCHLIST ITEM STATES
+// CREATE INTERFACES (UPDATED)
 // ==============================================
-export type PunchlistItemsState = 
-  | 'loading'        // Loading punchlist items list
-  | 'loaded'         // Punchlist items loaded successfully
-  | 'error'          // Error loading punchlist items
-  | 'empty'          // No punchlist items found
+export interface CreatePunchlistItemData {
+  projectId: string
+  relatedScheduleProjectId?: string
+  
+  // Issue Details
+  title: string
+  description?: string
+  issueType: IssueType
+  location?: string
+  roomArea?: string
+  
+  // UPDATED: Multiple assignments
+  assignedMembers?: AssignmentInput[]
+  
+  tradeCategory?: TradeCategory
+  
+  // Priority & Status
+  priority: PunchlistPriority
+  status?: PunchlistStatus
+  
+  // Media & Documentation
+  photos?: string[]
+  attachments?: string[]
+  
+  // Scheduling & Estimates
+  dueDate?: string
+  estimatedHours?: number
+  
+  // Quality Control
+  requiresInspection?: boolean
+  
+  // Additional Notes
+  resolutionNotes?: string
+}
 
-export type PunchlistItemState = 
-  | 'loading'        // Loading single punchlist item
-  | 'loaded'         // Punchlist item loaded
-  | 'error'          // Error loading punchlist item
-  | 'not_found'      // Punchlist item not found
+export interface CreatePunchlistItemResult {
+  success: boolean
+  message: string
+  data: {
+    punchlistItem: PunchlistItemWithDetails
+  }
+  notifications?: {
+    message: string
+  }
+}
 
 // ==============================================
-// FILTERS FORM DATA (for UI)
+// UPDATE INTERFACES (UPDATED)
 // ==============================================
-export interface PunchlistItemFiltersFormData {
+export interface UpdatePunchlistItemData {
+  id: string
+  title?: string
+  description?: string
+  issueType?: IssueType
+  location?: string
+  roomArea?: string
+  
+  // UPDATED: Multiple assignments
+  assignedMembers?: AssignmentInput[]
+  
+  tradeCategory?: TradeCategory
+  priority?: PunchlistPriority
+  status?: PunchlistStatus
+  dueDate?: string
+  estimatedHours?: number
+  actualHours?: number
+  resolutionNotes?: string
+  rejectionReason?: string
+  requiresInspection?: boolean
+  inspectionPassed?: boolean
+  inspectionNotes?: string
+  photos?: string[]
+  attachments?: string[]
+}
+
+export interface UpdatePunchlistItemResult {
+  success: boolean
+  message: string
+  data: {
+    punchlistItem: PunchlistItemWithDetails
+  }
+  notifications?: {
+    message: string
+  }
+}
+
+// ==============================================
+// ASSIGNMENT MANAGEMENT INTERFACES (NEW)
+// ==============================================
+export interface AddAssignmentData {
+  punchlistItemId: string
+  projectMemberId: string
+  role?: AssignmentRole
+}
+
+export interface RemoveAssignmentData {
+  punchlistItemId: string
+  projectMemberId: string
+}
+
+export interface UpdateAssignmentRoleData {
+  punchlistItemId: string
+  projectMemberId: string
+  role: AssignmentRole
+}
+
+export interface AssignmentResult {
+  success: boolean
+  message: string
+  data: {
+    assignment: PunchlistItemAssignment
+  }
+}
+
+// ==============================================
+// QUICK STATUS UPDATE (UNCHANGED)
+// ==============================================
+export interface QuickUpdatePunchlistStatusData {
+  id: string
+  status: PunchlistStatus
+  actualHours?: number
+  resolutionNotes?: string
+  rejectionReason?: string
+  inspectionPassed?: boolean
+  inspectionNotes?: string
+}
+
+export interface QuickUpdatePunchlistStatusResult {
+  success: boolean
+  message: string
+  data: {
+    punchlistItem: PunchlistItemWithDetails
+  }
+}
+
+// ==============================================
+// QUERY RESULTS (UPDATED)
+// ==============================================
+export interface GetPunchlistItemsResult {
+  success: boolean
+  message: string
+  data: {
+    punchlistItems: PunchlistItemSummary[]
+    pagination: {
+      total: number
+      limit: number
+      offset: number
+      hasMore: boolean
+    }
+    filters?: PunchlistItemFilters
+  }
+  notifications?: {
+    message: string
+  }
+}
+
+export interface GetPunchlistItemResult {
+  success: boolean
+  message: string
+  data: {
+    punchlistItem: PunchlistItemWithDetails
+  }
+  notifications?: {
+    message: string
+  }
+}
+
+export interface DeletePunchlistItemResult {
+  success: boolean
+  message: string
+  data: {
+    deletedPunchlistItemId: string
+  }
+  notifications?: {
+    message: string
+  }
+}
+
+// ==============================================
+// FORM DATA INTERFACES (UPDATED)
+// ==============================================
+export interface CreatePunchlistItemFormData {
+  // Step 1: Issue Information
+  title: string
+  description: string
   projectId: string
   relatedScheduleProjectId: string
-  status: string
-  priority: string
-  issueType: string
-  tradeCategory: string
-  assignedToUserId: string
-  reportedBy: string
-  dueDateFrom: string
-  dueDateTo: string
-  requiresInspection: string
-  isOverdue: string
-  search: string
-  sortBy: 'title' | 'status' | 'priority' | 'issueType' | 'dueDate' | 'createdAt'
-  sortOrder: 'asc' | 'desc'
+  issueType: IssueType | ''
+  
+  // Step 2: Location & Assignment (UPDATED)
+  location: string
+  roomArea: string
+  assignedMembers: Array<{
+    projectMemberId: string
+    role: AssignmentRole
+    user?: {
+      firstName: string
+      lastName: string
+      tradeSpecialty?: string
+    }
+  }>
+  tradeCategory: TradeCategory | ''
+  
+  // Step 3: Priority & Timeline
+  priority: PunchlistPriority
+  status: PunchlistStatus
+  dueDate: string
+  estimatedHours: number | ''
+  
+  // Step 4: Quality & Documentation
+  requiresInspection: boolean
+  photos: string[]
+  attachments: string[]
+  resolutionNotes: string
+
+  // UI state helpers
+  currentStep: number
+  completedSteps: number[]
+  hasUnsavedChanges?: boolean
+  modifiedFields?: string[]
+}
+
+export interface UpdatePunchlistItemFormData {
+  id: string
+  title: string
+  description: string
+  issueType: IssueType | ''
+  location: string
+  roomArea: string
+  
+  // UPDATED: Multiple assignments
+  assignedMembers: Array<{
+    projectMemberId: string
+    role: AssignmentRole
+    user?: {
+      firstName: string
+      lastName: string
+      tradeSpecialty?: string
+    }
+  }>
+  
+  tradeCategory: TradeCategory | ''
+  priority: PunchlistPriority
+  status: PunchlistStatus
+  dueDate: string
+  estimatedHours: number | ''
+  actualHours: number | ''
+  resolutionNotes: string
+  rejectionReason: string
+  requiresInspection: boolean
+  inspectionPassed: boolean | ''
+  inspectionNotes: string
+  photos: string[]
+  attachments: string[]
+  
+  // UI state
+  hasUnsavedChanges?: boolean
+  modifiedFields?: string[]
+  originalData?: PunchlistItemWithDetails
 }
 
 // ==============================================
-// ERROR TYPES
+// FORM ERRORS (UPDATED)
 // ==============================================
-export interface PunchlistItemFieldError {
-  field: string
-  message: string
-}
-
 export interface PunchlistItemFieldErrors {
   title?: string
   description?: string
@@ -308,7 +564,7 @@ export interface PunchlistItemFieldErrors {
   issueType?: string
   location?: string
   roomArea?: string
-  assignedProjectMemberId?: string
+  assignedMembers?: string  // UPDATED: For multiple assignments
   tradeCategory?: string
   priority?: string
   status?: string
@@ -329,72 +585,7 @@ export interface PunchlistItemFieldErrors {
 }
 
 // ==============================================
-// PUNCHLIST ITEM LIST RESPONSE
-// ==============================================
-export interface GetPunchlistItemsResult {
-  success: boolean
-  message: string
-  data: {
-    punchlistItems: PunchlistItemSummary[]
-    pagination: {
-      total: number
-      limit: number
-      offset: number
-      hasMore: boolean
-    }
-    filters?: {
-      projectId?: string
-      relatedScheduleProjectId?: string
-      status?: PunchlistStatus
-      priority?: PunchlistPriority
-      issueType?: IssueType
-      tradeCategory?: TradeCategory
-      assignedToUserId?: string
-      reportedBy?: string
-      dueDateFrom?: string
-      dueDateTo?: string
-      requiresInspection?: boolean
-      isOverdue?: boolean
-      search?: string
-      sortBy?: string
-      sortOrder?: 'asc' | 'desc'
-    }
-  }
-  notifications?: {
-    message: string
-  }
-}
-
-// ==============================================
-// SINGLE PUNCHLIST ITEM RESPONSE
-// ==============================================
-export interface GetPunchlistItemResult {
-  success: boolean
-  message: string
-  data: {
-    punchlistItem: PunchlistItemWithDetails
-  }
-  notifications?: {
-    message: string
-  }
-}
-
-// ==============================================
-// DELETE PUNCHLIST ITEM RESPONSE
-// ==============================================
-export interface DeletePunchlistItemResult {
-  success: boolean
-  message: string
-  data: {
-    deletedPunchlistItemId: string
-  }
-  notifications?: {
-    message: string
-  }
-}
-
-// ==============================================
-// PUNCHLIST ITEM STATISTICS
+// STATISTICS (UPDATED)
 // ==============================================
 export interface PunchlistItemStats {
   total: number
@@ -425,10 +616,17 @@ export interface PunchlistItemStats {
   overdueItems: number
   requiresInspection: number
   completionRate: number
+  // NEW: Assignment statistics
+  assignmentStats: {
+    totalAssignments: number
+    multipleAssignments: number
+    unassignedItems: number
+    averageAssignmentsPerItem: number
+  }
 }
 
 // ==============================================
-// FORM OPTION INTERFACES
+// OPTION INTERFACES
 // ==============================================
 export interface IssueTypeOption {
   value: IssueType
@@ -454,8 +652,15 @@ export interface TradeCategoryOption {
   icon?: string
 }
 
+export interface AssignmentRoleOption {
+  value: AssignmentRole
+  label: string
+  description?: string
+  color?: string
+}
+
 // ==============================================
-// FORM OPTIONS DATA
+// FORM OPTIONS DATA (UPDATED)
 // ==============================================
 export const ISSUE_TYPE_OPTIONS: IssueTypeOption[] = [
   { value: 'defect', label: 'Defect', description: 'Work that needs to be fixed or corrected' },
@@ -499,8 +704,16 @@ export const TRADE_CATEGORY_OPTIONS: TradeCategoryOption[] = [
   { value: 'cleanup', label: 'Cleanup', icon: 'Trash2' }
 ]
 
+// NEW: Assignment role options
+export const ASSIGNMENT_ROLE_OPTIONS: AssignmentRoleOption[] = [
+  { value: 'primary', label: 'Primary', description: 'Main responsible person', color: 'blue' },
+  { value: 'secondary', label: 'Secondary', description: 'Helper/assistant', color: 'gray' },
+  { value: 'inspector', label: 'Inspector', description: 'Quality control', color: 'green' },
+  { value: 'supervisor', label: 'Supervisor', description: 'Oversight', color: 'purple' }
+]
+
 // ==============================================
-// UTILITY FUNCTIONS
+// UTILITY FUNCTIONS (UPDATED)
 // ==============================================
 export const getPunchlistStatusColor = (status: PunchlistStatus): string => {
   const statusOption = PUNCHLIST_STATUS_OPTIONS.find(option => option.value === status)
@@ -522,6 +735,16 @@ export const getTradeCategoryLabel = (tradeCategory: TradeCategory): string => {
   return tradeOption?.label || tradeCategory
 }
 
+export const getAssignmentRoleLabel = (role: AssignmentRole): string => {
+  const roleOption = ASSIGNMENT_ROLE_OPTIONS.find(option => option.value === role)
+  return roleOption?.label || role
+}
+
+export const getAssignmentRoleColor = (role: AssignmentRole): string => {
+  const roleOption = ASSIGNMENT_ROLE_OPTIONS.find(option => option.value === role)
+  return roleOption?.color || 'gray'
+}
+
 // ==============================================
 // VALIDATION HELPERS
 // ==============================================
@@ -539,4 +762,103 @@ export const isValidIssueType = (issueType: string): issueType is IssueType => {
 
 export const isValidTradeCategory = (tradeCategory: string): tradeCategory is TradeCategory => {
   return TRADE_CATEGORY.includes(tradeCategory as TradeCategory)
+}
+
+export const isValidAssignmentRole = (role: string): role is AssignmentRole => {
+  return ASSIGNMENT_ROLE.includes(role as AssignmentRole)
+}
+
+// ==============================================
+// HELPER FUNCTIONS FOR ASSIGNMENTS
+// ==============================================
+export const getPrimaryAssignee = (assignments: PunchlistItemAssignment[]): PunchlistItemAssignment | undefined => {
+  return assignments.find(assignment => assignment.role === 'primary')
+}
+
+export const getSecondaryAssignees = (assignments: PunchlistItemAssignment[]): PunchlistItemAssignment[] => {
+  return assignments.filter(assignment => assignment.role !== 'primary')
+}
+
+export const getAssigneesByRole = (assignments: PunchlistItemAssignment[], role: AssignmentRole): PunchlistItemAssignment[] => {
+  return assignments.filter(assignment => assignment.role === role)
+}
+
+export const formatAssigneeNames = (assignments: PunchlistItemAssignment[]): string[] => {
+  return assignments.map(assignment => `${assignment.user.firstName} ${assignment.user.lastName}`)
+}
+
+export const getAssignmentSummary = (assignments: PunchlistItemAssignment[]): string => {
+  if (assignments.length === 0) return 'Unassigned'
+  if (assignments.length === 1) return `${assignments[0].user.firstName} ${assignments[0].user.lastName}`
+  
+  const primary = getPrimaryAssignee(assignments)
+  if (primary) {
+    const others = assignments.length - 1
+    return `${primary.user.firstName} ${primary.user.lastName}${others > 0 ? ` +${others} other${others > 1 ? 's' : ''}` : ''}`
+  }
+  
+  return `${assignments.length} members assigned`
+}
+
+// ==============================================
+// FORM STATE TYPES
+// ==============================================
+export type CreatePunchlistItemState = 
+  | 'idle'           // Initial state
+  | 'loading'        // Creating punchlist item
+  | 'success'        // Punchlist item created
+  | 'error'          // Creation failed
+
+export type UpdatePunchlistItemState = 
+  | 'idle'           // Initial state
+  | 'loading'        // Updating punchlist item
+  | 'success'        // Punchlist item updated
+  | 'error'          // Update failed
+
+export type PunchlistItemsState = 
+  | 'loading'        // Loading punchlist items list
+  | 'loaded'         // Punchlist items loaded successfully
+  | 'error'          // Error loading punchlist items
+  | 'empty'          // No punchlist items found
+
+export type PunchlistItemState = 
+  | 'loading'        // Loading single punchlist item
+  | 'loaded'         // Punchlist item loaded
+  | 'error'          // Error loading punchlist item
+  | 'not_found'      // Punchlist item not found
+
+// ==============================================
+// FILE UPLOAD INTERFACES
+// ==============================================
+export interface PhotoUploadResult {
+  success: boolean
+  url?: string
+  error?: string
+}
+
+export interface BulkPhotoUploadResult {
+  success: boolean
+  urls: string[]
+  errors?: string[]
+}
+
+// ==============================================
+// FILTERS FORM DATA (UPDATED)
+// ==============================================
+export interface PunchlistItemFiltersFormData {
+  projectId: string
+  relatedScheduleProjectId: string
+  status: string
+  priority: string
+  issueType: string
+  tradeCategory: string
+  assignedToUserId: string  // UPDATED: Any assigned user
+  reportedBy: string
+  dueDateFrom: string
+  dueDateTo: string
+  requiresInspection: string
+  isOverdue: string
+  search: string
+  sortBy: 'title' | 'status' | 'priority' | 'issueType' | 'dueDate' | 'createdAt'
+  sortOrder: 'asc' | 'desc'
 }

@@ -1,139 +1,18 @@
 // ==============================================
-// src/app/api/punchlist-items/route.ts - Punchlist Items API Routes
+// app/api/punchlist-items/route.ts - UPDATED FOR MULTIPLE ASSIGNMENTS
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
 import {
     validateCreatePunchlistItem,
-    validateGetPunchlistItems,
     formatPunchlistItemErrors,
-    transformCreatePunchlistItemData,
 } from '@/lib/validations/punchlist/punchlist-items'
 import { PunchlistItemDatabaseService } from '@/lib/database/services/punchlist-items'
 import { ProjectDatabaseService } from '@/lib/database/services/projects'
 import { ScheduleProjectDatabaseService } from '@/lib/database/services/schedule-projects'
 
 // ==============================================
-// HELPER FUNCTION - Status Transformation
-// ==============================================
-function transformStatusForDatabase(frontendStatus?: string): 'open' | 'assigned' | 'in_progress' | 'completed' | 'rejected' {
-    switch (frontendStatus) {
-        case 'pending_review':
-            return 'in_progress' // Map pending_review to in_progress for database
-        case 'on_hold':
-            return 'assigned' // Map on_hold to assigned for database
-        case 'open':
-        case 'assigned':
-        case 'in_progress':
-        case 'completed':
-        case 'rejected':
-            return frontendStatus as any
-        default:
-            return 'open'
-    }
-}
-
-// ==============================================
-// GET /api/punchlist-items - Get All Punchlist Items for Company
-// ==============================================
-export async function GET(request: NextRequest) {
-    try {
-        // Get user info from middleware
-        const userId = request.headers.get('x-user-id')
-        const companyId = request.headers.get('x-company-id')
-
-        if (!userId || !companyId) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    error: 'Authentication required',
-                    message: 'You must be logged in to view punchlist items.',
-                },
-                { status: 401 }
-            )
-        }
-
-        // Parse query parameters - ✅ FIXED: Following schedule pattern exactly
-        const url = new URL(request.url)
-        const queryParams = {
-            projectId: url.searchParams.get('projectId') || undefined,
-            relatedScheduleProjectId: url.searchParams.get('relatedScheduleProjectId') || undefined,
-            status: url.searchParams.get('status') || undefined,
-            priority: url.searchParams.get('priority') || undefined,
-            issueType: url.searchParams.get('issueType') || undefined,
-            tradeCategory: url.searchParams.get('tradeCategory') || undefined,
-            assignedToUserId: url.searchParams.get('assignedToUserId') || undefined,
-            reportedBy: url.searchParams.get('reportedBy') || undefined,
-            dueDateFrom: url.searchParams.get('dueDateFrom') || undefined,
-            dueDateTo: url.searchParams.get('dueDateTo') || undefined,
-            requiresInspection: url.searchParams.get('requiresInspection') === 'true' ? true : undefined,
-            isOverdue: url.searchParams.get('isOverdue') === 'true' ? true : undefined,
-            search: url.searchParams.get('search') || undefined,
-            limit: url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit')!) : 20,
-            offset: url.searchParams.get('offset') ? parseInt(url.searchParams.get('offset')!) : 0,
-            sortBy: url.searchParams.get('sortBy') || 'createdAt',
-            sortOrder: url.searchParams.get('sortOrder') || 'desc',
-        }
-
-        // Validate query parameters
-        const validation = validateGetPunchlistItems(queryParams)
-        if (!validation.success) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    error: 'Invalid query parameters',
-                    details: formatPunchlistItemErrors(validation.error),
-                },
-                { status: 400 }
-            )
-        }
-
-        // Create service instance
-        const punchlistService = new PunchlistItemDatabaseService(true, false)
-
-        // Transform validation data for database service
-        const { status, ...otherFilters } = validation.data
-
-        const databaseFilters = {
-            ...otherFilters,
-            // Transform status filter for database compatibility
-            ...(status && { status: transformStatusForDatabase(status) }),
-        }
-
-        // Get punchlist items with filters
-        const result = await punchlistService.getPunchlistItems(companyId, databaseFilters)
-
-        return NextResponse.json(
-            {
-                success: true,
-                data: {
-                    punchlistItems: result.data,
-                    pagination: {
-                        total: result.totalCount,
-                        limit: validation.data.limit || 20,
-                        offset: validation.data.offset || 0,
-                        hasMore: result.totalCount > ((validation.data.offset || 0) + (validation.data.limit || 20)),
-                    }
-                },
-                message: 'Punchlist items retrieved successfully.',
-            },
-            { status: 200 }
-        )
-    } catch (error) {
-        console.error('Error in GET /api/punchlist-items:', error)
-        return NextResponse.json(
-            {
-                success: false,
-                error: 'Internal server error',
-                message: 'An unexpected error occurred while fetching punchlist items.',
-            },
-            { status: 500 }
-        )
-    }
-}
-
-// ==============================================
-// POST /api/punchlist-items - Create New Punchlist Item
+// POST /api/punchlist-items - Create New Punchlist Item (UPDATED)
 // ==============================================
 export async function POST(request: NextRequest) {
     try {
@@ -201,35 +80,52 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Verify assigned project member if provided
-        if (validation.data.assignedProjectMemberId) {
+        // UPDATED: Verify assigned project members if provided
+        let validatedAssignments: Array<{
+            projectMemberId: string
+            role: 'primary' | 'secondary' | 'inspector' | 'supervisor'
+        }> = []
 
+        if (validation.data.assignedMembers && validation.data.assignedMembers.length > 0) {
             try {
                 const projectMembers = await punchlistService.getProjectMembersForProject(validation.data.projectId, companyId)
+                const projectMemberIds = projectMembers.map(pm => pm.id)
 
-                // CHANGED: Check if the user_id exists in project members (not project_member_id)
-                const assignedMember = projectMembers.find(pm => pm.user_id === validation.data.assignedProjectMemberId)
+                // Validate each assignment
+                for (const assignment of validation.data.assignedMembers) {
+                    if (!projectMemberIds.includes(assignment.projectMemberId)) {
+                        return NextResponse.json(
+                            {
+                                success: false,
+                                error: 'Invalid assignment',
+                                message: `Project member ${assignment.projectMemberId} is not assigned to this project.`,
+                                debug: {
+                                    invalidMemberId: assignment.projectMemberId,
+                                    availableMembers: projectMemberIds
+                                }
+                            },
+                            { status: 400 }
+                        )
+                    }
 
-                if (!assignedMember) {
+                    validatedAssignments.push({
+                        projectMemberId: assignment.projectMemberId,
+                        role: assignment.role || 'primary'
+                    })
+                }
+
+                // Ensure only one primary assignment
+                const primaryCount = validatedAssignments.filter(a => a.role === 'primary').length
+                if (primaryCount > 1) {
                     return NextResponse.json(
                         {
                             success: false,
-                            error: 'Invalid assignment',
-                            message: 'The specified user is not assigned to this project.',
-                            debug: {
-                                sentUserId: validation.data.assignedProjectMemberId,
-                                availableUsers: projectMembers.map(pm => ({
-                                    user_id: pm.user_id,
-                                    // name: `${pm.user?.first_name} ${pm.user?.last_name}`
-                                }))
-                            }
+                            error: 'Invalid assignments',
+                            message: 'Only one primary assignee is allowed per punchlist item.',
                         },
                         { status: 400 }
                     )
                 }
-
-                // IMPORTANT: Replace the user_id with the actual project_member_id for database storage
-                validation.data.assignedProjectMemberId = assignedMember.id
 
             } catch (memberError) {
                 console.error('🚨 Error fetching project members:', memberError)
@@ -237,22 +133,23 @@ export async function POST(request: NextRequest) {
                     {
                         success: false,
                         error: 'Database error',
-                        message: 'Failed to verify user assignment.',
-                        // debug: { originalError: memberError.message }
+                        message: 'Failed to verify project member assignments.',
                     },
                     { status: 500 }
                 )
             }
         }
 
-        // Transform form data for database (handle status mapping)
-        const { status, ...validationDataWithoutStatus } = validation.data
+        // Transform form data for database with proper typing
+        const { status, assignedMembers, ...validationDataWithoutStatusAndMembers } = validation.data
         const punchlistData = {
-            ...validationDataWithoutStatus,
+            ...validationDataWithoutStatusAndMembers,
             companyId,
             reportedBy: userId,
-            // Transform status for database compatibility
-            status: transformStatusForDatabase(status),
+            // Transform status for database compatibility with proper typing
+            status: transformStatusForDatabase(status) as 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'rejected' | 'on_hold',
+            // Use validated assignments
+            assignedMembers: validatedAssignments,
         }
 
         // Create punchlist item
@@ -308,4 +205,103 @@ export async function POST(request: NextRequest) {
             { status: 500 }
         )
     }
+}
+
+// ==============================================
+// GET /api/punchlist-items - Get Punchlist Items (UPDATED)
+// ==============================================
+export async function GET(request: NextRequest) {
+    try {
+        // Get user info from middleware
+        const userId = request.headers.get('x-user-id')
+        const companyId = request.headers.get('x-company-id')
+
+        if (!userId || !companyId) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Authentication required',
+                    message: 'You must be logged in to view punchlist items.',
+                },
+                { status: 401 }
+            )
+        }
+
+        // Parse query parameters with proper typing
+        const searchParams = request.nextUrl.searchParams
+        const filters = {
+            projectId: searchParams.get('projectId') || undefined,
+            relatedScheduleProjectId: searchParams.get('relatedScheduleProjectId') || undefined,
+            status: searchParams.get('status') as 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'rejected' | 'on_hold' | undefined,
+            priority: searchParams.get('priority') as 'low' | 'medium' | 'high' | 'critical' | undefined,
+            issueType: searchParams.get('issueType') as 'defect' | 'incomplete' | 'change_request' | 'safety' | 'quality' | 'rework' | undefined,
+            tradeCategory: searchParams.get('tradeCategory') as 'general' | 'electrical' | 'plumbing' | 'hvac' | 'framing' | 'drywall' | 'flooring' | 'painting' | 'roofing' | 'concrete' | 'masonry' | 'landscaping' | 'cleanup' | undefined,
+            assignedToUserId: searchParams.get('assignedToUserId') || undefined,
+            reportedBy: searchParams.get('reportedBy') || undefined,
+            dueDateFrom: searchParams.get('dueDateFrom') || undefined,
+            dueDateTo: searchParams.get('dueDateTo') || undefined,
+            requiresInspection: searchParams.get('requiresInspection') === 'true' ? true : 
+                                searchParams.get('requiresInspection') === 'false' ? false : undefined,
+            isOverdue: searchParams.get('isOverdue') === 'true' ? true : 
+                      searchParams.get('isOverdue') === 'false' ? false : undefined,
+            search: searchParams.get('search') || undefined,
+            limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20,
+            offset: searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : 0,
+            sortBy: searchParams.get('sortBy') as 'title' | 'status' | 'priority' | 'issueType' | 'dueDate' | 'createdAt' || 'createdAt',
+            sortOrder: searchParams.get('sortOrder') as 'asc' | 'desc' || 'desc',
+        }
+
+        // Create service instance
+        const punchlistService = new PunchlistItemDatabaseService(true, false)
+
+        // Get punchlist items
+        const result = await punchlistService.getPunchlistItems(companyId, filters)
+
+        return NextResponse.json(
+            {
+                success: true,
+                data: {
+                    punchlistItems: result.data,
+                    pagination: {
+                        total: result.totalCount,
+                        limit: filters.limit,
+                        offset: filters.offset,
+                        hasMore: (filters.offset + filters.limit) < result.totalCount,
+                    },
+                    filters,
+                },
+                message: 'Punchlist items retrieved successfully.',
+            },
+            { status: 200 }
+        )
+    } catch (error) {
+        console.error('Error in GET /api/punchlist-items:', error)
+
+        return NextResponse.json(
+            {
+                success: false,
+                error: 'Internal server error',
+                message: 'An unexpected error occurred while fetching punchlist items.',
+            },
+            { status: 500 }
+        )
+    }
+}
+
+// ==============================================
+// HELPER FUNCTION (UPDATED)
+// ==============================================
+function transformStatusForDatabase(status: string): 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'rejected' | 'on_hold' {
+    // Map frontend status to database status if needed
+    const statusMap: Record<string, 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'rejected' | 'on_hold'> = {
+        'open': 'open',
+        'assigned': 'assigned',
+        'in_progress': 'in_progress',
+        'pending_review': 'pending_review',
+        'completed': 'completed',
+        'rejected': 'rejected',
+        'on_hold': 'on_hold'
+    }
+    
+    return statusMap[status] || 'open'
 }

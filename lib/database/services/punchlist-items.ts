@@ -13,6 +13,25 @@ import type {
     ScheduleProject
 } from '@/lib/database/schema'
 
+// ==============================================
+// EXTENDED TYPES FOR MULTIPLE ASSIGNMENTS
+// ==============================================
+export interface PunchlistItemAssignment {
+    id: string
+    projectMemberId: string
+    role: 'primary' | 'secondary' | 'inspector' | 'supervisor'
+    assignedAt: string
+    assignedBy: string
+    isActive: boolean
+    user: {
+        firstName: string
+        lastName: string
+        email: string
+        tradeSpecialty?: string
+    }
+    hourlyRate?: number
+}
+
 // Extended types for joined data
 export interface PunchlistItemWithDetails extends PunchlistItem {
     project?: {
@@ -20,6 +39,11 @@ export interface PunchlistItemWithDetails extends PunchlistItem {
         name: string
         status: string
     }
+
+    // NEW: Multiple assignments
+    assignedMembers?: PunchlistItemAssignment[]
+
+    // DEPRECATED: Keep for backward compatibility during transition
     assignedMember?: {
         id: string
         userId: string
@@ -29,6 +53,7 @@ export interface PunchlistItemWithDetails extends PunchlistItem {
             tradeSpecialty?: string
         }
     }
+
     relatedScheduleProject?: {
         id: string
         title: string
@@ -51,7 +76,8 @@ export interface PunchlistItemSummary {
     status: string
     priority: string
     issueType: string
-    assignedMemberName?: string
+    assignedMemberNames: string[]
+    assignedMemberCount: number
     dueDate?: string
     isOverdue: boolean
     createdAt: string
@@ -83,11 +109,14 @@ export class PunchlistItemDatabaseService {
         issueType?: 'defect' | 'incomplete' | 'change_request' | 'safety' | 'quality' | 'rework'
         location?: string
         roomArea?: string
-        assignedProjectMemberId?: string
+        assignedMembers?: Array<{
+            projectMemberId: string
+            role?: 'primary' | 'secondary' | 'inspector' | 'supervisor'
+        }>
         tradeCategory?: string
         reportedBy: string
         priority?: 'low' | 'medium' | 'high' | 'critical'
-        status?: 'open' | 'assigned' | 'in_progress' | 'completed' | 'rejected'
+        status?: 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'rejected' | 'on_hold'
         photos?: string[]
         attachments?: string[]
         dueDate?: string
@@ -98,44 +127,66 @@ export class PunchlistItemDatabaseService {
         inspectionPassed?: boolean
         inspectionNotes?: string
     }) {
-        const insertData = {
-            company_id: data.companyId,
-            project_id: data.projectId,
-            related_schedule_project_id: data.relatedScheduleProjectId || null,
-            title: data.title,
-            description: data.description || null,
-            issue_type: data.issueType || 'defect',
-            location: data.location || null,
-            room_area: data.roomArea || null,
-            assigned_project_member_id: data.assignedProjectMemberId || null,
-            trade_category: data.tradeCategory || null,
-            reported_by: data.reportedBy,
-            priority: data.priority || 'medium',
-            status: data.status || 'open',
-            photos: data.photos || [],
-            attachments: data.attachments || [],
-            due_date: data.dueDate || null,
-            estimated_hours: data.estimatedHours || null,
-            actual_hours: 0,
-            resolution_notes: data.resolutionNotes || null,
-            rejection_reason: data.rejectionReason || null,
-            requires_inspection: data.requiresInspection || false,
-            inspection_passed: data.inspectionPassed || null,
-            inspection_notes: data.inspectionNotes || null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            assigned_at: data.assignedProjectMemberId ? new Date().toISOString() : null,
-        }
-
-        const { data: punchlistItem, error } = await this.supabaseClient
+        // Start a transaction
+        const { data: punchlistItem, error: itemError } = await this.supabaseClient
             .from('punchlist_items')
-            .insert(insertData)
+            .insert({
+                company_id: data.companyId,
+                project_id: data.projectId,
+                related_schedule_project_id: data.relatedScheduleProjectId || null,
+                title: data.title,
+                description: data.description || null,
+                issue_type: data.issueType || 'defect',
+                location: data.location || null,
+                room_area: data.roomArea || null,
+                trade_category: data.tradeCategory || null,
+                reported_by: data.reportedBy,
+                priority: data.priority || 'medium',
+                status: data.status || 'open',
+                photos: data.photos || [],
+                attachments: data.attachments || [],
+                due_date: data.dueDate || null,
+                estimated_hours: data.estimatedHours || null,
+                actual_hours: 0,
+                resolution_notes: data.resolutionNotes || null,
+                rejection_reason: data.rejectionReason || null,
+                requires_inspection: data.requiresInspection || false,
+                inspection_passed: data.inspectionPassed || null,
+                inspection_notes: data.inspectionNotes || null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            })
             .select('*')
             .single()
 
-        if (error) {
-            console.error('Error creating punchlist item:', error)
+        if (itemError) {
+            console.error('Error creating punchlist item:', itemError)
             throw new Error('Failed to create punchlist item')
+        }
+
+        // Create assignments if provided
+        if (data.assignedMembers && data.assignedMembers.length > 0) {
+            const assignments = data.assignedMembers.map(assignment => ({
+                company_id: data.companyId,
+                punchlist_item_id: punchlistItem.id,
+                project_member_id: assignment.projectMemberId,
+                role: assignment.role || 'primary',
+                assigned_by: data.reportedBy,
+                assigned_at: new Date().toISOString(),
+                is_active: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            }))
+
+            const { error: assignmentError } = await this.supabaseClient
+                .from('punchlist_item_assignments')
+                .insert(assignments)
+
+            if (assignmentError) {
+                console.error('Error creating assignments:', assignmentError)
+                // Don't fail the whole operation, just log the error
+                // The punchlist item was created successfully
+            }
         }
 
         return punchlistItem
@@ -150,10 +201,13 @@ export class PunchlistItemDatabaseService {
             issueType?: 'defect' | 'incomplete' | 'change_request' | 'safety' | 'quality' | 'rework'
             location?: string
             roomArea?: string
-            assignedProjectMemberId?: string
+            assignedMembers?: Array<{
+                projectMemberId: string
+                role?: 'primary' | 'secondary' | 'inspector' | 'supervisor'
+            }>
             tradeCategory?: string
             priority?: 'low' | 'medium' | 'high' | 'critical'
-            status?: 'open' | 'assigned' | 'in_progress' | 'completed' | 'rejected'
+            status?: 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'rejected' | 'on_hold'
             photos?: string[]
             attachments?: string[]
             dueDate?: string
@@ -177,13 +231,6 @@ export class PunchlistItemDatabaseService {
         if (data.issueType !== undefined) updateData.issue_type = data.issueType
         if (data.location !== undefined) updateData.location = data.location
         if (data.roomArea !== undefined) updateData.room_area = data.roomArea
-        if (data.assignedProjectMemberId !== undefined) {
-            updateData.assigned_project_member_id = data.assignedProjectMemberId
-            // Set assignment timestamp when assigning
-            if (data.assignedProjectMemberId) {
-                updateData.assigned_at = new Date().toISOString()
-            }
-        }
         if (data.tradeCategory !== undefined) updateData.trade_category = data.tradeCategory
         if (data.priority !== undefined) updateData.priority = data.priority
         if (data.status !== undefined) {
@@ -204,11 +251,11 @@ export class PunchlistItemDatabaseService {
         if (data.inspectedBy !== undefined) updateData.inspected_by = data.inspectedBy
         if (data.inspectionPassed !== undefined) {
             updateData.inspection_passed = data.inspectionPassed
-            // Set inspection timestamp
             updateData.inspected_at = new Date().toISOString()
         }
         if (data.inspectionNotes !== undefined) updateData.inspection_notes = data.inspectionNotes
 
+        // Update the punchlist item
         const { data: punchlistItem, error } = await this.supabaseClient
             .from('punchlist_items')
             .update(updateData)
@@ -222,14 +269,189 @@ export class PunchlistItemDatabaseService {
             throw new Error('Failed to update punchlist item')
         }
 
+        // Handle assignment updates if provided
+        if (data.assignedMembers !== undefined) {
+            await this.updatePunchlistAssignments(punchlistItemId, companyId, data.assignedMembers)
+        }
+
         return punchlistItem
+    }
+
+    // ==============================================
+    // ASSIGNMENT MANAGEMENT METHODS (NEW)
+    // ==============================================
+
+    async updatePunchlistAssignments(
+        punchlistItemId: string,
+        companyId: string,
+        newAssignments: Array<{
+            projectMemberId: string
+            role?: 'primary' | 'secondary' | 'inspector' | 'supervisor'
+        }>
+    ) {
+        // Get current assignments
+        const { data: currentAssignments } = await this.supabaseClient
+            .from('punchlist_item_assignments')
+            .select('*')
+            .eq('punchlist_item_id', punchlistItemId)
+            .eq('company_id', companyId)
+            .eq('is_active', true)
+
+        const currentMemberIds = (currentAssignments || []).map(a => a.project_member_id)
+        const newMemberIds = newAssignments.map(a => a.projectMemberId)
+
+        // Find assignments to remove (in current but not in new)
+        const toRemove = currentMemberIds.filter(id => !newMemberIds.includes(id))
+
+        // Find assignments to add (in new but not in current)
+        const toAdd = newAssignments.filter(a => !currentMemberIds.includes(a.projectMemberId))
+
+        // Find assignments to update (role changes)
+        const toUpdate = newAssignments.filter(newAssignment => {
+            const existing = currentAssignments?.find(current =>
+                current.project_member_id === newAssignment.projectMemberId
+            )
+            return existing && existing.role !== (newAssignment.role || 'primary')
+        })
+
+        // Remove old assignments
+        if (toRemove.length > 0) {
+            await this.supabaseClient
+                .from('punchlist_item_assignments')
+                .update({
+                    is_active: false,
+                    removed_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                })
+                .eq('punchlist_item_id', punchlistItemId)
+                .eq('company_id', companyId)
+                .in('project_member_id', toRemove)
+        }
+
+        // Add new assignments
+        if (toAdd.length > 0) {
+            const assignments = toAdd.map(assignment => ({
+                company_id: companyId,
+                punchlist_item_id: punchlistItemId,
+                project_member_id: assignment.projectMemberId,
+                role: assignment.role || 'primary',
+                assigned_by: 'system', // TODO: Get from context
+                assigned_at: new Date().toISOString(),
+                is_active: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            }))
+
+            await this.supabaseClient
+                .from('punchlist_item_assignments')
+                .insert(assignments)
+        }
+
+        // Update role changes
+        for (const assignment of toUpdate) {
+            await this.supabaseClient
+                .from('punchlist_item_assignments')
+                .update({
+                    role: assignment.role || 'primary',
+                    updated_at: new Date().toISOString()
+                })
+                .eq('punchlist_item_id', punchlistItemId)
+                .eq('company_id', companyId)
+                .eq('project_member_id', assignment.projectMemberId)
+                .eq('is_active', true)
+        }
+    }
+
+    async addAssignment(
+        punchlistItemId: string,
+        companyId: string,
+        projectMemberId: string,
+        role: 'primary' | 'secondary' | 'inspector' | 'supervisor' = 'primary',
+        assignedBy: string
+    ) {
+        const { data, error } = await this.supabaseClient
+            .from('punchlist_item_assignments')
+            .insert({
+                company_id: companyId,
+                punchlist_item_id: punchlistItemId,
+                project_member_id: projectMemberId,
+                role,
+                assigned_by: assignedBy,
+                assigned_at: new Date().toISOString(),
+                is_active: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            })
+            .select('*')
+            .single()
+
+        if (error) {
+            console.error('Error adding assignment:', error)
+            throw new Error('Failed to add assignment')
+        }
+
+        return data
+    }
+
+    async removeAssignment(
+        punchlistItemId: string,
+        companyId: string,
+        projectMemberId: string,
+        removedBy: string
+    ) {
+        const { error } = await this.supabaseClient
+            .from('punchlist_item_assignments')
+            .update({
+                is_active: false,
+                removed_at: new Date().toISOString(),
+                removed_by: removedBy,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('punchlist_item_id', punchlistItemId)
+            .eq('company_id', companyId)
+            .eq('project_member_id', projectMemberId)
+            .eq('is_active', true)
+
+        if (error) {
+            console.error('Error removing assignment:', error)
+            throw new Error('Failed to remove assignment')
+        }
+
+        return { success: true }
+    }
+
+    async updateAssignmentRole(
+        punchlistItemId: string,
+        companyId: string,
+        projectMemberId: string,
+        role: 'primary' | 'secondary' | 'inspector' | 'supervisor'
+    ) {
+        const { data, error } = await this.supabaseClient
+            .from('punchlist_item_assignments')
+            .update({
+                role,
+                updated_at: new Date().toISOString(),
+            })
+            .eq('punchlist_item_id', punchlistItemId)
+            .eq('company_id', companyId)
+            .eq('project_member_id', projectMemberId)
+            .eq('is_active', true)
+            .select('*')
+            .single()
+
+        if (error) {
+            console.error('Error updating assignment role:', error)
+            throw new Error('Failed to update assignment role')
+        }
+
+        return data
     }
 
     async quickUpdatePunchlistStatus(
         punchlistItemId: string,
         companyId: string,
         data: {
-            status: 'open' | 'assigned' | 'in_progress' | 'completed' | 'rejected'
+            status: 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'rejected' | 'on_hold'
             actualHours?: number
             resolutionNotes?: string
             rejectionReason?: string
@@ -298,7 +520,7 @@ export class PunchlistItemDatabaseService {
         options: {
             projectId?: string
             relatedScheduleProjectId?: string
-            status?: 'open' | 'assigned' | 'in_progress' | 'completed' | 'rejected'
+            status?: 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'rejected' | 'on_hold'
             priority?: 'low' | 'medium' | 'high' | 'critical'
             issueType?: 'defect' | 'incomplete' | 'change_request' | 'safety' | 'quality' | 'rework'
             tradeCategory?: string
@@ -315,18 +537,17 @@ export class PunchlistItemDatabaseService {
             sortOrder?: 'asc' | 'desc'
         } = {}
     ) {
-        // ✅ FIXED: Use correct foreign key names or simple joins
         let query = this.supabaseClient
             .from('punchlist_items')
             .select(`
-            *,
-            project:projects(id, name, status),
-            reporter:users!reported_by(first_name, last_name),
-            inspector:users!inspected_by(first_name, last_name)
-        `)
+                *,
+                project:projects(id, name, status),
+                reporter:users!reported_by(first_name, last_name),
+                inspector:users!inspected_by(first_name, last_name)
+            `)
             .eq('company_id', companyId)
 
-        // Apply filters
+        // Apply basic filters
         if (options.projectId) {
             query = query.eq('project_id', options.projectId)
         }
@@ -382,21 +603,24 @@ export class PunchlistItemDatabaseService {
             query = query.or(`title.ilike.%${options.search}%, description.ilike.%${options.search}%, location.ilike.%${options.search}%`)
         }
 
-        // Filter by assigned user (check if user ID matches project member's user)
+        // Filter by assigned user (check assignments table)
         if (options.assignedToUserId) {
-            // First get project_member IDs for this user
-            const { data: userProjectMembers } = await this.supabaseClient
-                .from('project_members')
-                .select('id')
-                .eq('user_id', options.assignedToUserId)
+            // Get punchlist item IDs where this user is assigned
+            const { data: userAssignments } = await this.supabaseClient
+                .from('punchlist_item_assignments')
+                .select(`
+                    punchlist_item_id,
+                    project_members!inner(user_id)
+                `)
                 .eq('company_id', companyId)
-                .eq('status', 'active')
+                .eq('is_active', true)
+                .eq('project_members.user_id', options.assignedToUserId)
 
-            if (userProjectMembers && userProjectMembers.length > 0) {
-                const projectMemberIds = userProjectMembers.map(pm => pm.id)
-                query = query.in('assigned_project_member_id', projectMemberIds)
+            if (userAssignments && userAssignments.length > 0) {
+                const punchlistItemIds = userAssignments.map(a => a.punchlist_item_id)
+                query = query.in('id', punchlistItemIds)
             } else {
-                // User has no active project assignments, return empty results
+                // User has no assignments, return empty results
                 return { data: [], totalCount: 0 }
             }
         }
@@ -431,20 +655,17 @@ export class PunchlistItemDatabaseService {
             throw new Error('Failed to fetch punchlist items')
         }
 
-        // Get assigned members and related schedule projects for each punchlist item
+        // Get assignments for each punchlist item
         const punchlistItemsWithDetails = await Promise.all(
             (punchlistItems || []).map(async (punchlistItem) => {
-                const assignedMember = punchlistItem.assigned_project_member_id
-                    ? await this.getAssignedMemberForPunchlistItem(punchlistItem.assigned_project_member_id)
-                    : null
-
+                const assignedMembers = await this.getAssignmentsForPunchlistItem(punchlistItem.id)
                 const relatedScheduleProject = punchlistItem.related_schedule_project_id
                     ? await this.getRelatedScheduleProject(punchlistItem.related_schedule_project_id)
                     : null
 
                 return {
                     ...punchlistItem,
-                    assignedMember,
+                    assignedMembers,
                     relatedScheduleProject
                 }
             })
@@ -456,16 +677,15 @@ export class PunchlistItemDatabaseService {
         }
     }
 
-    // ✅ ALSO FIX: getPunchlistItemById method
     async getPunchlistItemById(punchlistItemId: string, companyId: string): Promise<PunchlistItemWithDetails | null> {
         const { data: punchlistItem, error } = await this.supabaseClient
             .from('punchlist_items')
             .select(`
-            *,
-            project:projects(id, name, status),
-            reporter:users!reported_by(first_name, last_name),
-            inspector:users!inspected_by(first_name, last_name)
-        `)
+                *,
+                project:projects(id, name, status),
+                reporter:users!reported_by(first_name, last_name),
+                inspector:users!inspected_by(first_name, last_name)
+            `)
             .eq('id', punchlistItemId)
             .eq('company_id', companyId)
             .single()
@@ -479,18 +699,15 @@ export class PunchlistItemDatabaseService {
             return null
         }
 
-        // Get assigned member and related schedule project
-        const assignedMember = punchlistItem.assigned_project_member_id
-            ? await this.getAssignedMemberForPunchlistItem(punchlistItem.assigned_project_member_id)
-            : null
-
+        // Get assignments and related schedule project
+        const assignedMembers = await this.getAssignmentsForPunchlistItem(punchlistItemId)
         const relatedScheduleProject = punchlistItem.related_schedule_project_id
             ? await this.getRelatedScheduleProject(punchlistItem.related_schedule_project_id)
             : null
 
         return {
             ...punchlistItem,
-            assignedMember,
+            assignedMembers,
             relatedScheduleProject
         } as PunchlistItemWithDetails
     }
@@ -498,6 +715,88 @@ export class PunchlistItemDatabaseService {
     // ==============================================
     // HELPER METHODS
     // ==============================================
+
+    async getAssignmentsForPunchlistItem(punchlistItemId: string): Promise<PunchlistItemAssignment[]> {
+        const { data: assignments, error } = await this.supabaseClient
+            .from('punchlist_item_assignments')
+            .select(`
+                id,
+                project_member_id,
+                role,
+                assigned_at,
+                assigned_by,
+                is_active,
+                project_members!inner(
+                    id,
+                    hourly_rate,
+                    users!inner(first_name, last_name, email, trade_specialty)
+                )
+            `)
+            .eq('punchlist_item_id', punchlistItemId)
+            .eq('is_active', true)
+            .order('assigned_at', { ascending: true })
+
+        if (error) {
+            console.error('Error fetching assignments:', error)
+            return []
+        }
+
+        return (assignments || []).map(assignment => ({
+            id: assignment.id,
+            projectMemberId: assignment.project_member_id,
+            role: assignment.role as 'primary' | 'secondary' | 'inspector' | 'supervisor',
+            assignedAt: assignment.assigned_at,
+            assignedBy: assignment.assigned_by,
+            isActive: assignment.is_active,
+            user: {
+                firstName: assignment.project_members.users.first_name,
+                lastName: assignment.project_members.users.last_name,
+                email: assignment.project_members.users.email,
+                tradeSpecialty: assignment.project_members.users.trade_specialty,
+            },
+            hourlyRate: assignment.project_members.hourly_rate,
+        }))
+    }
+
+    async getRelatedScheduleProject(scheduleProjectId: string) {
+        const { data: scheduleProject, error } = await this.supabaseClient
+            .from('schedule_projects')
+            .select('id, title, status')
+            .eq('id', scheduleProjectId)
+            .single()
+
+        if (error) {
+            console.error('Error fetching related schedule project:', error)
+            return null
+        }
+
+        return scheduleProject
+    }
+
+    async getProjectMembersForProject(projectId: string, companyId: string) {
+        const { data: projectMembers, error } = await this.supabaseClient
+            .from('project_members')
+            .select(`
+                id,
+                user_id,
+                user:users!project_members_user_id_users_id_fk(first_name, last_name, trade_specialty),
+                hourly_rate,
+                status,
+                joined_at,
+                notes
+            `)
+            .eq('project_id', projectId)
+            .eq('company_id', companyId)
+            .eq('status', 'active')
+            .is('left_at', null)
+
+        if (error) {
+            console.error('🚨 Error fetching project members:', error)
+            throw new Error('Failed to fetch project members')
+        }
+
+        return projectMembers || []
+    }
 
     async checkPunchlistItemExists(punchlistItemId: string, companyId: string): Promise<boolean> {
         const { data, error } = await this.supabaseClient
@@ -535,46 +834,46 @@ export class PunchlistItemDatabaseService {
         return projectMember
     }
 
-    async getRelatedScheduleProject(scheduleProjectId: string) {
-        const { data: scheduleProject, error } = await this.supabaseClient
-            .from('schedule_projects')
-            .select('id, title, status')
-            .eq('id', scheduleProjectId)
-            .single()
+    // async getRelatedScheduleProject(scheduleProjectId: string) {
+    //     const { data: scheduleProject, error } = await this.supabaseClient
+    //         .from('schedule_projects')
+    //         .select('id, title, status')
+    //         .eq('id', scheduleProjectId)
+    //         .single()
 
-        if (error) {
-            console.error('Error fetching related schedule project:', error)
-            return null
-        }
+    //     if (error) {
+    //         console.error('Error fetching related schedule project:', error)
+    //         return null
+    //     }
 
-        return scheduleProject
-    }
+    //     return scheduleProject
+    // }
 
-    async getProjectMembersForProject(projectId: string, companyId: string) {
+    // async getProjectMembersForProject(projectId: string, companyId: string) {
 
-        const { data: projectMembers, error } = await this.supabaseClient
-            .from('project_members')
-            .select(`
-            id,
-            user_id,
-            user:users!project_members_user_id_users_id_fk(first_name, last_name, trade_specialty),
-            hourly_rate,
-            status,
-            joined_at,
-            notes
-        `)
-            .eq('project_id', projectId)
-            .eq('company_id', companyId)
-            .eq('status', 'active')
-            .is('left_at', null)  // Only get members who haven't left
+    //     const { data: projectMembers, error } = await this.supabaseClient
+    //         .from('project_members')
+    //         .select(`
+    //         id,
+    //         user_id,
+    //         user:users!project_members_user_id_users_id_fk(first_name, last_name, trade_specialty),
+    //         hourly_rate,
+    //         status,
+    //         joined_at,
+    //         notes
+    //     `)
+    //         .eq('project_id', projectId)
+    //         .eq('company_id', companyId)
+    //         .eq('status', 'active')
+    //         .is('left_at', null)  // Only get members who haven't left
 
-        if (error) {
-            console.error('🚨 Error fetching project members:', error)
-            throw new Error('Failed to fetch project members')
-        }
+    //     if (error) {
+    //         console.error('🚨 Error fetching project members:', error)
+    //         throw new Error('Failed to fetch project members')
+    //     }
 
-        return projectMembers || []
-    }
+    //     return projectMembers || []
+    // }
 
     async getTodaysPunchlistForUser(userId: string, companyId: string) {
         // First get user's project member IDs

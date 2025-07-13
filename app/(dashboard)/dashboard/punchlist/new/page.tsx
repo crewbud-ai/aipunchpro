@@ -37,7 +37,6 @@ export default function CreatePunchlistPage() {
     // HOOKS FOR REAL DATA
     // ==============================================
 
-    // ✅ UPDATED: Punchlist item creation hook with file upload props
     const {
         formData,
         errors,
@@ -52,7 +51,6 @@ export default function CreatePunchlistPage() {
         goToNextStep,
         goToPrevStep,
         
-        // ✅ ADD: File upload props
         isUploadingFiles,
         hasPendingFiles,
         pendingFiles,

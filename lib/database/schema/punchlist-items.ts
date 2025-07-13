@@ -1,5 +1,5 @@
 // ==============================================
-// src/lib/database/schema/punchlist-items.ts
+// src/lib/database/schema/punchlist-items.ts - UPDATED WITH MULTIPLE ASSIGNMENTS
 // ==============================================
 
 import { 
@@ -28,8 +28,10 @@ export const PUNCHLIST_STATUS = [
   'open',
   'assigned',
   'in_progress',
+  'pending_review',
   'completed',
-  'rejected'
+  'rejected',
+  'on_hold'
 ] as const;
 
 export const PUNCHLIST_PRIORITY = [
@@ -49,27 +51,41 @@ export const ISSUE_TYPE = [
 ] as const;
 
 export const TRADE_CATEGORY = [
+  'general',
   'electrical',
   'plumbing',
+  'hvac',
   'framing',
   'drywall',
+  'flooring',
+  'painting',
   'roofing',
   'concrete',
-  'hvac',
-  'general',
-  'management',
-  'safety',
+  'masonry',
+  'landscaping',
   'cleanup'
 ] as const;
 
 // ==============================================
-// PUNCHLIST ITEMS TABLE
+// ASSIGNMENT ROLES
+// ==============================================
+export const ASSIGNMENT_ROLE = [
+  'primary',      // Main responsible person
+  'secondary',    // Helper/assistant
+  'inspector',    // Quality control
+  'supervisor'    // Oversight
+] as const;
+
+export type AssignmentRole = typeof ASSIGNMENT_ROLE[number];
+
+// ==============================================
+// PUNCHLIST ITEMS TABLE (UPDATED)
 // ==============================================
 export const punchlistItems = pgTable('punchlist_items', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   companyId: uuid('company_id').references(() => companies.id, { onDelete: 'cascade' }).notNull(),
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
-  relatedScheduleProjectId: uuid('related_schedule_project_id').references(() => scheduleProjects.id, { onDelete: 'set null' }), // nullable for standalone issues
+  relatedScheduleProjectId: uuid('related_schedule_project_id').references(() => scheduleProjects.id, { onDelete: 'set null' }),
   
   // Issue Details
   title: varchar('title', { length: 255 }).notNull(),
@@ -80,8 +96,9 @@ export const punchlistItems = pgTable('punchlist_items', {
   location: text('location'),
   roomArea: varchar('room_area', { length: 100 }),
   
-  // Assignment (Links to single project_member ID)
-  assignedProjectMemberId: uuid('assigned_project_member_id').references(() => projectMembers.id, { onDelete: 'set null' }),
+  // REMOVED: Single assignment field
+  // assignedProjectMemberId: uuid('assigned_project_member_id')... // REMOVED
+  
   tradeCategory: varchar('trade_category', { length: 100 }),
   reportedBy: uuid('reported_by').references(() => users.id).notNull(),
   
@@ -90,8 +107,8 @@ export const punchlistItems = pgTable('punchlist_items', {
   status: varchar('status', { length: 50 }).default('open').notNull(),
   
   // Media & Documentation
-  photos: text('photos').array(), // Array of file URLs
-  attachments: text('attachments').array(), // Array of file URLs
+  photos: text('photos').array().default([]),
+  attachments: text('attachments').array().default([]),
   
   // Scheduling & Estimates
   dueDate: date('due_date'),
@@ -100,7 +117,7 @@ export const punchlistItems = pgTable('punchlist_items', {
   
   // Resolution Details
   resolutionNotes: text('resolution_notes'),
-  rejectionReason: text('rejection_reason'), // If status is 'rejected'
+  rejectionReason: text('rejection_reason'),
   
   // Quality Control
   requiresInspection: boolean('requires_inspection').default(false),
@@ -113,13 +130,11 @@ export const punchlistItems = pgTable('punchlist_items', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   completedAt: timestamp('completed_at', { withTimezone: true }),
-  assignedAt: timestamp('assigned_at', { withTimezone: true }),
 }, (table) => ({
   // Performance Indexes
   companyIdIdx: index('idx_punchlist_items_company_id').on(table.companyId),
   projectIdIdx: index('idx_punchlist_items_project_id').on(table.projectId),
   relatedScheduleProjectIdIdx: index('idx_punchlist_items_related_schedule_project_id').on(table.relatedScheduleProjectId),
-  assignedProjectMemberIdIdx: index('idx_punchlist_items_assigned_project_member_id').on(table.assignedProjectMemberId),
   statusIdx: index('idx_punchlist_items_status').on(table.status),
   priorityIdx: index('idx_punchlist_items_priority').on(table.priority),
   issueTypeIdx: index('idx_punchlist_items_issue_type').on(table.issueType),
@@ -133,9 +148,53 @@ export const punchlistItems = pgTable('punchlist_items', {
   // Composite indexes for common queries
   projectStatusIdx: index('idx_punchlist_items_project_status').on(table.projectId, table.status),
   companyStatusIdx: index('idx_punchlist_items_company_status').on(table.companyId, table.status),
-  assignedMemberStatusIdx: index('idx_punchlist_items_assigned_member_status').on(table.assignedProjectMemberId, table.status),
   priorityStatusIdx: index('idx_punchlist_items_priority_status').on(table.priority, table.status),
   dueDateStatusIdx: index('idx_punchlist_items_due_date_status').on(table.dueDate, table.status),
+}));
+
+// ==============================================
+// NEW: PUNCHLIST ITEM ASSIGNMENTS TABLE
+// ==============================================
+export const punchlistItemAssignments = pgTable('punchlist_item_assignments', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  companyId: uuid('company_id').references(() => companies.id, { onDelete: 'cascade' }).notNull(),
+  punchlistItemId: uuid('punchlist_item_id').references(() => punchlistItems.id, { onDelete: 'cascade' }).notNull(),
+  projectMemberId: uuid('project_member_id').references(() => projectMembers.id, { onDelete: 'cascade' }).notNull(),
+  
+  // Assignment Details
+  role: varchar('role', { length: 50 }).default('primary').notNull(), // primary, secondary, inspector, supervisor
+  assignedAt: timestamp('assigned_at', { withTimezone: true }).defaultNow().notNull(),
+  assignedBy: uuid('assigned_by').references(() => users.id).notNull(),
+  
+  // Status tracking for individual assignments
+  isActive: boolean('is_active').default(true).notNull(),
+  removedAt: timestamp('removed_at', { withTimezone: true }),
+  removedBy: uuid('removed_by').references(() => users.id),
+  
+  // Metadata
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  // Unique constraint: One person can only have one active assignment per punchlist item
+  uniqueActiveMemberPerItem: unique('unique_active_member_per_punchlist_item')
+    .on(table.punchlistItemId, table.projectMemberId, table.isActive),
+    
+  // Performance indexes
+  companyIdIdx: index('idx_punchlist_assignments_company_id').on(table.companyId),
+  punchlistItemIdIdx: index('idx_punchlist_assignments_punchlist_item_id').on(table.punchlistItemId),
+  projectMemberIdIdx: index('idx_punchlist_assignments_project_member_id').on(table.projectMemberId),
+  roleIdx: index('idx_punchlist_assignments_role').on(table.role),
+  assignedByIdx: index('idx_punchlist_assignments_assigned_by').on(table.assignedBy),
+  isActiveIdx: index('idx_punchlist_assignments_is_active').on(table.isActive),
+  assignedAtIdx: index('idx_punchlist_assignments_assigned_at').on(table.assignedAt),
+  
+  // Composite indexes for common queries
+  punchlistActiveIdx: index('idx_punchlist_assignments_punchlist_active')
+    .on(table.punchlistItemId, table.isActive),
+  memberActiveIdx: index('idx_punchlist_assignments_member_active')
+    .on(table.projectMemberId, table.isActive),
+  companyActiveIdx: index('idx_punchlist_assignments_company_active')
+    .on(table.companyId, table.isActive),
 }));
 
 // ==============================================
@@ -143,6 +202,8 @@ export const punchlistItems = pgTable('punchlist_items', {
 // ==============================================
 export type PunchlistItem = typeof punchlistItems.$inferSelect;
 export type NewPunchlistItem = typeof punchlistItems.$inferInsert;
+export type PunchlistItemAssignment = typeof punchlistItemAssignments.$inferSelect;
+export type NewPunchlistItemAssignment = typeof punchlistItemAssignments.$inferInsert;
 
 // ==============================================
 // PUNCHLIST STATUS & TYPE EXPORTS
