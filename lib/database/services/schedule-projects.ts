@@ -32,7 +32,7 @@ export interface ScheduleProjectWithDetails extends ScheduleProject {
         firstName: string
         lastName: string
     }
-    
+
 }
 
 export interface DependentScheduleProject {
@@ -677,9 +677,10 @@ export class ScheduleProjectDatabaseService {
     // NEW METHODS FOR STATUS COORDINATION
     // ==============================================
 
+
     /**
      * Get all schedule projects for a specific project (for cascade operations)
-     */
+    */
     async getScheduleProjectsByProject(
         projectId: string,
         companyId: string,
@@ -808,7 +809,7 @@ export class ScheduleProjectDatabaseService {
             actualHours?: number
             notes?: string
             skipValidation?: boolean
-            triggeredBy?: 'user' | 'project_cascade' | 'dependency'
+            triggeredBy?: 'user' | 'project_cascade' | 'dependency' | 'admin_bulk'
         }
     ) {
         // Validate completion eligibility if status is 'completed'
@@ -837,18 +838,6 @@ export class ScheduleProjectDatabaseService {
             updateData.progress_percentage = 100
         }
 
-        // Set actual start date when moving to in_progress (if not already set)
-        if (data.status === 'in_progress') {
-            const { data: currentData } = await this.supabaseClient
-                .from('schedule_projects')
-                .select('start_date')
-                .eq('id', scheduleId)
-                .single()
-
-            // Note: You might want to add an actual_start_date field to schedule_projects
-            // For now, we'll use the planned start_date
-        }
-
         const { data: scheduleProject, error } = await this.supabaseClient
             .from('schedule_projects')
             .update(updateData)
@@ -863,6 +852,85 @@ export class ScheduleProjectDatabaseService {
         }
 
         return scheduleProject
+    }
+
+    /**
+     * Remove team member from all schedule project assignments - FIXED
+     */
+    async removeTeamMemberFromAllScheduleProjects(
+        userId: string,
+        companyId: string
+    ): Promise<{
+        removedCount: number
+        affectedScheduleProjects: string[]
+    }> {
+        try {
+            // FIXED: First get project member IDs for this user
+            const { data: projectMembers, error: fetchProjectMembersError } = await this.supabaseClient
+                .from('project_members')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('company_id', companyId)
+
+            if (fetchProjectMembersError) {
+                console.error('Error fetching project members:', fetchProjectMembersError)
+                throw fetchProjectMembersError
+            }
+
+            if (!projectMembers || projectMembers.length === 0) {
+                return { removedCount: 0, affectedScheduleProjects: [] }
+            }
+
+            const projectMemberIds = projectMembers.map(pm => pm.id)
+
+            // FIXED: Find schedule projects where this user is assigned via project member IDs
+            const { data: affectedProjects, error: fetchError } = await this.supabaseClient
+                .from('schedule_projects')
+                .select('id, title, assigned_project_member_ids')
+                .eq('company_id', companyId)
+                .filter('assigned_project_member_ids', 'ov', projectMemberIds) // overlaps
+
+            if (fetchError) {
+                console.error('Error fetching affected schedule projects:', fetchError)
+                throw fetchError
+            }
+
+            if (!affectedProjects || affectedProjects.length === 0) {
+                return { removedCount: 0, affectedScheduleProjects: [] }
+            }
+
+            let removedCount = 0
+            const affectedIds = []
+
+            // Update each schedule project to remove the project member IDs
+            for (const project of affectedProjects) {
+                const newAssignedMembers = (project.assigned_project_member_ids || []).filter(
+                    (memberId: string) => !projectMemberIds.includes(memberId)
+                )
+
+                const { error: updateError } = await this.supabaseClient
+                    .from('schedule_projects')
+                    .update({
+                        assigned_project_member_ids: newAssignedMembers,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', project.id)
+                    .eq('company_id', companyId)
+
+                if (updateError) {
+                    console.error(`Error removing user from schedule project ${project.id}:`, updateError)
+                } else {
+                    removedCount++
+                    affectedIds.push(project.id)
+                }
+            }
+
+            return { removedCount, affectedScheduleProjects: affectedIds }
+
+        } catch (error) {
+            console.error('Error removing team member from schedule projects:', error)
+            return { removedCount: 0, affectedScheduleProjects: [] }
+        }
     }
 
     /**
@@ -934,7 +1002,7 @@ export class ScheduleProjectDatabaseService {
             notes?: string
         }>,
         companyId: string,
-        triggeredBy: 'project_cascade' | 'admin_bulk' = 'project_cascade'
+        triggeredBy: 'project_cascade' | 'admin_bulk' = 'project_cascade'  // ← This is correct now
     ): Promise<{
         success: number
         failed: number
@@ -952,7 +1020,7 @@ export class ScheduleProjectDatabaseService {
                     {
                         status: update.status,
                         notes: update.notes || `Batch updated via ${triggeredBy}`,
-                        skipValidation: triggeredBy === 'project_cascade', // Skip validation for cascade updates
+                        skipValidation: triggeredBy === 'project_cascade',
                         triggeredBy
                     }
                 )
@@ -976,66 +1044,6 @@ export class ScheduleProjectDatabaseService {
         }
     }
 
-    /**
-     * Remove team member from all schedule project assignments
-     */
-    async removeTeamMemberFromAllScheduleProjects(
-        userId: string,
-        companyId: string
-    ): Promise<{
-        removedCount: number
-        affectedScheduleProjects: string[]
-    }> {
-        try {
-            // First, find all schedule projects where this user is assigned
-            const { data: affectedProjects, error: fetchError } = await this.supabaseClient
-                .from('schedule_projects')
-                .select('id, title, assigned_project_member_ids')
-                .eq('company_id', companyId)
-                .contains('assigned_project_member_ids', [userId])
-
-            if (fetchError) {
-                console.error('Error fetching affected schedule projects:', fetchError)
-                throw fetchError
-            }
-
-            if (!affectedProjects || affectedProjects.length === 0) {
-                return { removedCount: 0, affectedScheduleProjects: [] }
-            }
-
-            let removedCount = 0
-            const affectedIds = []
-
-            // Update each schedule project to remove the user
-            for (const project of affectedProjects) {
-                const newAssignedMembers = project.assigned_project_member_ids.filter(
-                    (memberId: string) => memberId !== userId
-                )
-
-                const { error: updateError } = await this.supabaseClient
-                    .from('schedule_projects')
-                    .update({
-                        assigned_project_member_ids: newAssignedMembers,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', project.id)
-                    .eq('company_id', companyId)
-
-                if (updateError) {
-                    console.error(`Error removing user from schedule project ${project.id}:`, updateError)
-                } else {
-                    removedCount++
-                    affectedIds.push(project.id)
-                }
-            }
-
-            return { removedCount, affectedScheduleProjects: affectedIds }
-
-        } catch (error) {
-            console.error('Error removing team member from schedule projects:', error)
-            return { removedCount: 0, affectedScheduleProjects: [] }
-        }
-    }
 
     // ==============================================
     // DEPENDENCY MANAGEMENT

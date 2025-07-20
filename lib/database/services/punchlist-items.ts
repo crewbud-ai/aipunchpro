@@ -937,6 +937,234 @@ export class PunchlistItemDatabaseService {
     }
 
     /**
+     * Remove team member from all punchlist assignments - FIXED
+     */
+    async removeTeamMemberFromAllPunchlistItems(
+        userId: string,
+        companyId: string
+    ): Promise<{
+        removedCount: number
+        affectedPunchlistItems: string[]
+    }> {
+        try {
+            // First get project member IDs for this user
+            const { data: projectMembers, error: fetchProjectMembersError } = await this.supabaseClient
+                .from('project_members')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('company_id', companyId)
+
+            if (fetchProjectMembersError) {
+                console.error('Error fetching project members:', fetchProjectMembersError)
+                throw fetchProjectMembersError
+            }
+
+            if (!projectMembers || projectMembers.length === 0) {
+                return { removedCount: 0, affectedPunchlistItems: [] }
+            }
+
+            const projectMemberIds = projectMembers.map(pm => pm.id)
+
+            // Find all punchlist assignments for these project members
+            const { data: assignments, error: fetchError } = await this.supabaseClient
+                .from('punchlist_item_assignments')
+                .select('id, punchlist_item_id')
+                .in('project_member_id', projectMemberIds)
+                .eq('company_id', companyId)
+                .eq('is_active', true)
+
+            if (fetchError) {
+                console.error('Error fetching punchlist assignments:', fetchError)
+                throw fetchError
+            }
+
+            if (!assignments || assignments.length === 0) {
+                return { removedCount: 0, affectedPunchlistItems: [] }
+            }
+
+            let removedCount = 0
+            // FIX: Explicitly type the array as string[]
+            const affectedIds: string[] = []
+
+            // Deactivate each assignment
+            for (const assignment of assignments) {
+                const { error: updateError } = await this.supabaseClient
+                    .from('punchlist_item_assignments')
+                    .update({
+                        is_active: false,
+                        removed_at: new Date().toISOString(),
+                        removed_by: userId, // You might want to pass the admin user ID here
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', assignment.id)
+
+                if (updateError) {
+                    console.error(`Error removing punchlist assignment ${assignment.id}:`, updateError)
+                } else {
+                    removedCount++
+                    if (!affectedIds.includes(assignment.punchlist_item_id)) {
+                        affectedIds.push(assignment.punchlist_item_id)
+                    }
+                }
+            }
+
+            return { removedCount, affectedPunchlistItems: affectedIds }
+
+        } catch (error) {
+            console.error('Error removing team member from punchlist items:', error)
+            return { removedCount: 0, affectedPunchlistItems: [] }
+        }
+    }
+
+    /**
+     * Update punchlist item status with coordination hooks
+     */
+    async updatePunchlistItemStatusCoordinated(
+        punchlistItemId: string,
+        companyId: string,
+        data: {
+            status: 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'rejected' | 'on_hold'
+            actualHours?: number
+            resolutionNotes?: string
+            rejectionReason?: string
+            inspectionPassed?: boolean
+            inspectionNotes?: string
+            triggeredBy?: 'user' | 'schedule_cascade' | 'bulk_update'
+            userId?: string
+        }
+    ) {
+        // Validate status transition if not triggered by system
+        if (data.triggeredBy === 'user') {
+            // Get current status to validate transition
+            const { data: currentItem } = await this.supabaseClient
+                .from('punchlist_items')
+                .select('status')
+                .eq('id', punchlistItemId)
+                .eq('company_id', companyId)
+                .single()
+
+            if (currentItem) {
+                // Apply your status transition validation rules here
+                // Based on PUNCHLIST_STATUS_TRANSITIONS from your types
+            }
+        }
+
+        // Prepare update data
+        const updateData: any = {
+            status: data.status,
+            updated_at: new Date().toISOString(),
+        }
+
+        if (data.actualHours !== undefined) updateData.actual_hours = data.actualHours
+        if (data.resolutionNotes !== undefined) updateData.resolution_notes = data.resolutionNotes
+        if (data.rejectionReason !== undefined) updateData.rejection_reason = data.rejectionReason
+        if (data.inspectionNotes !== undefined) updateData.inspection_notes = data.inspectionNotes
+
+        // Handle status-specific logic
+        if (data.status === 'completed') {
+            updateData.completed_at = new Date().toISOString()
+            if (data.inspectionPassed !== undefined) {
+                updateData.inspection_passed = data.inspectionPassed
+                updateData.inspected_at = new Date().toISOString()
+                if (data.userId) {
+                    updateData.inspected_by = data.userId
+                }
+            }
+        }
+
+        if (data.status === 'assigned') {
+            // Get the assignment table to set assigned timestamp
+            const { data: assignments } = await this.supabaseClient
+                .from('punchlist_item_assignments')
+                .select('assigned_at')
+                .eq('punchlist_item_id', punchlistItemId)
+                .eq('is_active', true)
+                .limit(1)
+
+            if (assignments && assignments.length > 0 && !assignments[0].assigned_at) {
+                // Update assignment table with assigned timestamp
+                await this.supabaseClient
+                    .from('punchlist_item_assignments')
+                    .update({ assigned_at: new Date().toISOString() })
+                    .eq('punchlist_item_id', punchlistItemId)
+                    .eq('is_active', true)
+            }
+        }
+
+        const { data: punchlistItem, error } = await this.supabaseClient
+            .from('punchlist_items')
+            .update(updateData)
+            .eq('id', punchlistItemId)
+            .eq('company_id', companyId)
+            .select('*')
+            .single()
+
+        if (error) {
+            console.error('Error updating punchlist item status:', error)
+            throw new Error('Failed to update punchlist item status')
+        }
+
+        return punchlistItem
+    }
+
+    /**
+     * Batch update multiple punchlist items (for cascade operations)
+     */
+    async batchUpdatePunchlistItemStatus(
+        updates: Array<{
+            id: string
+            status: 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'rejected' | 'on_hold'
+            notes?: string
+        }>,
+        companyId: string,
+        triggeredBy: 'schedule_cascade' | 'admin_bulk' = 'schedule_cascade',
+        userId?: string
+    ): Promise<{
+        success: number
+        failed: number
+        results: Array<{ id: string; success: boolean; error?: string }>
+    }> {
+        const results = []
+        let successCount = 0
+        let failedCount = 0
+
+        // FIX: Map 'admin_bulk' to 'bulk_update' for the coordinated method
+        const coordinatedTriggeredBy: 'user' | 'schedule_cascade' | 'bulk_update' =
+            triggeredBy === 'admin_bulk' ? 'bulk_update' : triggeredBy
+
+        for (const update of updates) {
+            try {
+                await this.updatePunchlistItemStatusCoordinated(
+                    update.id,
+                    companyId,
+                    {
+                        status: update.status,
+                        resolutionNotes: update.notes,
+                        triggeredBy: coordinatedTriggeredBy,  // ← Now uses the mapped value
+                        userId
+                    }
+                )
+
+                results.push({ id: update.id, success: true })
+                successCount++
+            } catch (error) {
+                results.push({
+                    id: update.id,
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                })
+                failedCount++
+            }
+        }
+
+        return {
+            success: successCount,
+            failed: failedCount,
+            results
+        }
+    }
+
+    /**
      * Get punchlist item statistics for a project
      */
     async getPunchlistStatsByProject(
@@ -1034,213 +1262,6 @@ export class PunchlistItemDatabaseService {
     }
 
     /**
-     * Remove team member from all punchlist assignments
-     */
-    async removeTeamMemberFromAllPunchlistItems(
-        userId: string,
-        companyId: string
-    ): Promise<{
-        removedCount: number
-        affectedPunchlistItems: string[]
-    }> {
-        try {
-            // First, find all punchlist items where this user is assigned via project_members
-            // Since we're using the new punchlist_item_assignments table, we need to query that
-            const { data: assignments, error: fetchError } = await this.supabaseClient
-                .from('punchlist_item_assignments')
-                .select(`
-                id,
-                punchlist_item_id,
-                project_member:project_members!inner(
-                    id,
-                    user_id
-                )
-            `)
-                .eq('company_id', companyId)
-                .eq('is_active', true)
-                .eq('project_members.user_id', userId)
-
-            if (fetchError) {
-                console.error('Error fetching punchlist assignments:', fetchError)
-                throw fetchError
-            }
-
-            if (!assignments || assignments.length === 0) {
-                return { removedCount: 0, affectedPunchlistItems: [] }
-            }
-
-            let removedCount = 0
-            const affectedIds = []
-
-            // Deactivate each assignment
-            for (const assignment of assignments) {
-                const { error: updateError } = await this.supabaseClient
-                    .from('punchlist_item_assignments')
-                    .update({
-                        is_active: false,
-                        removed_at: new Date().toISOString(),
-                        removed_by: userId, // You might want to pass the admin user ID here
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', assignment.id)
-
-                if (updateError) {
-                    console.error(`Error removing punchlist assignment ${assignment.id}:`, updateError)
-                } else {
-                    removedCount++
-                    if (!affectedIds.includes(assignment.punchlist_item_id)) {
-                        affectedIds.push(assignment.punchlist_item_id)
-                    }
-                }
-            }
-
-            return { removedCount, affectedPunchlistItems: affectedIds }
-
-        } catch (error) {
-            console.error('Error removing team member from punchlist items:', error)
-            return { removedCount: 0, affectedPunchlistItems: [] }
-        }
-    }
-
-    /**
-     * Update punchlist item status with coordination hooks
-     */
-    async updatePunchlistItemStatusCoordinated(
-        punchlistItemId: string,
-        companyId: string,
-        data: {
-            status: 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'rejected' | 'on_hold'
-            actualHours?: number
-            resolutionNotes?: string
-            rejectionReason?: string
-            inspectionPassed?: boolean
-            inspectionNotes?: string
-            triggeredBy?: 'user' | 'schedule_cascade' | 'bulk_update'
-            userId?: string
-        }
-    ) {
-        // Validate status transition if not triggered by system
-        if (data.triggeredBy === 'user') {
-            // Get current status to validate transition
-            const { data: currentItem } = await this.supabaseClient
-                .from('punchlist_items')
-                .select('status')
-                .eq('id', punchlistItemId)
-                .eq('company_id', companyId)
-                .single()
-
-            if (currentItem) {
-                // Apply your status transition validation rules here
-                // Based on PUNCHLIST_STATUS_TRANSITIONS from your types
-            }
-        }
-
-        // Prepare update data
-        const updateData: any = {
-            status: data.status,
-            updated_at: new Date().toISOString(),
-        }
-
-        if (data.actualHours !== undefined) updateData.actual_hours = data.actualHours
-        if (data.resolutionNotes !== undefined) updateData.resolution_notes = data.resolutionNotes
-        if (data.rejectionReason !== undefined) updateData.rejection_reason = data.rejectionReason
-        if (data.inspectionNotes !== undefined) updateData.inspection_notes = data.inspectionNotes
-
-        // Handle status-specific logic
-        if (data.status === 'completed') {
-            updateData.completed_at = new Date().toISOString()
-            if (data.inspectionPassed !== undefined) {
-                updateData.inspection_passed = data.inspectionPassed
-                updateData.inspected_at = new Date().toISOString()
-                if (data.userId) {
-                    updateData.inspected_by = data.userId
-                }
-            }
-        }
-
-        if (data.status === 'assigned' && !updateData.assigned_at) {
-            // Set assigned timestamp if not already set
-            const { data: currentItem } = await this.supabaseClient
-                .from('punchlist_items')
-                .select('assigned_at')
-                .eq('id', punchlistItemId)
-                .single()
-
-            if (currentItem && !currentItem.assigned_at) {
-                updateData.assigned_at = new Date().toISOString()
-            }
-        }
-
-        const { data: punchlistItem, error } = await this.supabaseClient
-            .from('punchlist_items')
-            .update(updateData)
-            .eq('id', punchlistItemId)
-            .eq('company_id', companyId)
-            .select('*')
-            .single()
-
-        if (error) {
-            console.error('Error updating punchlist item status:', error)
-            throw new Error('Failed to update punchlist item status')
-        }
-
-        return punchlistItem
-    }
-
-    /**
-     * Batch update multiple punchlist items (for cascade operations)
-     */
-    async batchUpdatePunchlistItemStatus(
-        updates: Array<{
-            id: string
-            status: 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'rejected' | 'on_hold'
-            notes?: string
-        }>,
-        companyId: string,
-        triggeredBy: 'schedule_cascade' | 'admin_bulk' = 'schedule_cascade',
-        userId?: string
-    ): Promise<{
-        success: number
-        failed: number
-        results: Array<{ id: string; success: boolean; error?: string }>
-    }> {
-        const results = []
-        let successCount = 0
-        let failedCount = 0
-
-        for (const update of updates) {
-            try {
-                await this.updatePunchlistItemStatusCoordinated(
-                    update.id,
-                    companyId,
-                    {
-                        status: update.status,
-                        resolutionNotes: update.notes,
-                        triggeredBy,
-                        userId
-                    }
-                )
-
-                results.push({ id: update.id, success: true })
-                successCount++
-            } catch (error) {
-                results.push({
-                    id: update.id,
-                    success: false,
-                    error: error instanceof Error ? error.message : 'Unknown error'
-                })
-                failedCount++
-            }
-        }
-
-        return {
-            success: successCount,
-            failed: failedCount,
-            results
-        }
-    }
-
-    /**
      * Check punchlist item assignment validity for team member
      */
     async validatePunchlistAssignment(
@@ -1253,71 +1274,118 @@ export class PunchlistItemDatabaseService {
         projectMember?: any
     }> {
         try {
-            // Check if project member exists and is active
-            const { data: projectMember, error } = await this.supabaseClient
+            // Step 1: Get project member details (no joins, simple query)
+            const { data: projectMember, error: memberError } = await this.supabaseClient
                 .from('project_members')
-                .select(`
-                id,
-                status,
-                user:users!inner(
-                    id,
-                    first_name,
-                    last_name,
-                    is_active,
-                    trade_specialty
-                ),
-                project:projects!inner(
-                    id,
-                    name,
-                    status
-                )
-            `)
+                .select('id, status, user_id, project_id')
                 .eq('id', projectMemberId)
                 .eq('company_id', companyId)
                 .single()
 
-            if (error || !projectMember) {
+            if (memberError || !projectMember) {
+                console.error('Project member fetch error:', memberError)
                 return {
                     isValid: false,
                     reason: 'Project member not found'
                 }
             }
 
-            if (!projectMember.user.is_active) {
+            // Step 2: Get user details separately (guaranteed single object)
+            const { data: user, error: userError } = await this.supabaseClient
+                .from('users')
+                .select('id, first_name, last_name, is_active, trade_specialty')
+                .eq('id', projectMember.user_id)
+                .single()
+
+            if (userError || !user) {
+                console.error('User fetch error:', userError)
                 return {
                     isValid: false,
-                    reason: 'User account is inactive',
-                    projectMember
+                    reason: 'User not found'
                 }
             }
 
+            // Step 3: Get project details separately (guaranteed single object)
+            const { data: project, error: projectError } = await this.supabaseClient
+                .from('projects')
+                .select('id, name, status')
+                .eq('id', projectMember.project_id)
+                .eq('company_id', companyId)
+                .single()
+
+            if (projectError || !project) {
+                console.error('Project fetch error:', projectError)
+                return {
+                    isValid: false,
+                    reason: 'Project not found'
+                }
+            }
+
+            // Step 4: Now we have clean, single objects - no more TypeScript errors!
+
+            // Check if user is active (now user.is_active works perfectly)
+            if (!user.is_active) {
+                return {
+                    isValid: false,
+                    reason: 'User account is inactive',
+                    projectMember: {
+                        ...projectMember,
+                        user,
+                        project
+                    }
+                }
+            }
+
+            // Check if project member is active
             if (projectMember.status !== 'active') {
                 return {
                     isValid: false,
                     reason: 'Project member is not active on project',
-                    projectMember
+                    projectMember: {
+                        ...projectMember,
+                        user,
+                        project
+                    }
                 }
             }
 
-            // Check if punchlist item belongs to the same project
-            const { data: punchlistItem } = await this.supabaseClient
+            // Step 5: Check if punchlist item belongs to the same project
+            const { data: punchlistItem, error: punchlistError } = await this.supabaseClient
                 .from('punchlist_items')
                 .select('project_id')
                 .eq('id', punchlistItemId)
                 .eq('company_id', companyId)
                 .single()
 
-            if (punchlistItem && punchlistItem.project_id !== projectMember.project.id) {
+            if (punchlistError) {
+                console.error('Punchlist item fetch error:', punchlistError)
                 return {
                     isValid: false,
-                    reason: 'Project member is not assigned to the same project as punchlist item',
-                    projectMember
+                    reason: 'Punchlist item not found'
                 }
             }
 
+            // Check project match (now project.id works perfectly)
+            if (punchlistItem && punchlistItem.project_id !== project.id) {
+                return {
+                    isValid: false,
+                    reason: 'Project member is not assigned to the same project as punchlist item',
+                    projectMember: {
+                        ...projectMember,
+                        user,
+                        project
+                    }
+                }
+            }
+
+            // All validations passed!
             return {
                 isValid: true,
-                projectMember
+                projectMember: {
+                    ...projectMember,
+                    user,
+                    project
+                }
             }
 
         } catch (error) {
@@ -1328,6 +1396,8 @@ export class PunchlistItemDatabaseService {
             }
         }
     }
+
+
 
     // ==============================================
     // HELPER METHODS

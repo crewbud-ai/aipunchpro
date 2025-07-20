@@ -6,6 +6,7 @@ import { createServerClient, createAdminClient } from '@/lib/supabase/server'
 import { createBrowserClient } from '@/lib/supabase/client'
 import type { ProjectLocation, ProjectClient } from '@/lib/database/schema/projects'
 
+
 export class ProjectDatabaseService {
   private supabaseClient: ReturnType<typeof createServerClient>
 
@@ -18,6 +19,7 @@ export class ProjectDatabaseService {
       this.supabaseClient = createBrowserClient()
     }
   }
+  
 
   // ==============================================
   // AUTO-GENERATE PROJECT NUMBER
@@ -424,10 +426,12 @@ export class ProjectDatabaseService {
       activeTeamMembers: number
     }
   }> {
-    const reasons = []
+    const reasons: string[] = []
+
+    // FIX: Properly type the objects as Record<string, number>
     const childEntityCounts = {
-      scheduleProjects: {},
-      punchlistItems: {},
+      scheduleProjects: {} as Record<string, number>,
+      punchlistItems: {} as Record<string, number>,
       activeTeamMembers: 0
     }
 
@@ -700,7 +704,8 @@ export class ProjectDatabaseService {
       }
 
       let removedCount = 0
-      const affectedProjects = []
+      // FIX: Explicitly type as string array
+      const affectedProjects: string[] = []
 
       // Deactivate each membership
       for (const membership of memberships) {
@@ -774,7 +779,8 @@ export class ProjectDatabaseService {
         .eq('project_id', projectId)
         .eq('company_id', companyId)
 
-      const scheduleByStatus = {}
+      // FIX: Properly type as Record<string, number>
+      const scheduleByStatus: Record<string, number> = {}
       let scheduleProgress = 0
       if (scheduleProjects) {
         scheduleProjects.forEach(sp => {
@@ -793,8 +799,9 @@ export class ProjectDatabaseService {
         .eq('project_id', projectId)
         .eq('company_id', companyId)
 
-      const punchlistByStatus = {}
-      const punchlistByPriority = {}
+      // FIX: Properly type as Record<string, number>
+      const punchlistByStatus: Record<string, number> = {}
+      const punchlistByPriority: Record<string, number> = {}
       let blockingCount = 0
       if (punchlistItems) {
         punchlistItems.forEach(pi => {

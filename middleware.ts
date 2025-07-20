@@ -171,7 +171,7 @@
 // }
 
 // ==============================================
-// middleware.ts - UPDATED with Status Coordination Routes
+// middleware.ts - COMPLETE VERSION with Status Coordination + All Previous Functionality
 // ==============================================
 
 import { NextResponse } from 'next/server'
@@ -290,35 +290,74 @@ export async function middleware(request: NextRequest) {
       if (!sessionValidation.success) {
         console.log('Invalid session:', sessionValidation.error)
 
-        // Invalid session - clear cookies
+        // Invalid session - clear cookies (including userInfo from previous version)
         const response = isProtectedRoute
           ? NextResponse.redirect(new URL('/auth/login', request.url))
           : NextResponse.next()
 
         response.cookies.delete('sessionToken')
+        response.cookies.delete('userInfo') // ← RESTORED from previous version
         return response
       }
 
-      // Session is valid - add user info to headers for API routes
+      // FIX: Add type guard to ensure data exists before accessing user
+      if (!sessionValidation.data) {
+        console.log('Session validation missing data')
+        
+        const response = isProtectedRoute
+          ? NextResponse.redirect(new URL('/auth/login', request.url))
+          : NextResponse.next()
+
+        response.cookies.delete('sessionToken')
+        response.cookies.delete('userInfo')
+        return response
+      }
+
+      // NOW we can safely access sessionValidation.data
       const { user } = sessionValidation.data
       
       // Clone the request headers
       const requestHeaders = new Headers(request.headers)
       
+      // Add session info to headers
+      requestHeaders.set('x-user-id', sessionValidation.data.userId || user?.id)
+      requestHeaders.set('x-session-id', sessionValidation.data.sessionId)
+      
       // Add user information to headers for API consumption
-      requestHeaders.set('x-user-id', user.id)
-      requestHeaders.set('x-company-id', user.company_id)
-      requestHeaders.set('x-user-role', user.role)
-      requestHeaders.set('x-user-email', user.email)
-      
-      // NEW: Add user permissions for coordinated operations
-      if (user.permissions) {
-        requestHeaders.set('x-user-permissions', JSON.stringify(user.permissions))
+      if (user) {
+        // RESTORED: Company ID handling from previous version
+        if (user.company_id) {
+          requestHeaders.set('x-company-id', user.company_id)
+        } else if (user.company?.id) {
+          requestHeaders.set('x-company-id', user.company.id)
+        }
+        
+        if (user.role) {
+          requestHeaders.set('x-user-role', user.role)
+        }
+        
+        if (user.email) {
+          requestHeaders.set('x-user-email', user.email)
+        }
+        
+        // NEW: Add user permissions for coordinated operations
+        if (user.permissions) {
+          let permissionsString = user.permissions
+          if (typeof permissionsString === 'object') {
+            permissionsString = JSON.stringify(permissionsString)
+          }
+          requestHeaders.set('x-user-permissions', permissionsString)
+        }
+        
+        // NEW: Add user name for audit trails in coordinated operations
+        if (user.first_name && user.last_name) {
+          requestHeaders.set('x-user-name', `${user.first_name} ${user.last_name}`)
+        }
       }
-      
-      // NEW: Add user name for audit trails in coordinated operations
-      if (user.first_name && user.last_name) {
-        requestHeaders.set('x-user-name', `${user.first_name} ${user.last_name}`)
+
+      // RESTORED: Redirect authenticated users away from auth pages (from previous version)
+      if (pathname.startsWith('/auth/') && !pathname.includes('logout')) {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
       }
 
       // Return response with updated headers
@@ -337,6 +376,7 @@ export async function middleware(request: NextRequest) {
         : NextResponse.next()
 
       response.cookies.delete('sessionToken')
+      response.cookies.delete('userInfo') // ← RESTORED from previous version
       return response
     }
   }
@@ -373,6 +413,7 @@ export function getCoordinationContext(request: NextRequest) {
     userRole: request.headers.get('x-user-role'),
     userName: request.headers.get('x-user-name'),
     userEmail: request.headers.get('x-user-email'),
+    sessionId: request.headers.get('x-session-id'),
     permissions: (() => {
       try {
         const permissionsStr = request.headers.get('x-user-permissions')
@@ -425,8 +466,38 @@ export function createCoordinationAuditEntry(
     entityId,
     userRole: context.userRole,
     userName: context.userName,
+    sessionId: context.sessionId,
     timestamp: new Date().toISOString(),
     details: details || {},
     source: 'coordination_middleware'
+  }
+}
+
+// ==============================================
+// HELPER FUNCTIONS FOR COMMON MIDDLEWARE OPERATIONS
+// ==============================================
+
+/**
+ * Check if user has required role for an operation
+ */
+export function hasRequiredRole(
+  request: NextRequest,
+  requiredRoles: string[]
+): boolean {
+  const userRole = request.headers.get('x-user-role')
+  return userRole ? requiredRoles.includes(userRole) : false
+}
+
+/**
+ * Get user context from request headers
+ */
+export function getUserContext(request: NextRequest) {
+  return {
+    userId: request.headers.get('x-user-id'),
+    companyId: request.headers.get('x-company-id'),
+    userRole: request.headers.get('x-user-role'),
+    userEmail: request.headers.get('x-user-email'),
+    userName: request.headers.get('x-user-name'),
+    sessionId: request.headers.get('x-session-id'),
   }
 }

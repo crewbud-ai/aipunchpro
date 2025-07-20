@@ -3,9 +3,9 @@
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { 
+import {
   validateUpdateProject,
-  formatProjectErrors 
+  formatProjectErrors
 } from '@/lib/validations/projects/project'
 import { ProjectDatabaseService } from '@/lib/database/services/projects'
 import { createProjectLocation, createProjectClient } from '@/lib/database/schema/projects'
@@ -20,11 +20,11 @@ export async function GET(
 ) {
   try {
     const projectId = params.id
-    
+
     // Get user info from middleware
     const userId = request.headers.get('x-user-id')
     const companyId = request.headers.get('x-company-id')
-    
+
     if (!userId || !companyId) {
       return NextResponse.json(
         {
@@ -90,15 +90,15 @@ export async function GET(
             actualEndDate: project.actual_end_date,
             estimatedHours: project.estimated_hours,
             actualHours: project.actual_hours,
-            
+
             // Enhanced JSONB fields
             location: project.location || null,
             client: project.client || null,
-            
+
             tags: project.tags || [],
             createdAt: project.created_at,
             updatedAt: project.updated_at,
-            
+
             // Related data
             creator: project.creator ? {
               id: project.creator.id,
@@ -106,14 +106,14 @@ export async function GET(
               lastName: project.creator.last_name,
               email: project.creator.email,
             } : null,
-            
+
             projectManager: project.project_manager ? {
               id: project.project_manager.id,
               firstName: project.project_manager.first_name,
               lastName: project.project_manager.last_name,
               email: project.project_manager.email,
             } : null,
-            
+
             files: files.map(file => ({
               id: file.id,
               name: file.name,
@@ -155,11 +155,11 @@ export async function PUT(
 ) {
   try {
     const projectId = params.id
-    
+
     // Get user info from middleware
     const userId = request.headers.get('x-user-id')
     const companyId = request.headers.get('x-company-id')
-    
+
     if (!userId || !companyId) {
       return NextResponse.json(
         {
@@ -185,7 +185,7 @@ export async function PUT(
 
     // Parse request body
     const body = await request.json()
-    
+
     // Validate input data
     const validation = validateUpdateProject({ ...body, id: projectId })
     if (!validation.success) {
@@ -220,8 +220,8 @@ export async function PUT(
     // Check if new name conflicts with existing projects (if name is being changed)
     if (updateData.name) {
       const nameExists = await projectService.isProjectNameTaken(
-        updateData.name, 
-        companyId, 
+        updateData.name,
+        companyId,
         projectId
       )
 
@@ -290,8 +290,8 @@ export async function PUT(
 
     // FIXED: Update project using the correct method name
     const updatedProject = await projectService.updateProjectEnhanced(
-      projectId, 
-      companyId, 
+      projectId,
+      companyId,
       enhancedUpdateData
     )
 
@@ -317,11 +317,11 @@ export async function PUT(
             actualEndDate: updatedProject.actual_end_date,
             estimatedHours: updatedProject.estimated_hours,
             actualHours: updatedProject.actual_hours,
-            
+
             // Enhanced JSONB fields
             location: updatedProject.location,
             client: updatedProject.client,
-            
+
             tags: updatedProject.tags || [],  // FIXED: Ensure tags are included
             updatedAt: updatedProject.updated_at,
           },
@@ -370,11 +370,11 @@ export async function DELETE(
 ) {
   try {
     const projectId = params.id
-    
+
     // Get user info from middleware
     const userId = request.headers.get('x-user-id')
     const companyId = request.headers.get('x-company-id')
-    
+
     if (!userId || !companyId) {
       return NextResponse.json(
         {
@@ -456,11 +456,11 @@ export async function PATCH(
 ) {
   try {
     const projectId = params.id
-    
+
     // Get user info from middleware
     const userId = request.headers.get('x-user-id')
     const companyId = request.headers.get('x-company-id')
-    
+
     if (!userId || !companyId) {
       return NextResponse.json(
         {
@@ -474,13 +474,13 @@ export async function PATCH(
 
     // Parse request body
     const body = await request.json()
-    const { 
-      action, 
-      status, 
-      progress, 
-      notes, 
-      useCoordination = false,  // NEW: Option to use coordination
-      skipChildValidation = false  // NEW: Option to skip validation
+    const {
+      action,
+      status,
+      progress,
+      notes,
+      useCoordination = false,
+      skipChildValidation = false
     } = body
 
     // Create service instances
@@ -517,10 +517,10 @@ export async function PATCH(
           )
         }
 
-        // NEW: Use coordination if requested
+        // Use coordination if requested
         if (useCoordination) {
           statusCoordinator = new StatusCoordinatorService(true, false)
-          
+
           try {
             const coordinatedResult = await statusCoordinator.updateProjectStatusWithCascade(
               projectId,
@@ -529,7 +529,32 @@ export async function PATCH(
               notes,
               userId
             )
-            
+
+            // Check if coordination was successful before accessing data
+            if (!coordinatedResult.success) {
+              return NextResponse.json(
+                {
+                  success: false,
+                  error: 'Status coordination failed',
+                  message: coordinatedResult.error || 'Failed to coordinate status update',
+                },
+                { status: 500 }
+              )
+            }
+
+            // Add type guard to ensure data exists
+            if (!coordinatedResult.data) {
+              return NextResponse.json(
+                {
+                  success: false,
+                  error: 'Coordination data missing',
+                  message: 'Status update completed but response data is missing',
+                },
+                { status: 500 }
+              )
+            }
+
+            // Now we can safely access coordinatedResult.data
             updatedProject = coordinatedResult.data.project
             cascadeResults = {
               scheduleProjectsUpdated: coordinatedResult.data.updatedCount,
@@ -540,14 +565,20 @@ export async function PATCH(
                 newStatus: sp.status
               }))
             }
-          } catch (coordinationError: any) {
+
+          } catch (coordinationError) {
+            // FIX: Type guard for unknown error
+            const errorMessage = coordinationError instanceof Error
+              ? coordinationError.message
+              : String(coordinationError)
+
             // If coordination fails, fall back to regular update or return error
-            if (coordinationError.message.includes('Cannot change project status')) {
+            if (errorMessage.includes('Cannot change project status')) {
               return NextResponse.json(
                 {
                   success: false,
                   error: 'Status change blocked',
-                  message: coordinationError.message,
+                  message: errorMessage,
                   details: {
                     suggestion: 'Use skipChildValidation=true to force the update, or resolve blocking issues first.'
                   }
@@ -575,13 +606,13 @@ export async function PATCH(
           )
         }
 
-        // NEW: Auto-trigger status coordination when progress reaches milestones
+        // Auto-trigger status coordination when progress reaches milestones
         if (useCoordination && (progress === 100 || progress === 0)) {
           statusCoordinator = new StatusCoordinatorService(true, false)
-          
+
           // Auto-suggest status based on progress
           const suggestedStatus = progress === 100 ? 'completed' : 'not_started'
-          
+
           try {
             const coordinatedResult = await statusCoordinator.updateProjectStatusWithCascade(
               projectId,
@@ -590,19 +621,35 @@ export async function PATCH(
               notes || `Auto-updated due to progress reaching ${progress}%`,
               userId
             )
-            
-            updatedProject = coordinatedResult.data.project
-            cascadeResults = {
-              autoStatusUpdate: true,
-              newStatus: suggestedStatus,
-              scheduleProjectsUpdated: coordinatedResult.data.updatedCount
+
+            // Check if coordination was successful before accessing data
+            if (coordinatedResult.success && coordinatedResult.data) {
+              // TypeScript now knows coordinatedResult.data exists
+              updatedProject = coordinatedResult.data.project
+              cascadeResults = {
+                autoStatusUpdate: true,
+                newStatus: suggestedStatus,
+                scheduleProjectsUpdated: coordinatedResult.data.updatedCount
+              }
+            } else {
+              // If coordination fails, just update progress without status change
+              updatedProject = await projectService.updateProjectProgress(projectId, companyId, progress, notes)
+              cascadeResults = {
+                autoStatusUpdate: false,
+                error: coordinatedResult.error || 'Coordination failed'
+              }
             }
-          } catch (coordinationError: any) {
+          } catch (coordinationError) {
+            // FIX: Type guard for unknown error
+            const errorMessage = coordinationError instanceof Error
+              ? coordinationError.message
+              : String(coordinationError)
+
             // If coordination fails, just update progress without status change
             updatedProject = await projectService.updateProjectProgress(projectId, companyId, progress, notes)
             cascadeResults = {
               autoStatusUpdate: false,
-              error: coordinationError.message
+              error: errorMessage
             }
           }
         } else {
@@ -622,9 +669,14 @@ export async function PATCH(
         )
     }
 
-    // Prepare response message
+    // FIX: Prepare response message with proper type checking
     let responseMessage = `Project ${action.replace('update_', '')} updated successfully`
-    if (cascadeResults?.scheduleProjectsUpdated > 0) {
+
+    // Check if scheduleProjectsUpdated exists and is a number
+    if (cascadeResults &&
+      'scheduleProjectsUpdated' in cascadeResults &&
+      typeof cascadeResults.scheduleProjectsUpdated === 'number' &&
+      cascadeResults.scheduleProjectsUpdated > 0) {
       responseMessage += `. ${cascadeResults.scheduleProjectsUpdated} schedule project(s) were automatically updated.`
     }
 
