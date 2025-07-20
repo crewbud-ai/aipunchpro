@@ -323,6 +323,535 @@ export class ProjectDatabaseService {
   }
 
   // ==============================================
+  // NEW METHODS FOR STATUS COORDINATION
+  // ==============================================
+
+  /**
+   * Update project status with coordination hooks and validation
+   */
+  async updateProjectStatusCoordinated(
+    projectId: string,
+    companyId: string,
+    newStatus: 'not_started' | 'in_progress' | 'on_track' | 'ahead_of_schedule' | 'behind_schedule' | 'on_hold' | 'completed' | 'cancelled',
+    options?: {
+      notes?: string
+      userId?: string
+      skipChildValidation?: boolean
+      triggeredBy?: 'user' | 'schedule_sync' | 'admin'
+      actualStartDate?: string
+      actualEndDate?: string
+    }
+  ) {
+    // Validate status change based on current state and child entities
+    if (!options?.skipChildValidation) {
+      const validation = await this.validateProjectStatusChange(
+        projectId,
+        companyId,
+        newStatus
+      )
+
+      if (!validation.canChange) {
+        throw new Error(
+          `Cannot change project status to ${newStatus}: ${validation.reasons.join(', ')}`
+        )
+      }
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+    }
+
+    if (options?.notes) {
+      updateData.notes = options.notes
+    }
+
+    // Handle status-specific logic
+    if (newStatus === 'in_progress' || newStatus === 'on_track') {
+      // Set actual start date if not already set and not provided
+      if (!options?.actualStartDate) {
+        const { data: currentProject } = await this.supabaseClient
+          .from('projects')
+          .select('actual_start_date')
+          .eq('id', projectId)
+          .eq('company_id', companyId)
+          .single()
+
+        if (currentProject && !currentProject.actual_start_date) {
+          updateData.actual_start_date = new Date().toISOString().split('T')[0]
+        }
+      } else {
+        updateData.actual_start_date = options.actualStartDate
+      }
+    }
+
+    if (newStatus === 'completed') {
+      updateData.progress = 100
+      updateData.actual_end_date = options?.actualEndDate || new Date().toISOString().split('T')[0]
+    }
+
+    // Update the project
+    const { data: project, error } = await this.supabaseClient
+      .from('projects')
+      .update(updateData)
+      .eq('id', projectId)
+      .eq('company_id', companyId)
+      .select('*')
+      .single()
+
+    if (error) {
+      console.error('Error updating project status:', error)
+      throw new Error('Failed to update project status')
+    }
+
+    return project
+  }
+
+  /**
+   * Validate if project status can be changed based on child entities
+   */
+  async validateProjectStatusChange(
+    projectId: string,
+    companyId: string,
+    newStatus: string
+  ): Promise<{
+    canChange: boolean
+    reasons: string[]
+    childEntityCounts: {
+      scheduleProjects: Record<string, number>
+      punchlistItems: Record<string, number>
+      activeTeamMembers: number
+    }
+  }> {
+    const reasons = []
+    const childEntityCounts = {
+      scheduleProjects: {},
+      punchlistItems: {},
+      activeTeamMembers: 0
+    }
+
+    try {
+      // Get schedule project statistics
+      const { data: scheduleProjects } = await this.supabaseClient
+        .from('schedule_projects')
+        .select('status')
+        .eq('project_id', projectId)
+        .eq('company_id', companyId)
+
+      if (scheduleProjects) {
+        scheduleProjects.forEach(sp => {
+          childEntityCounts.scheduleProjects[sp.status] =
+            (childEntityCounts.scheduleProjects[sp.status] || 0) + 1
+        })
+      }
+
+      // Get punchlist item statistics
+      const { data: punchlistItems } = await this.supabaseClient
+        .from('punchlist_items')
+        .select('status, priority')
+        .eq('project_id', projectId)
+        .eq('company_id', companyId)
+
+      if (punchlistItems) {
+        punchlistItems.forEach(pi => {
+          childEntityCounts.punchlistItems[pi.status] =
+            (childEntityCounts.punchlistItems[pi.status] || 0) + 1
+        })
+      }
+
+      // Get active team member count
+      const { data: teamMembers } = await this.supabaseClient
+        .from('project_members')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('company_id', companyId)
+        .eq('status', 'active')
+
+      childEntityCounts.activeTeamMembers = teamMembers?.length || 0
+
+      // Apply validation rules based on new status
+      switch (newStatus) {
+        case 'completed':
+          // Check if all schedule projects are completed
+          const incompleteSchedules = (childEntityCounts.scheduleProjects.planned || 0) +
+            (childEntityCounts.scheduleProjects.in_progress || 0) +
+            (childEntityCounts.scheduleProjects.delayed || 0)
+
+          if (incompleteSchedules > 0) {
+            reasons.push(`${incompleteSchedules} schedule project(s) are not completed`)
+          }
+
+          // Check for critical open punchlist items
+          const criticalOpen = (childEntityCounts.punchlistItems.open || 0) +
+            (childEntityCounts.punchlistItems.assigned || 0) +
+            (childEntityCounts.punchlistItems.in_progress || 0) +
+            (childEntityCounts.punchlistItems.pending_review || 0)
+
+          if (criticalOpen > 0) {
+            // Get actual critical items
+            const { data: criticalItems } = await this.supabaseClient
+              .from('punchlist_items')
+              .select('id')
+              .eq('project_id', projectId)
+              .eq('company_id', companyId)
+              .in('status', ['open', 'assigned', 'in_progress', 'pending_review'])
+              .eq('priority', 'critical')
+
+            if (criticalItems && criticalItems.length > 0) {
+              reasons.push(`${criticalItems.length} critical punchlist item(s) are not resolved`)
+            }
+          }
+          break
+
+        case 'in_progress':
+          // Check if project has team members assigned
+          if (childEntityCounts.activeTeamMembers === 0) {
+            reasons.push('No team members assigned to project')
+          }
+          break
+
+        case 'cancelled':
+          // Check if any work is in progress
+          const activeWork = (childEntityCounts.scheduleProjects.in_progress || 0)
+          if (activeWork > 0) {
+            reasons.push(`${activeWork} schedule project(s) are currently in progress`)
+          }
+          break
+
+        default:
+          break
+      }
+
+      return {
+        canChange: reasons.length === 0,
+        reasons,
+        childEntityCounts
+      }
+
+    } catch (error) {
+      console.error('Error validating project status change:', error)
+      return {
+        canChange: false,
+        reasons: ['Validation error occurred'],
+        childEntityCounts
+      }
+    }
+  }
+
+  /**
+   * Calculate project status based on child entity progress
+   */
+  async calculateProjectStatusFromChildren(
+    projectId: string,
+    companyId: string
+  ): Promise<{
+    suggestedStatus: string
+    confidence: number
+    reasoning: string
+    metrics: {
+      scheduleCompletion: number
+      punchlistCompletion: number
+      overallProgress: number
+      daysFromDeadline: number
+    }
+  }> {
+    try {
+      // Get project details
+      const { data: project } = await this.supabaseClient
+        .from('projects')
+        .select('end_date, progress')
+        .eq('id', projectId)
+        .eq('company_id', companyId)
+        .single()
+
+      // Get schedule project metrics
+      const { data: scheduleProjects } = await this.supabaseClient
+        .from('schedule_projects')
+        .select('status, progress_percentage')
+        .eq('project_id', projectId)
+        .eq('company_id', companyId)
+
+      // Get punchlist metrics
+      const { data: punchlistItems } = await this.supabaseClient
+        .from('punchlist_items')
+        .select('status, priority')
+        .eq('project_id', projectId)
+        .eq('company_id', companyId)
+
+      // Calculate metrics
+      const scheduleTotal = scheduleProjects?.length || 0
+      const scheduleCompleted = scheduleProjects?.filter(sp => sp.status === 'completed').length || 0
+      const scheduleCompletion = scheduleTotal > 0 ? (scheduleCompleted / scheduleTotal) * 100 : 0
+
+      const punchlistTotal = punchlistItems?.length || 0
+      const punchlistCompleted = punchlistItems?.filter(pi => pi.status === 'completed').length || 0
+      const punchlistCompletion = punchlistTotal > 0 ? (punchlistCompleted / punchlistTotal) * 100 : 0
+
+      // Calculate overall progress from schedule projects
+      let totalProgress = 0
+      if (scheduleProjects && scheduleProjects.length > 0) {
+        totalProgress = scheduleProjects.reduce((sum, sp) =>
+          sum + (Number(sp.progress_percentage) || 0), 0
+        ) / scheduleProjects.length
+      }
+
+      // Calculate days from deadline
+      let daysFromDeadline = 0
+      if (project?.end_date) {
+        const endDate = new Date(project.end_date)
+        const today = new Date()
+        daysFromDeadline = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+      }
+
+      // Determine suggested status
+      let suggestedStatus = 'not_started'
+      let confidence = 0
+      let reasoning = ''
+
+      if (scheduleCompletion === 100 && punchlistCompletion >= 95) {
+        suggestedStatus = 'completed'
+        confidence = 95
+        reasoning = 'All schedule projects and most punchlist items are completed'
+      } else if (totalProgress >= 90) {
+        if (daysFromDeadline > 0) {
+          suggestedStatus = 'ahead_of_schedule'
+          confidence = 85
+          reasoning = 'Project is nearly complete and ahead of deadline'
+        } else {
+          suggestedStatus = 'on_track'
+          confidence = 80
+          reasoning = 'Project is nearly complete'
+        }
+      } else if (totalProgress >= 50) {
+        if (daysFromDeadline < -5) {
+          suggestedStatus = 'behind_schedule'
+          confidence = 90
+          reasoning = 'Project is behind deadline'
+        } else if (daysFromDeadline > 10) {
+          suggestedStatus = 'ahead_of_schedule'
+          confidence = 75
+          reasoning = 'Project progress is good and ahead of schedule'
+        } else {
+          suggestedStatus = 'on_track'
+          confidence = 70
+          reasoning = 'Project is progressing normally'
+        }
+      } else if (totalProgress > 0) {
+        suggestedStatus = 'in_progress'
+        confidence = 80
+        reasoning = 'Work has begun on schedule projects'
+      }
+
+      return {
+        suggestedStatus,
+        confidence,
+        reasoning,
+        metrics: {
+          scheduleCompletion,
+          punchlistCompletion,
+          overallProgress: totalProgress,
+          daysFromDeadline
+        }
+      }
+
+    } catch (error) {
+      console.error('Error calculating project status from children:', error)
+      return {
+        suggestedStatus: 'not_started',
+        confidence: 0,
+        reasoning: 'Unable to calculate status due to error',
+        metrics: {
+          scheduleCompletion: 0,
+          punchlistCompletion: 0,
+          overallProgress: 0,
+          daysFromDeadline: 0
+        }
+      }
+    }
+  }
+
+  /**
+   * Remove team member from all project assignments
+   */
+  async removeTeamMemberFromAllProjects(
+    userId: string,
+    companyId: string
+  ): Promise<{
+    removedCount: number
+    affectedProjects: string[]
+  }> {
+    try {
+      // Find all project memberships for this user
+      const { data: memberships, error: fetchError } = await this.supabaseClient
+        .from('project_members')
+        .select('id, project_id')
+        .eq('user_id', userId)
+        .eq('company_id', companyId)
+        .eq('status', 'active')
+
+      if (fetchError) {
+        console.error('Error fetching project memberships:', fetchError)
+        throw fetchError
+      }
+
+      if (!memberships || memberships.length === 0) {
+        return { removedCount: 0, affectedProjects: [] }
+      }
+
+      let removedCount = 0
+      const affectedProjects = []
+
+      // Deactivate each membership
+      for (const membership of memberships) {
+        const { error: updateError } = await this.supabaseClient
+          .from('project_members')
+          .update({
+            status: 'inactive',
+            left_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', membership.id)
+
+        if (updateError) {
+          console.error(`Error removing project membership ${membership.id}:`, updateError)
+        } else {
+          removedCount++
+          if (!affectedProjects.includes(membership.project_id)) {
+            affectedProjects.push(membership.project_id)
+          }
+        }
+      }
+
+      return { removedCount, affectedProjects }
+
+    } catch (error) {
+      console.error('Error removing team member from projects:', error)
+      return { removedCount: 0, affectedProjects: [] }
+    }
+  }
+
+  /**
+   * Get project status summary with child entity details
+   */
+  async getProjectStatusSummary(
+    projectId: string,
+    companyId: string
+  ): Promise<{
+    project: any
+    scheduleProjects: {
+      total: number
+      byStatus: Record<string, number>
+      overallProgress: number
+    }
+    punchlistItems: {
+      total: number
+      byStatus: Record<string, number>
+      byPriority: Record<string, number>
+      blockingCount: number
+    }
+    teamMembers: {
+      total: number
+      active: number
+    }
+    statusRecommendation: {
+      suggested: string
+      confidence: number
+      reasoning: string
+    }
+  }> {
+    try {
+      // Get project details
+      const project = await this.getProjectByIdEnhanced(projectId, companyId)
+      if (!project) {
+        throw new Error('Project not found')
+      }
+
+      // Get schedule project summary
+      const { data: scheduleProjects } = await this.supabaseClient
+        .from('schedule_projects')
+        .select('status, progress_percentage')
+        .eq('project_id', projectId)
+        .eq('company_id', companyId)
+
+      const scheduleByStatus = {}
+      let scheduleProgress = 0
+      if (scheduleProjects) {
+        scheduleProjects.forEach(sp => {
+          scheduleByStatus[sp.status] = (scheduleByStatus[sp.status] || 0) + 1
+          scheduleProgress += Number(sp.progress_percentage || 0)
+        })
+        if (scheduleProjects.length > 0) {
+          scheduleProgress = scheduleProgress / scheduleProjects.length
+        }
+      }
+
+      // Get punchlist summary
+      const { data: punchlistItems } = await this.supabaseClient
+        .from('punchlist_items')
+        .select('status, priority')
+        .eq('project_id', projectId)
+        .eq('company_id', companyId)
+
+      const punchlistByStatus = {}
+      const punchlistByPriority = {}
+      let blockingCount = 0
+      if (punchlistItems) {
+        punchlistItems.forEach(pi => {
+          punchlistByStatus[pi.status] = (punchlistByStatus[pi.status] || 0) + 1
+          punchlistByPriority[pi.priority] = (punchlistByPriority[pi.priority] || 0) + 1
+
+          // Count blocking items (high/critical that are not resolved)
+          if ((pi.priority === 'high' || pi.priority === 'critical') &&
+            !['completed', 'rejected'].includes(pi.status)) {
+            blockingCount++
+          }
+        })
+      }
+
+      // Get team member summary
+      const { data: teamMembers } = await this.supabaseClient
+        .from('project_members')
+        .select('id, status')
+        .eq('project_id', projectId)
+        .eq('company_id', companyId)
+
+      const activeTeamMembers = teamMembers?.filter(tm => tm.status === 'active').length || 0
+
+      // Get status recommendation
+      const recommendation = await this.calculateProjectStatusFromChildren(projectId, companyId)
+
+      return {
+        project,
+        scheduleProjects: {
+          total: scheduleProjects?.length || 0,
+          byStatus: scheduleByStatus,
+          overallProgress: scheduleProgress
+        },
+        punchlistItems: {
+          total: punchlistItems?.length || 0,
+          byStatus: punchlistByStatus,
+          byPriority: punchlistByPriority,
+          blockingCount
+        },
+        teamMembers: {
+          total: teamMembers?.length || 0,
+          active: activeTeamMembers
+        },
+        statusRecommendation: {
+          suggested: recommendation.suggestedStatus,
+          confidence: recommendation.confidence,
+          reasoning: recommendation.reasoning
+        }
+      }
+
+    } catch (error) {
+      console.error('Error getting project status summary:', error)
+      throw error
+    }
+  }
+
+  // ==============================================
   // PROJECT STATUS & PROGRESS OPERATIONS
   // ==============================================
 

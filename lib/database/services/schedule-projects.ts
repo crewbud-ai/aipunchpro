@@ -32,6 +32,7 @@ export interface ScheduleProjectWithDetails extends ScheduleProject {
         firstName: string
         lastName: string
     }
+    
 }
 
 export interface DependentScheduleProject {
@@ -669,6 +670,370 @@ export class ScheduleProjectDatabaseService {
             todaysWork: statsData.filter(s => s.start_date === today).length,
             thisWeeksWork: statsData.filter(s => s.start_date >= today && s.start_date <= weekFromNow).length,
             overdue: statsData.filter(s => s.start_date < today && ['planned', 'in_progress', 'delayed'].includes(s.status)).length
+        }
+    }
+
+    // ==============================================
+    // NEW METHODS FOR STATUS COORDINATION
+    // ==============================================
+
+    /**
+     * Get all schedule projects for a specific project (for cascade operations)
+     */
+    async getScheduleProjectsByProject(
+        projectId: string,
+        companyId: string,
+        options?: {
+            status?: ('planned' | 'in_progress' | 'completed' | 'delayed' | 'cancelled')[]
+            includeInactive?: boolean
+        }
+    ) {
+        let query = this.supabaseClient
+            .from('schedule_projects')
+            .select(`
+            *,
+            project:projects!inner(
+                id,
+                name,
+                status
+            ),
+            creator:users!schedule_projects_created_by_fkey(
+                id,
+                first_name,
+                last_name,
+                email
+            )
+        `)
+            .eq('project_id', projectId)
+            .eq('company_id', companyId)
+
+        // Apply status filter if provided
+        if (options?.status && options.status.length > 0) {
+            query = query.in('status', options.status)
+        }
+
+        // Order by start date
+        query = query.order('start_date', { ascending: true })
+
+        const { data: scheduleProjects, error } = await query
+
+        if (error) {
+            console.error('Error fetching schedule projects by project:', error)
+            throw new Error('Failed to fetch schedule projects')
+        }
+
+        return scheduleProjects || []
+    }
+
+    /**
+     * Check if schedule project can be completed (considering dependencies and blocking items)
+     */
+    async canCompleteScheduleProject(
+        scheduleProjectId: string,
+        companyId: string
+    ): Promise<{
+        canComplete: boolean
+        blockingReasons: string[]
+        dependencyStatus: { completed: number; total: number }
+    }> {
+        try {
+            // Get schedule project details
+            const scheduleProject = await this.getScheduleProjectById(scheduleProjectId, companyId)
+            if (!scheduleProject) {
+                return {
+                    canComplete: false,
+                    blockingReasons: ['Schedule project not found'],
+                    dependencyStatus: { completed: 0, total: 0 }
+                }
+            }
+
+            const blockingReasons = []
+
+            // Check dependencies
+            if (scheduleProject.dependsOn && scheduleProject.dependsOn.length > 0) {
+                const { data: dependencies } = await this.supabaseClient
+                    .from('schedule_projects')
+                    .select('id, title, status')
+                    .in('id', scheduleProject.dependsOn)
+                    .eq('company_id', companyId)
+
+                const incompleteDependencies = dependencies?.filter(dep =>
+                    dep.status !== 'completed'
+                ) || []
+
+                if (incompleteDependencies.length > 0) {
+                    blockingReasons.push(
+                        `${incompleteDependencies.length} dependency(ies) not completed: ${incompleteDependencies.map(d => d.title).join(', ')
+                        }`
+                    )
+                }
+
+                const dependencyStatus = {
+                    completed: (dependencies?.length || 0) - incompleteDependencies.length,
+                    total: dependencies?.length || 0
+                }
+
+                return {
+                    canComplete: blockingReasons.length === 0,
+                    blockingReasons,
+                    dependencyStatus
+                }
+            }
+
+            return {
+                canComplete: true,
+                blockingReasons: [],
+                dependencyStatus: { completed: 0, total: 0 }
+            }
+
+        } catch (error) {
+            console.error('Error checking schedule project completion eligibility:', error)
+            return {
+                canComplete: false,
+                blockingReasons: ['Error checking completion eligibility'],
+                dependencyStatus: { completed: 0, total: 0 }
+            }
+        }
+    }
+
+    /**
+     * Update schedule project status with coordination hooks
+     */
+    async updateScheduleProjectStatusCoordinated(
+        scheduleId: string,
+        companyId: string,
+        data: {
+            status: 'planned' | 'in_progress' | 'completed' | 'delayed' | 'cancelled'
+            progressPercentage?: number
+            actualHours?: number
+            notes?: string
+            skipValidation?: boolean
+            triggeredBy?: 'user' | 'project_cascade' | 'dependency'
+        }
+    ) {
+        // Validate completion eligibility if status is 'completed'
+        if (data.status === 'completed' && !data.skipValidation) {
+            const eligibility = await this.canCompleteScheduleProject(scheduleId, companyId)
+            if (!eligibility.canComplete) {
+                throw new Error(
+                    `Cannot complete schedule project: ${eligibility.blockingReasons.join(', ')}`
+                )
+            }
+        }
+
+        // Prepare update data
+        const updateData: any = {
+            status: data.status,
+            updated_at: new Date().toISOString(),
+        }
+
+        if (data.progressPercentage !== undefined) updateData.progress_percentage = data.progressPercentage
+        if (data.actualHours !== undefined) updateData.actual_hours = data.actualHours
+        if (data.notes !== undefined) updateData.notes = data.notes
+
+        // Set completion timestamp when status changes to completed
+        if (data.status === 'completed') {
+            updateData.completed_at = new Date().toISOString()
+            updateData.progress_percentage = 100
+        }
+
+        // Set actual start date when moving to in_progress (if not already set)
+        if (data.status === 'in_progress') {
+            const { data: currentData } = await this.supabaseClient
+                .from('schedule_projects')
+                .select('start_date')
+                .eq('id', scheduleId)
+                .single()
+
+            // Note: You might want to add an actual_start_date field to schedule_projects
+            // For now, we'll use the planned start_date
+        }
+
+        const { data: scheduleProject, error } = await this.supabaseClient
+            .from('schedule_projects')
+            .update(updateData)
+            .eq('id', scheduleId)
+            .eq('company_id', companyId)
+            .select('*')
+            .single()
+
+        if (error) {
+            console.error('Error updating schedule project status:', error)
+            throw new Error('Failed to update schedule project status')
+        }
+
+        return scheduleProject
+    }
+
+    /**
+     * Get schedule project statistics for a project
+     */
+    async getScheduleProjectStatsByProject(
+        projectId: string,
+        companyId: string
+    ): Promise<{
+        total: number
+        byStatus: Record<string, number>
+        overallProgress: number
+        estimatedHours: number
+        actualHours: number
+    }> {
+        const { data: scheduleProjects, error } = await this.supabaseClient
+            .from('schedule_projects')
+            .select('status, progress_percentage, estimated_hours, actual_hours')
+            .eq('project_id', projectId)
+            .eq('company_id', companyId)
+
+        if (error) {
+            console.error('Error fetching schedule project stats:', error)
+            return {
+                total: 0,
+                byStatus: {},
+                overallProgress: 0,
+                estimatedHours: 0,
+                actualHours: 0
+            }
+        }
+
+        const stats = {
+            total: scheduleProjects.length,
+            byStatus: {} as Record<string, number>,
+            overallProgress: 0,
+            estimatedHours: 0,
+            actualHours: 0
+        }
+
+        // Calculate statistics
+        scheduleProjects.forEach(sp => {
+            // Count by status
+            stats.byStatus[sp.status] = (stats.byStatus[sp.status] || 0) + 1
+
+            // Sum hours
+            stats.estimatedHours += Number(sp.estimated_hours || 0)
+            stats.actualHours += Number(sp.actual_hours || 0)
+        })
+
+        // Calculate overall progress (weighted average)
+        if (scheduleProjects.length > 0) {
+            const totalProgress = scheduleProjects.reduce((sum, sp) =>
+                sum + Number(sp.progress_percentage || 0), 0
+            )
+            stats.overallProgress = totalProgress / scheduleProjects.length
+        }
+
+        return stats
+    }
+
+    /**
+     * Batch update multiple schedule projects (for cascade operations)
+     */
+    async batchUpdateScheduleProjectStatus(
+        updates: Array<{
+            id: string
+            status: 'planned' | 'in_progress' | 'completed' | 'delayed' | 'cancelled'
+            notes?: string
+        }>,
+        companyId: string,
+        triggeredBy: 'project_cascade' | 'admin_bulk' = 'project_cascade'
+    ): Promise<{
+        success: number
+        failed: number
+        results: Array<{ id: string; success: boolean; error?: string }>
+    }> {
+        const results = []
+        let successCount = 0
+        let failedCount = 0
+
+        for (const update of updates) {
+            try {
+                await this.updateScheduleProjectStatusCoordinated(
+                    update.id,
+                    companyId,
+                    {
+                        status: update.status,
+                        notes: update.notes || `Batch updated via ${triggeredBy}`,
+                        skipValidation: triggeredBy === 'project_cascade', // Skip validation for cascade updates
+                        triggeredBy
+                    }
+                )
+
+                results.push({ id: update.id, success: true })
+                successCount++
+            } catch (error) {
+                results.push({
+                    id: update.id,
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Unknown error'
+                })
+                failedCount++
+            }
+        }
+
+        return {
+            success: successCount,
+            failed: failedCount,
+            results
+        }
+    }
+
+    /**
+     * Remove team member from all schedule project assignments
+     */
+    async removeTeamMemberFromAllScheduleProjects(
+        userId: string,
+        companyId: string
+    ): Promise<{
+        removedCount: number
+        affectedScheduleProjects: string[]
+    }> {
+        try {
+            // First, find all schedule projects where this user is assigned
+            const { data: affectedProjects, error: fetchError } = await this.supabaseClient
+                .from('schedule_projects')
+                .select('id, title, assigned_project_member_ids')
+                .eq('company_id', companyId)
+                .contains('assigned_project_member_ids', [userId])
+
+            if (fetchError) {
+                console.error('Error fetching affected schedule projects:', fetchError)
+                throw fetchError
+            }
+
+            if (!affectedProjects || affectedProjects.length === 0) {
+                return { removedCount: 0, affectedScheduleProjects: [] }
+            }
+
+            let removedCount = 0
+            const affectedIds = []
+
+            // Update each schedule project to remove the user
+            for (const project of affectedProjects) {
+                const newAssignedMembers = project.assigned_project_member_ids.filter(
+                    (memberId: string) => memberId !== userId
+                )
+
+                const { error: updateError } = await this.supabaseClient
+                    .from('schedule_projects')
+                    .update({
+                        assigned_project_member_ids: newAssignedMembers,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', project.id)
+                    .eq('company_id', companyId)
+
+                if (updateError) {
+                    console.error(`Error removing user from schedule project ${project.id}:`, updateError)
+                } else {
+                    removedCount++
+                    affectedIds.push(project.id)
+                }
+            }
+
+            return { removedCount, affectedScheduleProjects: affectedIds }
+
+        } catch (error) {
+            console.error('Error removing team member from schedule projects:', error)
+            return { removedCount: 0, affectedScheduleProjects: [] }
         }
     }
 

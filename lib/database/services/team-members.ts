@@ -329,6 +329,7 @@ export class TeamMemberDatabaseService {
             emergencyContactName?: string
             emergencyContactPhone?: string
             isActive?: boolean
+            notes?: string
         }
     ) {
         const updateData: any = {
@@ -354,6 +355,7 @@ export class TeamMemberDatabaseService {
         if (data.emergencyContactName !== undefined) updateData.emergency_contact_name = data.emergencyContactName
         if (data.emergencyContactPhone !== undefined) updateData.emergency_contact_phone = data.emergencyContactPhone
         if (data.isActive !== undefined) updateData.is_active = data.isActive
+        if (data.notes !== undefined) updateData.notes = data.notes
 
         const { data: user, error } = await this.supabaseClient
             .from('users')

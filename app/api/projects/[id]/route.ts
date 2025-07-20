@@ -9,6 +9,7 @@ import {
 } from '@/lib/validations/projects/project'
 import { ProjectDatabaseService } from '@/lib/database/services/projects'
 import { createProjectLocation, createProjectClient } from '@/lib/database/schema/projects'
+import StatusCoordinatorService from '@/lib/database/services/status-coordinator'
 
 // ==============================================
 // GET /api/projects/[id] - Get Single Project
@@ -473,10 +474,18 @@ export async function PATCH(
 
     // Parse request body
     const body = await request.json()
-    const { action, status, progress, notes } = body
+    const { 
+      action, 
+      status, 
+      progress, 
+      notes, 
+      useCoordination = false,  // NEW: Option to use coordination
+      skipChildValidation = false  // NEW: Option to skip validation
+    } = body
 
-    // Create service instance
+    // Create service instances
     const projectService = new ProjectDatabaseService(true, false)
+    let statusCoordinator = null
 
     // Check if project exists
     const projectExists = await projectService.checkProjectExists(projectId, companyId)
@@ -492,6 +501,7 @@ export async function PATCH(
     }
 
     let updatedProject
+    let cascadeResults = null
 
     // Handle different patch actions
     switch (action) {
@@ -506,7 +516,51 @@ export async function PATCH(
             { status: 400 }
           )
         }
-        updatedProject = await projectService.updateProjectStatus(projectId, companyId, status, notes)
+
+        // NEW: Use coordination if requested
+        if (useCoordination) {
+          statusCoordinator = new StatusCoordinatorService(true, false)
+          
+          try {
+            const coordinatedResult = await statusCoordinator.updateProjectStatusWithCascade(
+              projectId,
+              companyId,
+              status,
+              notes,
+              userId
+            )
+            
+            updatedProject = coordinatedResult.data.project
+            cascadeResults = {
+              scheduleProjectsUpdated: coordinatedResult.data.updatedCount,
+              scheduleProjectsSkipped: coordinatedResult.data.skippedCount,
+              affectedScheduleProjects: coordinatedResult.data.scheduleProjects.map(sp => ({
+                id: sp.id,
+                title: sp.title,
+                newStatus: sp.status
+              }))
+            }
+          } catch (coordinationError: any) {
+            // If coordination fails, fall back to regular update or return error
+            if (coordinationError.message.includes('Cannot change project status')) {
+              return NextResponse.json(
+                {
+                  success: false,
+                  error: 'Status change blocked',
+                  message: coordinationError.message,
+                  details: {
+                    suggestion: 'Use skipChildValidation=true to force the update, or resolve blocking issues first.'
+                  }
+                },
+                { status: 400 }
+              )
+            }
+            throw coordinationError
+          }
+        } else {
+          // Original logic for backward compatibility
+          updatedProject = await projectService.updateProjectStatus(projectId, companyId, status, notes)
+        }
         break
 
       case 'update_progress':
@@ -520,7 +574,41 @@ export async function PATCH(
             { status: 400 }
           )
         }
-        updatedProject = await projectService.updateProjectProgress(projectId, companyId, progress, notes)
+
+        // NEW: Auto-trigger status coordination when progress reaches milestones
+        if (useCoordination && (progress === 100 || progress === 0)) {
+          statusCoordinator = new StatusCoordinatorService(true, false)
+          
+          // Auto-suggest status based on progress
+          const suggestedStatus = progress === 100 ? 'completed' : 'not_started'
+          
+          try {
+            const coordinatedResult = await statusCoordinator.updateProjectStatusWithCascade(
+              projectId,
+              companyId,
+              suggestedStatus,
+              notes || `Auto-updated due to progress reaching ${progress}%`,
+              userId
+            )
+            
+            updatedProject = coordinatedResult.data.project
+            cascadeResults = {
+              autoStatusUpdate: true,
+              newStatus: suggestedStatus,
+              scheduleProjectsUpdated: coordinatedResult.data.updatedCount
+            }
+          } catch (coordinationError: any) {
+            // If coordination fails, just update progress without status change
+            updatedProject = await projectService.updateProjectProgress(projectId, companyId, progress, notes)
+            cascadeResults = {
+              autoStatusUpdate: false,
+              error: coordinationError.message
+            }
+          }
+        } else {
+          // Original logic
+          updatedProject = await projectService.updateProjectProgress(projectId, companyId, progress, notes)
+        }
         break
 
       default:
@@ -534,11 +622,17 @@ export async function PATCH(
         )
     }
 
-    // Return success response
+    // Prepare response message
+    let responseMessage = `Project ${action.replace('update_', '')} updated successfully`
+    if (cascadeResults?.scheduleProjectsUpdated > 0) {
+      responseMessage += `. ${cascadeResults.scheduleProjectsUpdated} schedule project(s) were automatically updated.`
+    }
+
+    // Return enhanced response
     return NextResponse.json(
       {
         success: true,
-        message: `Project ${action.replace('update_', '')} updated successfully`,
+        message: responseMessage,
         data: {
           project: {
             id: updatedProject.id,
@@ -547,9 +641,14 @@ export async function PATCH(
             progress: updatedProject.progress,
             updatedAt: updatedProject.updated_at,
           },
+          coordination: cascadeResults ? {
+            enabled: useCoordination,
+            results: cascadeResults
+          } : null
         },
         notifications: {
-          message: `Project ${action.replace('update_', '')} has been updated.`,
+          message: responseMessage,
+          type: 'success'
         },
       },
       { status: 200 }
@@ -557,6 +656,21 @@ export async function PATCH(
 
   } catch (error) {
     console.error('Patch project error:', error)
+
+    // Enhanced error handling for coordination errors
+    if (error instanceof Error) {
+      if (error.message.includes('coordination')) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Coordination error',
+            message: 'Status coordination failed. Changes may be partially applied.',
+            details: error.message
+          },
+          { status: 500 }
+        )
+      }
+    }
 
     return NextResponse.json(
       {
