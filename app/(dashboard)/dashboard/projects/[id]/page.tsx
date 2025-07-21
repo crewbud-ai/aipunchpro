@@ -58,6 +58,7 @@ import {
 import { Loader2 } from "lucide-react"
 import { useDeleteProject } from "@/hooks/projects/use-delete-project"
 import { ProjectStatusManager } from "@/components/projects/ProjectStatusManager"
+import { ProjectTeamMembers } from "./components/ProjectTeamMembers"
 
 export default function ProjectPage() {
   const params = useParams()
@@ -559,23 +560,11 @@ export default function ProjectPage() {
         </TabsContent>
 
         <TabsContent value="team">
-          <Card>
-            <CardHeader>
-              <CardTitle>Team Members</CardTitle>
-              <CardDescription>Manage project team and permissions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No team members</h3>
-                <p className="text-gray-600 mb-4">Add team members to collaborate on this project.</p>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Team Member
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <ProjectTeamMembers
+            projectId={projectId}
+            projectName={project?.name || "Project"}
+            projectStatus={project?.status || ""}
+          />
         </TabsContent>
 
         <TabsContent value="files">

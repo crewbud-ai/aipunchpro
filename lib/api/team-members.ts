@@ -429,6 +429,149 @@ export const teamMembersApi = {
     },
 
 
+    // ==============================================
+    // ASSIGN TEAM MEMBER TO PROJECT
+    // ==============================================
+    async assignToProject(data: {
+        userId: string
+        projectId: string
+        hourlyRate?: number
+        overtimeRate?: number
+        notes?: string
+        status?: 'active' | 'inactive'
+    }): Promise<{
+        success: boolean
+        message: string
+        data: any
+        notifications?: { message: string }
+    }> {
+        try {
+            const response = await apiCall<{
+                success: boolean
+                message: string
+                data: any
+                notifications?: { message: string }
+            }>(`/api/projects/${data.projectId}/members`, {
+                method: 'POST',
+                body: JSON.stringify(data),
+            })
+
+            // Show success toast
+            toast({
+                title: "Team Member Assigned",
+                description: response.notifications?.message || response.message || "Team member has been assigned to the project successfully.",
+            })
+
+            return response
+
+        } catch (error) {
+            if (error instanceof ApiError) {
+                // Handle specific errors
+                if (error.status === 409) {
+                    toast({
+                        title: "Assignment Conflict",
+                        description: error.message || "This team member is already assigned to the project.",
+                        variant: "destructive",
+                    })
+                } else if (error.status === 404) {
+                    toast({
+                        title: "Not Found",
+                        description: error.message || "Project or team member not found.",
+                        variant: "destructive",
+                    })
+                } else {
+                    toast({
+                        title: "Assignment Failed",
+                        description: error.message || "Failed to assign team member to project.",
+                        variant: "destructive",
+                    })
+                }
+                throw error
+            }
+
+            const networkError = new ApiError(0, 'Failed to assign team member to project')
+            toast({
+                title: "Network Error",
+                description: "Unable to assign team member. Please try again.",
+                variant: "destructive",
+            })
+            throw networkError
+        }
+    },
+
+    // ==============================================
+    // REMOVE TEAM MEMBER FROM PROJECT
+    // ==============================================
+    async removeFromProject(data: {
+        userId: string
+        projectId: string
+        reason?: string
+        lastWorkingDay?: string
+    }): Promise<{
+        success: boolean
+        message: string
+        notifications?: { message: string }
+    }> {
+        try {
+            // Build query parameters
+            const queryParams = new URLSearchParams({
+                userId: data.userId,
+            })
+
+            if (data.reason) {
+                queryParams.append('reason', data.reason)
+            }
+
+            if (data.lastWorkingDay) {
+                queryParams.append('lastWorkingDay', data.lastWorkingDay)
+            }
+
+            const response = await apiCall<{
+                success: boolean
+                message: string
+                notifications?: { message: string }
+            }>(`/api/projects/${data.projectId}/members?${queryParams.toString()}`, {
+                method: 'DELETE',
+            })
+
+            // Show success toast
+            toast({
+                title: "Team Member Removed",
+                description: response.notifications?.message || response.message || "Team member has been removed from the project successfully.",
+            })
+
+            return response
+
+        } catch (error) {
+            if (error instanceof ApiError) {
+                // Handle specific errors
+                if (error.status === 404) {
+                    toast({
+                        title: "Not Found",
+                        description: error.message || "Project or team member not found.",
+                        variant: "destructive",
+                    })
+                } else {
+                    toast({
+                        title: "Removal Failed",
+                        description: error.message || "Failed to remove team member from project.",
+                        variant: "destructive",
+                    })
+                }
+                throw error
+            }
+
+            const networkError = new ApiError(0, 'Failed to remove team member from project')
+            toast({
+                title: "Network Error",
+                description: "Unable to remove team member. Please try again.",
+                variant: "destructive",
+            })
+            throw networkError
+        }
+    },
+
+
 
     // ==============================================
     // UPDATE TEAM MEMBER STATUS (activate/deactivate)
