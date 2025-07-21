@@ -19,7 +19,7 @@ import {
   Settings
 } from 'lucide-react'
 import { useTeamMembers } from '@/hooks/team-members'
-import { TeamMemberCard } from './TeamMemberCard'
+import { TeamMemberCard } from '../team-member/TeamMemberCard'
 import { AddTeamMemberDialog } from './AddTeamMemberDialog'
 import { AssignTeamMemberDialog } from './AssignTeamMemberDialog'
 import { TeamMemberDetailsDialog } from './TeamMemberDetailsDialog'

@@ -58,7 +58,9 @@ import {
 import { Loader2 } from "lucide-react"
 import { useDeleteProject } from "@/hooks/projects/use-delete-project"
 import { ProjectStatusManager } from "@/components/projects/ProjectStatusManager"
-import { ProjectTeamMembers } from "./components/ProjectTeamMembers"
+import { ProjectTeamMembers } from "./components/team-member/ProjectTeamMembers"
+import { ProjectTasks } from "./components/project-task/ProjectTasks"
+import { ProjectFiles } from "./components/blueprints/ProjectFiles"
 
 export default function ProjectPage() {
   const params = useParams()
@@ -540,23 +542,11 @@ export default function ProjectPage() {
         </TabsContent>
 
         <TabsContent value="tasks">
-          <Card>
-            <CardHeader>
-              <CardTitle>Tasks</CardTitle>
-              <CardDescription>Manage project tasks and milestones</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <Target className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks yet</h3>
-                <p className="text-gray-600 mb-4">Start organizing your project by creating tasks.</p>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create First Task
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <ProjectTasks
+            projectId={projectId}
+            projectName={project.name}
+            projectStatus={project.status}
+          />
         </TabsContent>
 
         <TabsContent value="team">
@@ -568,23 +558,11 @@ export default function ProjectPage() {
         </TabsContent>
 
         <TabsContent value="files">
-          <Card>
-            <CardHeader>
-              <CardTitle>Project Files</CardTitle>
-              <CardDescription>Documents, images, and other project files</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No files uploaded</h3>
-                <p className="text-gray-600 mb-4">Upload documents, blueprints, photos, and other project files.</p>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Upload Files
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <ProjectFiles
+            projectId={projectId}
+            projectName={project?.name || "Project"}
+            projectStatus={project?.status || ""}
+          />
         </TabsContent>
 
         <TabsContent value="timeline">
