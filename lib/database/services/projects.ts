@@ -365,13 +365,14 @@ export class ProjectDatabaseService {
       updated_at: new Date().toISOString(),
     }
 
-    if (options?.notes) {
-      updateData.notes = options.notes
-    }
+    // if (options?.notes) {
+    //   updateData.notes = options.notes
+    // }
 
     // Handle status-specific logic
     if (newStatus === 'in_progress' || newStatus === 'on_track') {
       // Set actual start date if not already set and not provided
+      console.log('In Progress')
       if (!options?.actualStartDate) {
         const { data: currentProject } = await this.supabaseClient
           .from('projects')
@@ -392,6 +393,8 @@ export class ProjectDatabaseService {
       updateData.progress = 100
       updateData.actual_end_date = options?.actualEndDate || new Date().toISOString().split('T')[0]
     }
+
+    console.log(updateData, 'updateData')
 
     // Update the project
     const { data: project, error } = await this.supabaseClient

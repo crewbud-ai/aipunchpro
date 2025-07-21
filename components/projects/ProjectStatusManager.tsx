@@ -4,11 +4,13 @@ import React, { useState, useCallback } from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { RefreshCw } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { RefreshCw, CheckCircle, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCoordinatedProjectStatus } from '@/hooks/projects/use-coordinated-project-status'
-import { StatusCoordinationDisplay } from './StatusCoordinationDisplay'
 import { StatusValidationDialog } from './StatusValidationDialog'
+import { toast } from '@/hooks/use-toast'
 import type { 
   ProjectStatusManagerProps, 
   CoordinatedProjectStatusUpdate 
@@ -43,7 +45,7 @@ export const ProjectStatusManager = React.memo<ProjectStatusManagerProps>(({
     } = useCoordinatedProjectStatus()
 
     const handleStatusSelect = useCallback((newStatus: string) => {
-        if (newStatus === project.status || disabled) return
+        if (newStatus === project.status || disabled || isUpdating) return
 
         const significantChanges = ['completed', 'cancelled', 'on_hold']
         const needsValidation = significantChanges.includes(newStatus) ||
@@ -55,7 +57,7 @@ export const ProjectStatusManager = React.memo<ProjectStatusManagerProps>(({
         } else {
             performStatusUpdate(newStatus)
         }
-    }, [project.status, disabled])
+    }, [project.status, disabled, isUpdating])
 
     const performStatusUpdate = useCallback(async (newStatus: string) => {
         try {
@@ -68,47 +70,95 @@ export const ProjectStatusManager = React.memo<ProjectStatusManagerProps>(({
             })
 
             if (result.success) {
+                // Show success toast with professional messaging
+                const updatedCount = result.data?.cascadeResults?.scheduleProjectsUpdated || 0
+                const statusLabel = PROJECT_STATUSES.find(s => s.value === newStatus)?.label || newStatus
+                
+                let message = `Project status updated to ${statusLabel}`
+                if (updatedCount > 0) {
+                    message += ` • ${updatedCount} related item${updatedCount > 1 ? 's' : ''} synced`
+                }
+
+                toast({
+                    title: "Status Updated",
+                    description: message,
+                    duration: 3000,
+                })
+
                 onStatusChange?.(newStatus)
+            } else {
+                // Handle failure case
+                toast({
+                    title: "Update Failed",
+                    description: result.message || "Failed to update project status",
+                    variant: "destructive",
+                })
             }
         } catch (error) {
             console.error('Status update failed:', error)
+            toast({
+                title: "Update Failed", 
+                description: "An error occurred while updating the status",
+                variant: "destructive",
+            })
         }
     }, [project.id, updateProjectStatusCoordinated, onStatusChange, reset])
 
+    const getCurrentStatusBadge = () => {
+        const currentStatus = PROJECT_STATUSES.find(s => s.value === project.status)
+        if (!currentStatus) return null
+
+        return (
+            <Badge className={cn("text-xs", currentStatus.color)} variant="outline">
+                {currentStatus.label}
+            </Badge>
+        )
+    }
+
     return (
-        <div className={cn("space-y-4", className)}>
+        <div className={cn("space-y-3", className)}>
             {/* Status Selector */}
             <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                    <Label htmlFor="project-status">Project Status</Label>
-                    {isUpdating && <RefreshCw className="h-3 w-3 animate-spin text-gray-500" />}
+                    <Label htmlFor="project-status" className="text-sm font-medium">
+                        Project Status
+                    </Label>
+                    {isUpdating && (
+                        <RefreshCw className="h-3 w-3 animate-spin text-gray-500" />
+                    )}
                 </div>
 
-                <Select
-                    value={project.status}
-                    onValueChange={handleStatusSelect}
-                    disabled={disabled || isUpdating}
-                >
-                    <SelectTrigger id="project-status" className="w-48">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {PROJECT_STATUSES.map((status) => (
-                            <SelectItem key={status.value} value={status.value}>
-                                <Badge className={cn("text-xs", status.color)}>
-                                    {status.label}
-                                </Badge>
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <div className="flex items-center gap-3">
+                    <Select
+                        value={project.status}
+                        onValueChange={handleStatusSelect}
+                        disabled={disabled || isUpdating}
+                    >
+                        <SelectTrigger id="project-status" className="w-48">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {PROJECT_STATUSES.map((status) => (
+                                <SelectItem key={status.value} value={status.value}>
+                                    <Badge className={cn("text-xs", status.color)} variant="outline">
+                                        {status.label}
+                                    </Badge>
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
 
-            {/* Coordination Results Display */}
-            <StatusCoordinationDisplay
-                result={result}
-                isUpdating={isUpdating}
-            />
+            {/* Success feedback (subtle) */}
+            {result?.success && !isUpdating && !error && (
+                <Alert className="py-2 bg-green-50 border-green-200">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-sm text-green-800">
+                        Status updated successfully
+                    </AlertDescription>
+                </Alert>
+            )}
 
             {/* Status Validation Dialog */}
             <StatusValidationDialog

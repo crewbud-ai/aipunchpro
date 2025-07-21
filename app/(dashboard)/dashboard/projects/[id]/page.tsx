@@ -85,6 +85,7 @@ export default function ProjectPage() {
     displayLocation,
     displayClient,
     clientContactInfo,
+    refreshProject
   } = useProject(projectId)
 
   const {
@@ -260,34 +261,31 @@ export default function ProjectPage() {
                 </Badge>
               )}
             </div>
-            <div className="mt-6">
-              <ProjectStatusManager
-                project={{
-                  id: project.id,
-                  status: project.status,
-                  name: project.name
-                }}
-                onStatusChange={(newStatus) => {
-                  // Refresh project data to show updated status
-                  refreshProject()
-                }}
-              />
-            </div>
             <p className="text-gray-600 mt-1">{project.description || "No description provided"}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+        <div className="flex items-end gap-2">
+          <ProjectStatusManager
+            project={{
+              id: project.id,
+              status: project.status,
+              name: project.name
+            }}
+            onStatusChange={(newStatus) => {
+              refreshProject()
+            }}
+          />
+          <Button variant="outline" >
             <Share className="h-4 w-4 mr-2" />
             Share
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" >
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
           <Link href={`/dashboard/projects/${projectId}/edit`}>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" >
               <Edit className="h-4 w-4 mr-2" />
               Edit
             </Button>

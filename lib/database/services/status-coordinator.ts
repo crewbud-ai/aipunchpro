@@ -65,7 +65,7 @@ export class StatusCoordinatorService {
                 .update({
                     status: newStatus,
                     updated_at: new Date().toISOString(),
-                    notes: notes || null
+                    // notes: notes || null
                 })
                 .eq('id', projectId)
                 .eq('company_id', companyId)
@@ -317,33 +317,26 @@ export class StatusCoordinatorService {
             throw error
         }
     }
-
+    
     async syncProjectFromScheduleProjects(
         projectId: string,
         companyId: string,
-        userId?: string  // ← Added userId parameter
+        userId?: string
     ) {
         try {
             // Get current project
-            const { data: project, error: projectError } = await this.supabaseClient
-                .from('projects')
-                .select('id, status')
-                .eq('id', projectId)
-                .eq('company_id', companyId)
-                .single()
-
-            if (projectError || !project) {
+            const project = await this.projectService.getProjectByIdEnhanced(projectId, companyId)
+            if (!project) {
                 return { updated: false, reason: 'Project not found' }
             }
 
             // Get all schedule projects for this project
-            const { data: scheduleProjects, error: scheduleError } = await this.supabaseClient
-                .from('schedule_projects')
-                .select('id, status')
-                .eq('project_id', projectId)
-                .eq('company_id', companyId)
+            const scheduleProjects = await this.getScheduleProjectsByProject(
+                projectId,
+                companyId
+            )
 
-            if (scheduleError || !scheduleProjects || scheduleProjects.length === 0) {
+            if (scheduleProjects.length === 0) {
                 return { updated: false, reason: 'No schedule projects found' }
             }
 
@@ -356,23 +349,21 @@ export class StatusCoordinatorService {
             const total = scheduleProjects.length
             const completed = statusCounts.completed || 0
             const inProgress = statusCounts.in_progress || 0
+            const planned = statusCounts.planned || 0
             const cancelled = statusCounts.cancelled || 0
 
             let newProjectStatus = null
 
             // Apply reverse sync rules
             if (completed === total) {
-                // All schedule projects completed -> project should be completed
                 if (project.status !== 'completed') {
                     newProjectStatus = 'completed'
                 }
             } else if (inProgress > 0 || completed > 0) {
-                // Some work in progress -> project should be in_progress
                 if (project.status === 'not_started') {
                     newProjectStatus = 'in_progress'
                 }
             } else if (cancelled === total) {
-                // All schedule projects cancelled -> project might be cancelled
                 if (project.status !== 'cancelled' && project.status !== 'completed') {
                     newProjectStatus = 'cancelled'
                 }
@@ -380,13 +371,15 @@ export class StatusCoordinatorService {
 
             // Update project status if needed
             if (newProjectStatus) {
+                // ✅ FIXED: Prepare update data WITHOUT notes field
                 const updateData: any = {
                     status: newProjectStatus,
-                    updated_at: new Date().toISOString(),
-                    notes: `Auto-updated based on schedule project progress`
+                    updated_at: new Date().toISOString()
+                    // ❌ REMOVED: notes field since projects table doesn't have it
+                    // notes: `Auto-updated based on schedule project progress`
                 }
 
-                // ENHANCED: Add userId to update data if provided (for audit trail)
+                // Add userId to update data if provided (for audit trail)
                 if (userId) {
                     updateData.updated_by = userId
                 }
@@ -406,7 +399,7 @@ export class StatusCoordinatorService {
                     previousStatus: project.status,
                     newStatus: newProjectStatus,
                     reason: `Based on schedule projects: ${JSON.stringify(statusCounts)}`,
-                    updatedBy: userId || 'system'  // Include who triggered the update
+                    updatedBy: userId || 'system'
                 }
             }
 
@@ -421,6 +414,7 @@ export class StatusCoordinatorService {
             return { updated: false, reason: errorMessage }
         }
     }
+
 
     /**
      * Sync parent project status based on schedule projects
