@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Loader2 } from "lucide-react"
 import { useDeleteProject } from "@/hooks/projects/use-delete-project"
+import { ProjectStatusManager } from "@/components/projects/ProjectStatusManager"
 
 export default function ProjectPage() {
   const params = useParams()
@@ -258,6 +259,19 @@ export default function ProjectPage() {
                   Due in {daysUntilDeadline} days
                 </Badge>
               )}
+            </div>
+            <div className="mt-6">
+              <ProjectStatusManager
+                project={{
+                  id: project.id,
+                  status: project.status,
+                  name: project.name
+                }}
+                onStatusChange={(newStatus) => {
+                  // Refresh project data to show updated status
+                  refreshProject()
+                }}
+              />
             </div>
             <p className="text-gray-600 mt-1">{project.description || "No description provided"}</p>
           </div>
