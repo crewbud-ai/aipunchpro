@@ -1,17 +1,16 @@
 // ==============================================
-// app/(dashboard)/dashboard/projects/[id]/components/ProjectFiles.tsx
+// app/(dashboard)/dashboard/projects/[id]/components/blueprints/ProjectFiles.tsx
 // ==============================================
 
 "use client"
 
-import React, { useState, useMemo, useCallback, useRef } from "react"
+import React, { useState, useMemo, useCallback, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Progress } from "@/components/ui/progress"
 import {
   Table,
   TableBody,
@@ -27,47 +26,36 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-  Plus,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Upload,
-  FileText,
-  Image,
   Download,
   Eye,
   Edit2,
   Trash2,
   MoreVertical,
   Search,
-  Filter,
-  Folder,
-  FolderOpen,
-  File,
   RefreshCw,
   AlertCircle,
-  CheckCircle,
-  Loader2,
-  Calendar,
-  User,
   HardDrive,
-  Tag,
-  Camera,
-  Paperclip,
-  FileImage,
-  FileType,
-  Sheet,
-  Video,
-  X,
+  FileText,
+  Loader2,
 } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
-// Import hooks and types (we'll need to create these)
-// import { useProjectFiles } from "@/hooks/project-files"
-// import { useFileUpload } from "@/hooks/file-upload"
-// import type { ProjectFile } from "@/types/project-files"
-
-// Import dialogs
+// Import hooks and components
+import { useProjectFiles } from "@/hooks/projects/use-project-files"
+import { projectFilesApi } from "@/lib/api/project-files"
 import { FileUploadDialog } from "./FileUploadDialog"
-import { FileDetailsDialog } from "./FileDetailsDialog"
 
 // ==============================================
 // INTERFACES & TYPES
@@ -78,188 +66,66 @@ interface ProjectFilesProps {
   projectStatus: string
 }
 
-// Temporary interface until we create proper types
-interface ProjectFile {
-  id: string
-  projectId: string
-  name: string
-  originalName: string
-  fileUrl: string
-  fileType: string
-  fileSize: number
-  mimeType: string
-  folder: string
-  category?: string
-  version?: string
-  description?: string
-  tags?: string[]
-  isPublic: boolean
-  status: string
-  uploadedBy: string
-  uploadedAt: string
-  createdAt: string
-  updatedAt: string
-  uploader?: {
-    firstName: string
-    lastName: string
-  }
-}
-
-interface FileRowProps {
-  file: ProjectFile
-  onView: (file: ProjectFile) => void
-  onEdit: (file: ProjectFile) => void
-  onDownload: (file: ProjectFile) => void
-  onDelete: (file: ProjectFile) => void
-  isDeleting: boolean
-}
-
-// ==============================================
-// UTILITY FUNCTIONS
-// ==============================================
-const getFileIcon = (fileType: string, mimeType: string) => {
-  if (mimeType?.startsWith('image/')) {
-    return { icon: FileImage, color: 'text-blue-600' }
-  } else if (mimeType === 'application/pdf') {
-    return { icon: FileType, color: 'text-red-600' }
-  } else if (mimeType?.includes('spreadsheet') || mimeType?.includes('excel')) {
-    return { icon: Sheet, color: 'text-green-600' }
-  } else if (mimeType?.startsWith('video/')) {
-    return { icon: Video, color: 'text-purple-600' }
-  } else {
-    return { icon: FileText, color: 'text-gray-600' }
-  }
-}
-
-const formatFileSize = (bytes: number) => {
-  if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
-
-const getFolderConfig = (folder: string) => {
-  switch (folder) {
-    case 'blueprints':
-      return { label: 'Blueprints', color: 'bg-blue-100 text-blue-800', icon: FileText }
-    case 'documents':
-      return { label: 'Documents', color: 'bg-gray-100 text-gray-800', icon: FileText }
-    case 'photos':
-      return { label: 'Photos', color: 'bg-green-100 text-green-800', icon: Camera }
-    case 'contracts':
-      return { label: 'Contracts', color: 'bg-purple-100 text-purple-800', icon: FileText }
-    case 'reports':
-      return { label: 'Reports', color: 'bg-orange-100 text-orange-800', icon: FileText }
-    default:
-      return { label: 'General', color: 'bg-gray-100 text-gray-800', icon: File }
-  }
-}
-
 // ==============================================
 // FILE ROW COMPONENT
 // ==============================================
-const FileRow: React.FC<FileRowProps> = ({ 
-  file, 
-  onView, 
-  onEdit, 
-  onDownload, 
-  onDelete, 
-  isDeleting 
-}) => {
-  const fileConfig = getFileIcon(file.fileType, file.mimeType)
-  const FileIcon = fileConfig.icon
-
+const FileRow: React.FC<{
+  file: any
+  onView: (file: any) => void
+  onDownload: (file: any) => void
+  onDelete: (file: any) => void
+  isDeleting: boolean
+}> = ({ file, onView, onDownload, onDelete, isDeleting }) => {
   return (
-    <TableRow className="hover:bg-gray-50/50">
-      {/* File Info */}
-      <TableCell className="max-w-xs">
+    <TableRow>
+      <TableCell>
         <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-lg ${fileConfig.color.replace('text-', 'bg-').replace('-600', '-100')}`}>
-            <FileIcon className={`h-4 w-4 ${fileConfig.color}`} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <button
-              onClick={() => onView(file)}
-              className="font-medium text-gray-900 hover:text-blue-600 text-left truncate block w-full"
-            >
-              {file.name}
-            </button>
-            {file.description && (
-              <p className="text-xs text-gray-600 truncate mt-1">
-                {file.description}
-              </p>
-            )}
+          <FileText className="h-8 w-8 text-red-600" />
+          <div>
+            <p className="font-medium text-gray-900">{file.originalName}</p>
+            <p className="text-sm text-gray-600">{file.description || 'No description'}</p>
           </div>
         </div>
       </TableCell>
-
-      {/* Version */}
       <TableCell>
-        {file.version ? (
-          <Badge variant="secondary" className="text-xs">
-            {file.version}
-          </Badge>
-        ) : (
-          <span className="text-sm text-gray-400">—</span>
-        )}
+        <Badge variant="outline">{file.version || '1.0'}</Badge>
       </TableCell>
-
-      {/* Size */}
       <TableCell className="text-right">
-        <span className="text-sm font-mono">{formatFileSize(file.fileSize)}</span>
+        {(file.fileSize / (1024 * 1024)).toFixed(2)} MB
       </TableCell>
-
-      {/* Uploaded */}
       <TableCell>
-        <div className="space-y-1">
-          <div className="text-sm">{format(new Date(file.uploadedAt), 'MMM d, yyyy')}</div>
-          {file.uploader && (
-            <div className="text-xs text-gray-500">
-              by {file.uploader.firstName} {file.uploader.lastName}
-            </div>
-          )}
-        </div>
+        {file.uploadedAt ? format(new Date(file.uploadedAt), 'MMM d, yyyy') : 'Unknown'}
       </TableCell>
-
-      {/* Status */}
       <TableCell>
         <Badge variant={file.status === 'active' ? 'default' : 'secondary'}>
           {file.status}
         </Badge>
       </TableCell>
-
-      {/* Actions */}
       <TableCell>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              <MoreVertical className="h-4 w-4" />
+            <Button variant="ghost" size="sm" disabled={isDeleting}>
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MoreVertical className="h-4 w-4" />
+              )}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => onView(file)}>
               <Eye className="h-4 w-4 mr-2" />
-              View Details
+              View
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onDownload(file)}>
               <Download className="h-4 w-4 mr-2" />
               Download
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onEdit(file)}>
-              <Edit2 className="h-4 w-4 mr-2" />
-              Edit Info
-            </DropdownMenuItem>
             <DropdownMenuItem 
               onClick={() => onDelete(file)}
               className="text-red-600"
-              disabled={isDeleting}
             >
-              {isDeleting ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4 mr-2" />
-              )}
+              <Trash2 className="h-4 w-4 mr-2" />
               Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -270,7 +136,7 @@ const FileRow: React.FC<FileRowProps> = ({
 }
 
 // ==============================================
-// MAIN PROJECT FILES COMPONENT
+// MAIN COMPONENT
 // ==============================================
 export const ProjectFiles: React.FC<ProjectFilesProps> = ({
   projectId,
@@ -278,232 +144,182 @@ export const ProjectFiles: React.FC<ProjectFilesProps> = ({
   projectStatus,
 }) => {
   // ==============================================
+  // HOOKS
+  // ==============================================
+  const {
+    files,
+    isLoading,
+    error,
+    hasFiles,
+    fileCount,
+    blueprintFiles,
+    loadFiles,
+    deleteFile,
+    clearError,
+  } = useProjectFiles()
+
+  // ==============================================
   // STATE
   // ==============================================
   const [searchTerm, setSearchTerm] = useState("")
-  
-  // Dialog states
-  const [selectedFile, setSelectedFile] = useState<ProjectFile | null>(null)
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false)
-  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null)
-
-  // Temporary loading states (replace with actual hooks)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isError, setIsError] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // Mock data (replace with actual hook data)
-  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([])
+  
+  // Delete confirmation dialog state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [fileToDelete, setFileToDelete] = useState<any | null>(null)
 
   // ==============================================
-  // COMPUTED VALUES
+  // COMPUTED PROPERTIES
   // ==============================================
   const filteredFiles = useMemo(() => {
-    return projectFiles.filter(file => {
-      // Search filter
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase()
-        if (!file.name.toLowerCase().includes(searchLower) &&
-            !(file.description?.toLowerCase().includes(searchLower))) {
-          return false
-        }
-      }
+    if (!searchTerm) return blueprintFiles
 
-      return true
-    })
-  }, [projectFiles, searchTerm])
-
-  const fileStats = useMemo(() => {
-    const now = new Date()
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    
-    const stats = {
-      total: projectFiles.length,
-      totalSize: projectFiles.reduce((sum, file) => sum + file.fileSize, 0),
-      recent: projectFiles.filter(file => new Date(file.uploadedAt) > oneWeekAgo).length,
-    }
-
-    return stats
-  }, [projectFiles])
+    return blueprintFiles.filter(file =>
+      file.originalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      file.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      file.version?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [blueprintFiles, searchTerm])
 
   // ==============================================
-  // EVENT HANDLERS
+  // EFFECTS
   // ==============================================
-  const handleViewFile = useCallback((file: ProjectFile) => {
-    setSelectedFile(file)
-    setIsDetailsDialogOpen(true)
-  }, [])
-
-  const handleEditFile = useCallback((file: ProjectFile) => {
-    // Navigate to edit or open edit modal
-    console.log('Edit file:', file)
-  }, [])
-
-  const handleDownloadFile = useCallback((file: ProjectFile) => {
-    // Implement download functionality
-    const link = document.createElement('a')
-    link.href = file.fileUrl
-    link.download = file.originalName || file.name
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }, [])
-
-  const handleDeleteFile = useCallback(async (file: ProjectFile) => {
-    if (window.confirm(`Are you sure you want to delete "${file.name}"?`)) {
-      setDeletingFileId(file.id)
-      try {
-        // Implement delete API call
-        await new Promise(resolve => setTimeout(resolve, 1000)) // Mock delay
-        setProjectFiles(prev => prev.filter(f => f.id !== file.id))
-        console.log('File deleted:', file)
-      } catch (error) {
-        console.error('Failed to delete file:', error)
-        setError('Failed to delete file. Please try again.')
-      } finally {
-        setDeletingFileId(null)
-      }
+  useEffect(() => {
+    if (projectId) {
+      loadFiles(projectId)
     }
-  }, [])
+  }, [projectId, loadFiles])
 
-  const handleUploadSuccess = useCallback((newFiles: ProjectFile[]) => {
-    setProjectFiles(prev => [...prev, ...newFiles])
-    setIsUploadDialogOpen(false)
-  }, [])
+  // ==============================================
+  // HANDLERS
+  // ==============================================
+  const handleRefresh = useCallback(() => {
+    loadFiles(projectId)
+  }, [projectId, loadFiles])
 
   const handleDialogClose = useCallback(() => {
     setIsUploadDialogOpen(false)
-    setIsDetailsDialogOpen(false)
-    setSelectedFile(null)
   }, [])
 
-  const handleRefresh = useCallback(async () => {
-    setIsLoading(true)
+  const handleUploadSuccess = useCallback((file: any) => {
+    // File is already added to the list by the hook, but let's refresh to be safe
+    loadFiles(projectId)
+    setIsUploadDialogOpen(false)
+  }, [loadFiles, projectId])
+
+  const handleViewFile = useCallback((file: any) => {
+    // Open file in new tab
+    window.open(file.fileUrl, '_blank')
+  }, [])
+
+  const handleDownloadFile = useCallback(async (file: any) => {
     try {
-      // Implement refresh logic
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Mock delay
+      await projectFilesApi.downloadProjectFile(file)
     } catch (error) {
-      console.error('Failed to refresh files:', error)
-    } finally {
-      setIsLoading(false)
+      console.error('Download error:', error)
     }
+  }, [])
+
+  const handleDeleteFile = useCallback((file: any) => {
+    setFileToDelete(file)
+    setIsDeleteDialogOpen(true)
+  }, [])
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!fileToDelete) return
+
+    setDeletingFileId(fileToDelete.id)
+    try {
+      await deleteFile(projectId, fileToDelete.id)
+    } catch (error) {
+      console.error('Delete error:', error)
+    } finally {
+      setDeletingFileId(null)
+      setIsDeleteDialogOpen(false)
+      setFileToDelete(null)
+    }
+  }, [deleteFile, projectId, fileToDelete])
+
+  const handleCancelDelete = useCallback(() => {
+    setIsDeleteDialogOpen(false)
+    setFileToDelete(null)
   }, [])
 
   // ==============================================
   // RENDER
   // ==============================================
-  
-  if (isError) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
-          Error loading project files: {error}
-        </AlertDescription>
-      </Alert>
-    )
-  }
-
   return (
     <div className="space-y-6">
-      {/* Header & Actions */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">
-            Project Blueprints
-          </h2>
-          <p className="text-sm text-gray-600">
-            Blueprint PDFs and technical drawings for {projectName}
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          
-          <Button onClick={() => setIsUploadDialogOpen(true)}>
-            <Upload className="h-4 w-4 mr-2" />
-            Upload Blueprint
-          </Button>
-        </div>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-gray-900">{fileStats.total}</div>
-            <div className="text-xs text-gray-600">Total Blueprints</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-blue-700">
-              {formatFileSize(fileStats.totalSize)}
-            </div>
-            <div className="text-xs text-gray-600">Total Size</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-green-700">
-              {fileStats.recent}
-            </div>
-            <div className="text-xs text-gray-600">Recent Uploads</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
+      {/* Header */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-4">
-            {/* Search */}
-            <div className="relative min-w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search blueprints..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Project Blueprints</CardTitle>
+              <CardDescription>
+                Manage PDF blueprints and architectural drawings for {projectName}
+              </CardDescription>
             </div>
-
-            {/* Clear Search */}
-            {searchTerm && (
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setSearchTerm("")}
+                onClick={handleRefresh}
+                disabled={isLoading}
               >
-                Clear Search
+                <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
+                Refresh
               </Button>
-            )}
+              <Button onClick={() => setIsUploadDialogOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Blueprint
+              </Button>
+            </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Files Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <HardDrive className="h-5 w-5" />
-            Blueprints ({filteredFiles.length})
-          </CardTitle>
-          <CardDescription>
-            Blueprint PDFs and technical drawings for this project
-          </CardDescription>
+          {/* Stats and Search */}
+          <div className="flex items-center justify-between pt-4">
+            <div className="flex items-center gap-4 text-sm text-gray-600">
+              <span>{fileCount} {fileCount === 1 ? 'file' : 'files'}</span>
+              <span>•</span>
+              <span>{blueprintFiles.length} {blueprintFiles.length === 1 ? 'blueprint' : 'blueprints'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Input
+                  placeholder="Search blueprints..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 w-64"
+                />
+              </div>
+            </div>
+          </div>
         </CardHeader>
+
+        {/* Error Alert */}
+        {error && (
+          <CardContent>
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {error}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearError}
+                  className="ml-2"
+                >
+                  Dismiss
+                </Button>
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        )}
+
+        {/* Files Table */}
         <CardContent>
           {isLoading ? (
             <div className="space-y-4">
@@ -553,7 +369,6 @@ export const ProjectFiles: React.FC<ProjectFilesProps> = ({
                       key={file.id}
                       file={file}
                       onView={handleViewFile}
-                      onEdit={handleEditFile}
                       onDownload={handleDownloadFile}
                       onDelete={handleDeleteFile}
                       isDeleting={deletingFileId === file.id}
@@ -566,7 +381,7 @@ export const ProjectFiles: React.FC<ProjectFilesProps> = ({
         </CardContent>
       </Card>
 
-      {/* Dialogs */}
+      {/* Upload Dialog */}
       <FileUploadDialog
         projectId={projectId}
         projectName={projectName}
@@ -575,15 +390,36 @@ export const ProjectFiles: React.FC<ProjectFilesProps> = ({
         onSuccess={handleUploadSuccess}
       />
 
-      {selectedFile && (
-        <FileDetailsDialog
-          file={selectedFile}
-          isOpen={isDetailsDialogOpen}
-          onClose={handleDialogClose}
-          onEdit={handleEditFile}
-          onDownload={handleDownloadFile}
-        />
-      )}
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Blueprint</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{fileToDelete?.originalName}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDelete}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deletingFileId === fileToDelete?.id}
+            >
+              {deletingFileId === fileToDelete?.id ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

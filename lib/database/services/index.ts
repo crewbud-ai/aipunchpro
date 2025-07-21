@@ -4,3 +4,4 @@
 
 export { AuthDatabaseService } from './auth';
 export { ProjectDatabaseService } from './projects';
+export { ProjectFilesDatabaseService } from './project-files';
