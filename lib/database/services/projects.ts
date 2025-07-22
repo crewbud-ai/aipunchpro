@@ -19,7 +19,7 @@ export class ProjectDatabaseService {
       this.supabaseClient = createBrowserClient()
     }
   }
-  
+
 
   // ==============================================
   // AUTO-GENERATE PROJECT NUMBER
@@ -322,6 +322,173 @@ export class ProjectDatabaseService {
     }
 
     return !!data
+  }
+
+  // ==============================================
+  // NEW METHODS FOR MEMBER ROLE TEAM MEMBER (USER'S)
+  // ==============================================
+  /**
+     * Get projects assigned to a specific member (following your existing patterns)
+     */
+  async getMemberAssignedProjects(
+    companyId: string,
+    userId: string,
+    options: any = {}
+  ) {
+    console.log('Getting assigned projects for member', { companyId, userId, options })
+
+    try {
+      // Build base query for assigned projects (following your select pattern)
+      let query = this.supabaseClient
+        .from('projects')
+        .select(`
+          *,
+          creator:users!projects_created_by_users_id_fk(
+            id,
+            first_name,
+            last_name,
+            email
+          ),
+          project_member:project_members!inner(
+            id,
+            role,
+            joined_at,
+            is_active,
+            assignment_notes
+          )
+        `)
+        .eq('company_id', companyId)
+        .eq('project_members.user_id', userId)
+        .eq('project_members.is_active', true)
+
+      // Apply filters (following your existing filter logic)
+      if (options.status) {
+        query = query.eq('status', options.status)
+      }
+
+      if (options.priority) {
+        query = query.eq('priority', options.priority)
+      }
+
+      if (options.search) {
+        query = query.or(`name.ilike.%${options.search}%,description.ilike.%${options.search}%`)
+      }
+
+      if (options.location) {
+        query = query.ilike('location->>city', `%${options.location}%`)
+      }
+
+      if (options.client) {
+        query = query.ilike('client->>name', `%${options.client}%`)
+      }
+
+      // Apply sorting (following your existing sort logic)
+      const sortBy = options.sortBy || 'created_at'
+      const sortOrder = options.sortOrder === 'asc'
+
+      switch (sortBy) {
+        case 'name':
+          query = query.order('name', { ascending: sortOrder })
+          break
+        case 'status':
+          query = query.order('status', { ascending: sortOrder })
+          break
+        case 'priority':
+          query = query.order('priority', { ascending: sortOrder })
+          break
+        case 'startDate':
+          query = query.order('start_date', { ascending: sortOrder })
+          break
+        case 'endDate':
+          query = query.order('end_date', { ascending: sortOrder })
+          break
+        case 'progress':
+          query = query.order('progress', { ascending: sortOrder })
+          break
+        case 'joinedAt':
+          query = query.order('project_members.joined_at', { ascending: sortOrder })
+          break
+        default:
+          query = query.order('created_at', { ascending: sortOrder })
+      }
+
+      // Apply pagination (following your existing pagination logic)
+      const limit = options.limit || 20
+      const offset = options.offset || 0
+
+      if (limit > 0) {
+        query = query.range(offset, offset + limit - 1)
+      }
+
+      const { data: projects, error, count } = await query
+
+      if (error) {
+        console.log('Database error in getMemberAssignedProjects', error)
+        throw error
+      }
+
+      console.log('Member assigned projects retrieved', {
+        count: projects?.length || 0,
+        total: count,
+        userId
+      })
+
+      return {
+        projects: projects || [],
+        total: count || 0,
+      }
+
+    } catch (error) {
+      console.log('Error getting member assigned projects', error)
+      throw error
+    }
+  }
+
+  /**
+   * Get member project statistics (following your existing stats patterns)
+   */
+  async getMemberProjectStats(companyId: string, userId: string) {
+    console.log('Getting member project stats', { companyId, userId })
+
+    try {
+      const { data: projects, error } = await this.supabaseClient
+        .from('projects')
+        .select(`
+          id,
+          status,
+          progress,
+          project_members!inner(
+            role,
+            joined_at,
+            is_active
+          )
+        `)
+        .eq('company_id', companyId)
+        .eq('project_members.user_id', userId)
+        .eq('project_members.is_active', true)
+
+      if (error) throw error
+
+      const projectList = projects || []
+
+      const stats = {
+        total: projectList.length,
+        active: projectList.filter(p => p.status === 'in_progress').length,
+        completed: projectList.filter(p => p.status === 'completed').length,
+        supervisorRoles: projectList.filter(p => p.project_members[0]?.role === 'supervisor').length,
+        leadRoles: projectList.filter(p => p.project_members[0]?.role === 'lead').length,
+        averageProgress: projectList.length > 0
+          ? Math.round(projectList.reduce((sum, p) => sum + (p.progress || 0), 0) / projectList.length)
+          : 0
+      }
+
+      console.log('Member project stats calculated', stats)
+      return stats
+
+    } catch (error) {
+      console.log('Error getting member project stats', error)
+      throw error
+    }
   }
 
   // ==============================================

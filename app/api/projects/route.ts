@@ -16,7 +16,7 @@ import { createProjectLocation, createProjectClient, ProjectClient, ProjectLocat
 // ==============================================
 export async function GET(request: NextRequest) {
   try {
-    // Get user info from middleware
+    // Get user info from middleware (your existing code)
     const userId = request.headers.get('x-user-id')
     const companyId = request.headers.get('x-company-id')
 
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Parse query parameters
+    // Parse query parameters (your existing code + memberView)
     const url = new URL(request.url)
     const queryParams = {
       status: url.searchParams.get('status'),
@@ -43,9 +43,11 @@ export async function GET(request: NextRequest) {
       sortOrder: url.searchParams.get('sortOrder'),
       location: url.searchParams.get('location'),
       client: url.searchParams.get('client'),
+      // NEW: Check if this is a member view request
+      memberView: url.searchParams.get('memberView') === 'true'
     }
 
-    // Validate query parameters
+    // Validate query parameters (your existing validation)
     const validation = validateGetProjects(queryParams)
     if (!validation.success) {
       return NextResponse.json(
@@ -58,13 +60,21 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Create service instance
+    // Create service instance (your existing code)
     const projectService = new ProjectDatabaseService(true, false)
 
-    // Get projects with pagination and filtering
-    const result = await projectService.getProjectsByCompany(companyId, validation.data)
+    let result
 
-    // Transform projects to clean structure
+    // NEW: Check if this is a member view request
+    if (queryParams.memberView) {
+      // Get only assigned projects for members
+      result = await projectService.getMemberAssignedProjects(companyId, userId, validation.data)
+    } else {
+      // Get all projects for admins (your existing logic)
+      result = await projectService.getProjectsByCompany(companyId, validation.data)
+    }
+
+    // Transform projects to clean structure (your existing logic)
     const transformedProjects = result.projects.map(project => ({
       id: project.id,
       name: project.name,
@@ -85,18 +95,16 @@ export async function GET(request: NextRequest) {
       // JSONB fields
       location: project.location || null,
       client: project.client || null,
-
       tags: project.tags || [],
       createdAt: project.created_at,
       updatedAt: project.updated_at,
 
-      // Team information
-      // projectManager: project.project_manager ? {
-      //   id: project.project_manager.id,
-      //   firstName: project.project_manager.first_name,
-      //   lastName: project.project_manager.last_name,
-      //   email: project.project_manager.email,
-      // } : null,
+      // Member-specific fields (only for member view)
+      ...(queryParams.memberView && project.project_member && {
+        memberRole: project.project_member.role,
+        joinedAt: project.project_member.joined_at,
+        isActive: project.project_member.is_active
+      }),
 
       creator: project.creator ? {
         id: project.creator.id,
@@ -106,10 +114,9 @@ export async function GET(request: NextRequest) {
       } : null,
     }))
 
-    // Calculate pagination info
+    // Calculate pagination info (your existing logic)
     const limit = validation.data.limit || 50
     const offset = validation.data.offset || 0
-    const hasMore = result.total > offset + limit
 
     return NextResponse.json(
       {

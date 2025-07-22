@@ -27,6 +27,7 @@ import type {
     PlacesAutocompleteResponse,
     PlacesDetailsResponse,
     LocationDetails,
+    MemberProjectSummary,
 } from '@/types/projects'
 
 // ==============================================
@@ -427,6 +428,118 @@ export const projectsApi = {
                 variant: "destructive",
             })
             throw networkError
+        }
+    },
+
+    // ==============================================
+    // PROJECT MEMBER'S USERS
+    // ==============================================
+    async getMemberProjects(filters: ProjectFilters = {}): Promise<{
+        success: boolean
+        message: string
+        data: {
+            projects: MemberProjectSummary[] // Use the extended type
+            pagination: {
+                total: number
+                page: number
+                limit: number
+                totalPages: number
+            }
+            filters: {
+                status?: Project['status']
+                priority?: Project['priority']
+                search?: string
+                sortBy?: string
+                sortOrder?: 'asc' | 'desc'
+            }
+        }
+        notifications?: {
+            message: string
+        }
+    }> {
+        try {
+            // Build query parameters
+            const params = new URLSearchParams()
+
+            // Add member-specific flag
+            params.append('memberView', 'true')
+
+            // Add filters
+            if (filters.status) params.append('status', filters.status)
+            if (filters.priority) params.append('priority', filters.priority)
+            if (filters.search) params.append('search', filters.search)
+            if (filters.sortBy) params.append('sortBy', filters.sortBy)
+            if (filters.sortOrder) params.append('sortOrder', filters.sortOrder)
+            if (filters.limit) params.append('limit', filters.limit.toString())
+            if (filters.offset) params.append('offset', filters.offset.toString())
+
+            const response = await apiCall<GetProjectsResult>(`/api/projects?${params}`, {
+                method: 'GET',
+            })
+
+            // Don't show toast for loading data
+            return response
+
+        } catch (error) {
+            if (error instanceof ApiError) {
+                toast({
+                    title: "Failed to Load Projects",
+                    description: error.message,
+                    variant: "destructive",
+                })
+                throw error
+            }
+
+            const networkError = new ApiError(0, 'Failed to load assigned projects')
+            toast({
+                title: "Network Error",
+                description: "Unable to load your assigned projects. Please try again.",
+                variant: "destructive",
+            })
+            throw networkError
+        }
+    },
+
+    // ==============================================
+    // GET MEMBER PROJECT STATS
+    // ==============================================
+    async getMemberProjectStats(): Promise<{
+        success: boolean
+        message: string
+        data: {
+            total: number
+            active: number
+            completed: number
+            supervisorRoles: number
+            leadRoles: number
+            averageProgress: number
+        }
+    }> {
+        try {
+            const response = await apiCall<{
+                success: boolean
+                message: string
+                data: {
+                    total: number
+                    active: number
+                    completed: number
+                    supervisorRoles: number
+                    leadRoles: number
+                    averageProgress: number
+                }
+            }>('/api/projects/member-stats', {
+                method: 'GET',
+            })
+
+            return response
+
+        } catch (error) {
+            if (error instanceof ApiError) {
+                console.error('Member stats error:', error)
+                throw error
+            }
+
+            throw new ApiError(0, 'Failed to get member project statistics')
         }
     },
 

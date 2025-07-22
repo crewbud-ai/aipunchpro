@@ -24,6 +24,8 @@ export type {
   GetProjectsResult,
   GetProjectResult,
   DeleteProjectResult,
+  MemberProjectSummary,
+  MemberProjectStats,
 } from './project'
 
 // Create Project Types

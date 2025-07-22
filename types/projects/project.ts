@@ -204,6 +204,24 @@ export interface DeleteProjectResult {
   }
 }
 
+export interface MemberProjectSummary extends ProjectSummary {
+  // Member-specific fields (populated when memberView=true)
+  memberRole?: 'supervisor' | 'lead' | 'member'
+  joinedAt?: string
+  isActive?: boolean
+  assignmentNotes?: string
+}
+
+export interface MemberProjectStats {
+  total: number
+  active: number
+  completed: number
+  supervisorRoles: number
+  leadRoles: number
+  averageProgress: number
+}
+
+
 // ==============================================
 // ERROR TYPES
 // ==============================================
