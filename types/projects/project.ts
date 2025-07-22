@@ -204,20 +204,39 @@ export interface DeleteProjectResult {
   }
 }
 
+
 export interface MemberProjectSummary extends ProjectSummary {
-  // Member-specific fields (populated when memberView=true)
-  memberRole?: 'supervisor' | 'lead' | 'member'
-  joinedAt?: string
-  isActive?: boolean
-  assignmentNotes?: string
+  // FIXED: Member-specific fields (role now comes from users table)
+  memberRole?: 'admin' | 'supervisor' | 'member'  // From users.role, not project_members.role
+  joinedAt?: string                                // From project_members.joined_at
+  isActive?: boolean                              // Computed from project_members.status === 'active'
+  memberStatus?: 'active' | 'inactive'           // From project_members.status
+  
+  // Additional member-specific fields from the new schema
+  assignedBy?: string                             // From project_members.assigned_by
+  hourlyRate?: number                            // From project_members.hourly_rate
+  overtimeRate?: number                          // From project_members.overtime_rate
+  memberNotes?: string                           // From project_members.notes
+  
+  // Member info (populated from join with users table)
+  memberInfo?: {
+    id: string
+    name: string
+    email: string
+    role: 'admin' | 'supervisor' | 'member'
+  }
 }
 
+// ==============================================
+// UPDATED: MemberProjectStats interface to match new structure
+// ==============================================
 export interface MemberProjectStats {
   total: number
   active: number
   completed: number
+  adminRoles: number      // CHANGED: from supervisorRoles
   supervisorRoles: number
-  leadRoles: number
+  memberRoles: number     // NEW: added member count
   averageProgress: number
 }
 

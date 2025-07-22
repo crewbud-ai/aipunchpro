@@ -99,50 +99,60 @@ export async function GET(request: NextRequest) {
       createdAt: project.created_at,
       updatedAt: project.updated_at,
 
-      // Member-specific fields (only for member view)
+      // FIXED: Member-specific fields with correct data structure
       ...(queryParams.memberView && project.project_member && {
-        memberRole: project.project_member.role,
+        // Get the role from the nested user object (not from project_members anymore)
+        memberRole: project.project_member.user?.role || 'member',
         joinedAt: project.project_member.joined_at,
-        isActive: project.project_member.is_active
+        // FIXED: status field instead of is_active
+        isActive: project.project_member.status === 'active',
+        memberStatus: project.project_member.status,
+        assignedBy: project.project_member.assigned_by,
+        hourlyRate: project.project_member.hourly_rate,
+        overtimeRate: project.project_member.overtime_rate,
+        memberNotes: project.project_member.notes
       }),
 
       creator: project.creator ? {
         id: project.creator.id,
-        firstName: project.creator.first_name,
-        lastName: project.creator.last_name,
+        name: `${project.creator.first_name} ${project.creator.last_name}`,
         email: project.creator.email,
       } : null,
+
+      // FIXED: Member info when in member view (from the nested user object)
+      ...(queryParams.memberView && project.project_member?.user && {
+        memberInfo: {
+          id: project.project_member.user.id,
+          name: `${project.project_member.user.first_name} ${project.project_member.user.last_name}`,
+          email: project.project_member.user.email,
+          role: project.project_member.user.role
+        }
+      })
     }))
 
-    // Calculate pagination info (your existing logic)
-    const limit = validation.data.limit || 50
-    const offset = validation.data.offset || 0
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Projects retrieved successfully',
-        data: {
-          projects: transformedProjects,
-          pagination: {
-            total: result.total,
-            page: Math.floor((validation.data.offset || 0) / (validation.data.limit || 20)) + 1,
-            limit: validation.data.limit || 20,
-            totalPages: Math.ceil(result.total / (validation.data.limit || 20)),
-          },
-          filters: {
-            status: validation.data.status,
-            priority: validation.data.priority,
-            search: validation.data.search,
-            location: validation.data.location,
-            client: validation.data.client,
-            sortBy: validation.data.sortBy,
-            sortOrder: validation.data.sortOrder,
-          },
+    return NextResponse.json({
+      success: true,
+      data: {
+        projects: transformedProjects,
+        pagination: {
+          total: result.total,
+          page: Math.floor((validation.data.offset || 0) / (validation.data.limit || 20)) + 1,
+          limit: validation.data.limit || 20,
+          totalPages: Math.ceil(result.total / (validation.data.limit || 20))
         },
-      },
-      { status: 200 }
-    )
+        filters: {
+          memberView: queryParams.memberView,
+          status: validation.data.status,
+          priority: validation.data.priority,
+          search: validation.data.search,
+          location: validation.data.location,
+          client: validation.data.client,
+          sortBy: validation.data.sortBy,
+          sortOrder: validation.data.sortOrder
+        }
+      }
+    })
+
 
   } catch (error) {
     console.error('Get projects error:', error)

@@ -796,10 +796,10 @@ export default function ProjectsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-purple-600">
-                {(projectStats?.supervisorRoles || 0) + (projectStats?.leadRoles || 0)}
+                {(projectStats?.supervisorRoles || 0)}
               </div>
               <p className="text-xs text-muted-foreground">
-                {projectStats?.supervisorRoles} supervisor, {projectStats?.leadRoles} lead
+                {projectStats?.supervisorRoles} supervisor
               </p>
             </CardContent>
           </Card>

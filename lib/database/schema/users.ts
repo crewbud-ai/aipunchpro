@@ -259,7 +259,7 @@ export const DEFAULT_PERMISSIONS: Record<string, UserPermissions> = {
     team: { add: false, edit: false, remove: false, view: true, assignToProjects: false },
     tasks: { create: false, edit: false, delete: false, assign: false, complete: true, view: true },
     financials: { view: false, edit: false, viewReports: false },
-    files: { upload: true, delete: false, view: true, downloadAll: false },
+    files: { upload: false, delete: false, view: true, downloadAll: false },
     schedule: { create: false, edit: false, view: true },
     punchlist: { create: true, edit: false, complete: true, view: true },
     reports: { generate: false, view: false, export: false },

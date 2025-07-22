@@ -338,28 +338,37 @@ export class ProjectDatabaseService {
     console.log('Getting assigned projects for member', { companyId, userId, options })
 
     try {
-      // Build base query for assigned projects (following your select pattern)
+      // FIXED: Build base query for assigned projects with correct field names
       let query = this.supabaseClient
         .from('projects')
         .select(`
-          *,
-          creator:users!projects_created_by_users_id_fk(
+        *,
+        creator:users!projects_created_by_users_id_fk(
+          id,
+          first_name,
+          last_name,
+          email
+        ),
+        project_member:project_members!inner(
+          id,
+          joined_at,
+          status,
+          notes,
+          hourly_rate,
+          overtime_rate,
+          assigned_by,
+          user:users!project_members_user_id_users_id_fk(
             id,
             first_name,
             last_name,
-            email
-          ),
-          project_member:project_members!inner(
-            id,
-            role,
-            joined_at,
-            is_active,
-            assignment_notes
+            email,
+            role
           )
-        `)
+        )
+      `)
         .eq('company_id', companyId)
         .eq('project_members.user_id', userId)
-        .eq('project_members.is_active', true)
+        .eq('project_members.status', 'active')  // Changed from is_active to status
 
       // Apply filters (following your existing filter logic)
       if (options.status) {
@@ -424,25 +433,32 @@ export class ProjectDatabaseService {
 
       if (error) {
         console.log('Database error in getMemberAssignedProjects', error)
-        throw error
+        throw new Error(`Failed to get member assigned projects: ${error.message}`)
       }
 
-      console.log('Member assigned projects retrieved', {
+      console.log('Successfully retrieved member assigned projects', {
         count: projects?.length || 0,
-        total: count,
-        userId
+        total: count
       })
 
       return {
+        success: true,
         projects: projects || [],
-        total: count || 0,
+        total: count || 0
       }
 
     } catch (error) {
-      console.log('Error getting member assigned projects', error)
-      throw error
+      console.error('Error getting member assigned projects', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        projects: [],
+        total: 0
+      }
     }
   }
+
+
 
   /**
    * Get member project statistics (following your existing stats patterns)
