@@ -20,6 +20,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    console.log(input, 'input')
+
     try {
       // Call Nominatim API (free OpenStreetMap service)
       const nominatimResponse = await fetch(
@@ -31,7 +33,8 @@ export async function GET(request: NextRequest) {
         `limit=5`,
         {
           headers: {
-            'User-Agent': 'YourAppName/1.0' // Nominatim requires a User-Agent
+            'User-Agent': 'CrewBud AI/1.0 (hmujahid@aipunchpro.com)', // Required by OSM policy
+            'Accept': 'application/json'
           }
         }
       )
@@ -47,7 +50,7 @@ export async function GET(request: NextRequest) {
         place_id: place.place_id,
         description: place.display_name,
         structured_formatting: {
-          main_text: place.address?.house_number && place.address?.road 
+          main_text: place.address?.house_number && place.address?.road
             ? `${place.address.house_number} ${place.address.road}`
             : place.address?.road || place.name || place.display_name.split(',')[0],
           secondary_text: place.display_name.split(',').slice(1).join(',').trim(),
