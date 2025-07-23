@@ -71,6 +71,13 @@
       "when": 1752417028347,
       "tag": "0009_awesome_mystique",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1753261179399,
+      "tag": "0010_rich_abomination",
+      "breakpoints": true
     }
   ]
 }

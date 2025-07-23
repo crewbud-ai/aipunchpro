@@ -1,0 +1,2 @@
+ALTER TABLE "projects" DROP CONSTRAINT "projects_project_number_unique";--> statement-breakpoint
+ALTER TABLE "projects" ADD CONSTRAINT "company_project_number_unique" UNIQUE("company_id","project_number");

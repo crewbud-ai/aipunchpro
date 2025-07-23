@@ -13,7 +13,8 @@ import {
   timestamp,
   jsonb,
   check,
-  index
+  index,
+  unique
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { companies } from './companies';
@@ -66,7 +67,7 @@ export const projects = pgTable('projects', {
   // Core Project Information
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
-  projectNumber: varchar('project_number', { length: 100 }).unique(), // Made unique for auto-generation
+  projectNumber: varchar('project_number', { length: 100 }), // Made unique for auto-generation
 
   // Status & Priority Management
   status: varchar('status', { length: 50 }).default('not_started').notNull(),
@@ -114,6 +115,10 @@ export const projects = pgTable('projects', {
   hoursCheck: check('hours_check', sql`${table.estimatedHours} IS NULL OR ${table.estimatedHours} >= 0`),
   actualHoursCheck: check('actual_hours_check', sql`${table.actualHours} >= 0`),
   dateLogicCheck: check('date_logic_check', sql`${table.startDate} IS NULL OR ${table.endDate} IS NULL OR ${table.endDate} >= ${table.startDate}`),
+
+  // ADD THIS LINE HERE - Company-scoped unique constraint
+  companyProjectNumberUnique: unique('company_project_number_unique')
+    .on(table.companyId, table.projectNumber),
 
   // Performance Indexes
   companyIdIdx: index('idx_projects_company_id').on(table.companyId),
