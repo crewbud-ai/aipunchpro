@@ -275,7 +275,7 @@ export const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
                 <div className="flex items-center gap-3 mb-4">
                   <FileIcon className="h-8 w-8 text-red-600" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">
+                    <p className="font-medium text-gray-900 truncate w-64">
                       {pendingFile.file.name}
                     </p>
                     <p className="text-sm text-gray-600">
