@@ -264,7 +264,7 @@ export default function LoginPage() {
         </Card>
 
         {/* Sign Up Link */}
-        <div className="text-center">
+        {/* <div className="text-center">
           <p className="text-sm text-gray-600">
             Don't have an account?{" "}
             <button
@@ -274,7 +274,7 @@ export default function LoginPage() {
               Sign up for free
             </button>
           </p>
-        </div>
+        </div> */}
 
         {/* Footer */}
         <div className="text-center">

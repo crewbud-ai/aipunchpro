@@ -256,6 +256,13 @@ export default function ProjectPage() {
           </div>
         </div>
 
+        {/* <div>
+            <ProjectStatusManager 
+              project={}
+              onStatusChange={}
+            />
+        </div> */}
+
         {/* MODIFIED: Action buttons with permission checks */}
         <div className="flex items-center gap-2">
           {withFeature('editProject', (
