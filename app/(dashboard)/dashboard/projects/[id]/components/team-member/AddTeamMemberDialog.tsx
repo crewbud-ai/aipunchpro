@@ -4,7 +4,7 @@
 
 "use client"
 
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
     Dialog,
     DialogContent,
@@ -35,7 +35,7 @@ interface AddTeamMemberDialogProps {
     onOpenChange: (open: boolean) => void
     projectId: string
     projectName: string
-    onMemberAdded: () => void
+    onMemberAdded: (statusSuggestion?: any) => void  // UPDATED: Now accepts optional parameter
 }
 
 export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
@@ -45,6 +45,7 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
     projectName,
     onMemberAdded
 }) => {
+
     // ==============================================
     // HOOKS
     // ==============================================
@@ -60,12 +61,13 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
         clearFieldError,
         createTeamMember,
         reset,
+        result  // ADD: Get the result from the hook
     } = useCreateTeamMember()
 
     // ==============================================
     // EFFECTS
     // ==============================================
-    
+
     // Set project assignment and defaults when dialog opens
     useEffect(() => {
         if (open && projectId) {
@@ -75,33 +77,41 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
         }
     }, [open, projectId, updateFormData])
 
-    // Handle successful creation
+    // Handle successful creation - UPDATED
     useEffect(() => {
-        if (isSuccess && onMemberAdded) {
+        if (isSuccess && result && onMemberAdded) {
+            // Check if there's a status suggestion in the result
+            const statusSuggestion = result?.data?.statusSuggestion 
+            
             setTimeout(() => {
-                onMemberAdded()
+                // Pass the status suggestion to parent if it exists
+                if (statusSuggestion?.shouldSuggest) {
+                    onMemberAdded(statusSuggestion)
+                } else {
+                    onMemberAdded() // Call without suggestion
+                }
                 handleClose()
             }, 1000) // Brief delay to show success message
         }
-    }, [isSuccess, onMemberAdded])
+    }, [isSuccess, result, onMemberAdded])
 
     // ==============================================
     // COMPUTED VALUES
     // ==============================================
-    
+
     // Manual validation following your existing pattern
-    const hasRequiredFields = formData.firstName?.trim() && 
-                             formData.lastName?.trim() && 
-                             formData.email?.trim()
+    const hasRequiredFields = formData.firstName?.trim() &&
+        formData.lastName?.trim() &&
+        formData.email?.trim()
 
     const manualValidation = {
         hasEmergencyContactIssue: (formData.emergencyContactName?.trim() && !formData.emergencyContactPhone) ||
-                                 (!formData.emergencyContactName?.trim() && formData.emergencyContactPhone),
+            (!formData.emergencyContactName?.trim() && formData.emergencyContactPhone),
         hasProjectAssignmentIssue: formData.assignToProject && !formData.projectId
     }
-    
+
     const hasManualErrors = Object.values(manualValidation).some(Boolean)
-    
+
     // Custom canSubmit logic (following your pattern)
     const canActuallySubmit = hasRequiredFields && !hasManualErrors && !isLoading
 
@@ -110,7 +120,7 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
     // ==============================================
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        
+
         // Don't submit if validation fails
         if (!canActuallySubmit) {
             return
@@ -122,11 +132,11 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
             role: 'member' as const,
             // Clean up emergency contact fields - if name is empty, clear phone too
             emergencyContactName: formData.emergencyContactName?.trim() || undefined,
-            emergencyContactPhone: formData.emergencyContactName?.trim() 
-                ? formData.emergencyContactPhone 
+            emergencyContactPhone: formData.emergencyContactName?.trim()
+                ? formData.emergencyContactPhone
                 : undefined,
         }
-        
+
         // Create cleaned data object
         const cleanedData: any = {
             firstName: submissionData.firstName,
@@ -144,15 +154,15 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
             emergencyContactPhone: submissionData.emergencyContactPhone,
             isActive: submissionData.isActive,
         }
-        
+
         // Add project fields since this is for project assignment
         if (formData.assignToProject && formData.projectId) {
             cleanedData.projectId = formData.projectId
-            cleanedData.projectHourlyRate = formData.projectHourlyRate
-            cleanedData.projectOvertimeRate = formData.projectOvertimeRate
-            cleanedData.projectNotes = formData.projectNotes
+            cleanedData.hourlyRate = formData.projectHourlyRate
+            cleanedData.overtimeRate = formData.projectOvertimeRate
+            cleanedData.assignmentNotes = formData.projectNotes 
         }
-        
+
         // Remove undefined values
         Object.keys(cleanedData).forEach(key => {
             if (cleanedData[key] === undefined) {
@@ -161,6 +171,7 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
         })
 
         await createTeamMember(cleanedData)
+        // The result will be handled in the useEffect above
     }
 
     const handleClose = () => {
@@ -171,39 +182,39 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
     // Handle input changes with error clearing and smart auto-calculation (following your pattern)
     const handleInputChange = (field: string, value: any) => {
         updateFormData(field as any, value)
-        
+
         // Auto-calculate overtime rate (1.5x regular rate) for hourly rate changes
         // Only auto-calculate if overtime rate is empty or equals the previous 1.5x calculation
         if (field === "hourlyRate" && value) {
             const hourlyRate = parseFloat(value)
             if (!isNaN(hourlyRate)) {
                 const newOvertimeRate = (hourlyRate * 1.5)
-                
+
                 // Only auto-update if:
                 // 1. Overtime rate is empty, OR
                 // 2. Overtime rate currently equals 1.5x the previous hourly rate
                 const currentOvertimeRate = formData.overtimeRate
                 const previousHourlyRate = formData.hourlyRate
-                const shouldAutoUpdate = !currentOvertimeRate || 
-                  (previousHourlyRate && currentOvertimeRate === (previousHourlyRate * 1.5))
-                
+                const shouldAutoUpdate = !currentOvertimeRate ||
+                    (previousHourlyRate && currentOvertimeRate === (previousHourlyRate * 1.5))
+
                 if (shouldAutoUpdate) {
                     updateFormData("overtimeRate", newOvertimeRate)
                 }
             }
         }
-        
+
         // Same logic for project hourly rate
         if (field === "projectHourlyRate" && value) {
             const hourlyRate = parseFloat(value)
             if (!isNaN(hourlyRate)) {
                 const newOvertimeRate = (hourlyRate * 1.5)
-                
+
                 const currentOvertimeRate = formData.projectOvertimeRate
                 const previousHourlyRate = formData.projectHourlyRate
-                const shouldAutoUpdate = !currentOvertimeRate || 
-                  (previousHourlyRate && currentOvertimeRate === (previousHourlyRate * 1.5))
-                
+                const shouldAutoUpdate = !currentOvertimeRate ||
+                    (previousHourlyRate && currentOvertimeRate === (previousHourlyRate * 1.5))
+
                 if (shouldAutoUpdate) {
                     updateFormData("projectOvertimeRate", newOvertimeRate)
                 }
@@ -319,7 +330,7 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <Label htmlFor="role">Role</Label>
-                                <Select 
+                                <Select
                                     value="member"
                                     disabled={true}
                                 >

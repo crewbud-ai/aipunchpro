@@ -28,12 +28,14 @@ interface ProjectTeamMembersProps {
   projectId: string
   projectName: string
   projectStatus: string
+  onMemberAdded?: (statusSuggestion?: any) => void
 }
 
 export const ProjectTeamMembers: React.FC<ProjectTeamMembersProps> = ({
   projectId,
   projectName,
-  projectStatus
+  projectStatus,
+  onMemberAdded  
 }) => {
   // ==============================================
   // HOOKS
@@ -87,9 +89,14 @@ export const ProjectTeamMembers: React.FC<ProjectTeamMembersProps> = ({
   // ==============================================
   // EVENT HANDLERS
   // ==============================================
-  const handleMemberAdded = () => {
+  const handleMemberAdded = (statusSuggestion?: any) => {
     refreshTeamMembers()
     setShowAddDialog(false)
+
+    // Pass the suggestion up to parent if callback exists
+    if (onMemberAdded) {
+      onMemberAdded(statusSuggestion)
+    }
   }
 
   const handleMemberAssigned = () => {

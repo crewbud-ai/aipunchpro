@@ -5,7 +5,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -71,6 +71,13 @@ import { ProjectFiles } from "./components/blueprints/ProjectFiles"
 
 // ADDED: Import permission utilities
 import { hasPermission, canUseFeature, withPermission, withFeature } from "@/lib/permissions"
+import { useTeamMembers } from "@/hooks/team-members"
+import { AddTeamMemberDialog } from "./components/team-member/AddTeamMemberDialog"
+
+// ADDED: Import the notification component
+import { ProjectStartNotification } from "./components/notification/ProjectStartNotification"
+import { formatStatus, formatToUpperCase, getStatusColor } from "@/utils/format-functions"
+import { useScheduleProjects, useScheduleProjectStats } from "@/hooks/schedule-projects"
 
 export default function ProjectPage() {
   const params = useParams()
@@ -78,6 +85,12 @@ export default function ProjectPage() {
   const projectId = params.id as string
   const [activeTab, setActiveTab] = useState("overview")
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  // State for Add Team Member Dialog
+  const [showAddTeamDialog, setShowAddTeamDialog] = useState(false)
+
+  // ADDED: State for start notification
+  const [showStartNotification, setShowStartNotification] = useState(false)
+  const [statusSuggestion, setStatusSuggestion] = useState<any>(null)
 
   const {
     project,
@@ -105,7 +118,120 @@ export default function ProjectPage() {
     isSuccess: isDeleteSuccess,
     deleteProject,
     reset: resetDelete,
-  } = useDeleteProject()
+  } = useDeleteProject();
+
+  // ADDED: Hook to get team members
+  const {
+    teamMembers,
+    isLoading: isLoadingTeamMembers,
+    refreshTeamMembers
+  } = useTeamMembers()
+
+  // ADDED: Hook to get team members
+  const {
+    scheduleProjects,
+    isLoading: isLoadingTasks
+  } = useScheduleProjects()
+
+
+  // ADDED: Calculate project team members count
+  const projectTeamMembersCount = useMemo(() => {
+    if (!teamMembers || !projectId) return 0
+    return teamMembers.filter(member =>
+      member.currentProjects?.some(project => project.id === projectId)
+    ).length
+  }, [teamMembers, projectId]);
+
+  const projectTasksCount = useMemo(() => {
+    if (!scheduleProjects || !projectId) return 0
+
+    return scheduleProjects.length
+  }, [scheduleProjects, projectId]);
+
+  // ADDED: Function to check if we should show the start notification
+  const checkShouldShowStartNotification = () => {
+    if (!project) return false
+    if (project.status !== 'not_started') return false
+    if (projectTeamMembersCount === 0) return false
+
+    // Check start date
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    if (project.startDate) {
+      const startDate = new Date(project.startDate)
+      startDate.setHours(0, 0, 0, 0)
+      if (startDate > today) return false
+    }
+
+    return true
+  }
+
+  // ADDED: Check sessionStorage to see if already dismissed
+  useEffect(() => {
+    const dismissed = sessionStorage.getItem(`project-start-dismissed-${projectId}`)
+    if (!dismissed && project?.status === 'not_started' && projectTeamMembersCount > 0) {
+      const shouldShow = checkShouldShowStartNotification()
+      setShowStartNotification(shouldShow)
+    }
+  }, [project, projectTeamMembersCount])
+
+
+  // ADDED: Calculate active team members count
+  const activeTeamMembersCount = useMemo(() => {
+    if (!teamMembers || !projectId) return 0
+    return teamMembers.filter(member =>
+      member.isActive &&
+      member.currentProjects?.some(project => project.id === projectId)
+    ).length
+  }, [teamMembers, projectId])
+
+  // ADDED: Handler for when team member is added
+  const handleTeamMemberAdded = (suggestion?: any) => {
+    refreshTeamMembers()
+    refreshProject()
+    setShowAddTeamDialog(false)
+
+    // Check if we received a status suggestion
+    if (suggestion?.shouldSuggest) {
+      setStatusSuggestion(suggestion)
+      setShowStartNotification(true)
+    } else if (project?.status === 'not_started') {
+      // Even without suggestion, check if we should show notification
+      setTimeout(() => {
+        if (checkShouldShowStartNotification()) {
+          setShowStartNotification(true)
+        }
+      }, 500) // Small delay to let data refresh
+    }
+  }
+
+  // ADDED: Handler for when status changes from notification
+  const handleNotificationStatusChange = (newStatus: string) => {
+    setShowStartNotification(false)
+    setStatusSuggestion(null)
+    refreshProject()
+    // The project data will automatically refresh and show new status
+  }
+
+  // ADDED: Handler for notification dismissal
+  const handleNotificationDismiss = () => {
+    setShowStartNotification(false)
+    setStatusSuggestion(null)
+    // Store dismissal in sessionStorage
+    sessionStorage.setItem(`project-start-dismissed-${projectId}`, 'true')
+  }
+
+  // ADDED: Handler to open Add Team Dialog and switch to team tab
+  const handleAddMemberClick = () => {
+    if (canAddTeam) {
+      // Option 1: Open dialog in overview
+      setShowAddTeamDialog(true)
+
+      // Option 2: Switch to team tab (uncomment if preferred)
+      // setActiveTab('team')
+    }
+  }
 
   // ADDED: Permission checks
   const canEditProject = canUseFeature('editProject')
@@ -117,21 +243,6 @@ export default function ProjectPage() {
   const canViewFilesUpload = hasPermission('files', 'upload')
   const canViewReports = hasPermission('reports', 'view')
   const canManageUsers = hasPermission('admin', 'manageUsers')
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800 border-green-200'
-      case 'in_progress':
-        return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'on_hold':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'cancelled':
-        return 'bg-red-100 text-red-800 border-red-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
 
   const formatCurrency = (amount?: number) => {
     if (amount === undefined || amount === null) return '$0'
@@ -204,7 +315,7 @@ export default function ProjectPage() {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            {isNotFound 
+            {isNotFound
               ? 'Project not found or you do not have access to view it.'
               : error || 'Failed to load project details.'
             }
@@ -231,6 +342,14 @@ export default function ProjectPage() {
     setActiveTab('overview')
   }
 
+
+  const onStatusChange = () => {
+    // Refresh project when status changes
+    refreshProject()
+    // Hide notification if it's showing
+    setShowStartNotification(false)
+  }
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
@@ -245,77 +364,87 @@ export default function ProjectPage() {
             <h1 className="text-3xl font-bold">{project.name}</h1>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant="outline" className={getStatusColor(project.status)}>
-                {project.status.replace('_', ' ').toUpperCase()}
+                {formatToUpperCase(formatStatus(project.status))}
               </Badge>
               {project.priority && (
                 <Badge variant="secondary">
-                  {project.priority.toUpperCase()} PRIORITY
+                  {formatToUpperCase(project.priority)} PRIORITY
                 </Badge>
               )}
             </div>
           </div>
         </div>
-
-        {/* <div>
-            <ProjectStatusManager 
-              project={}
-              onStatusChange={}
-            />
-        </div> */}
-
+        
         {/* MODIFIED: Action buttons with permission checks */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-end gap-2">
+
           {withFeature('editProject', (
-            <Button variant="outline" asChild>
-              <Link href={`/dashboard/projects/${projectId}/edit`}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </Link>
-            </Button>
+            <>
+              <ProjectStatusManager
+                project={project}
+                onStatusChange={onStatusChange}
+              />
+
+              <Button variant="outline" asChild>
+                <Link href={`/dashboard/projects/${projectId}/edit`}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Link>
+              </Button>
+            </>
           ))}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => {}}>
+          {withFeature('deleteProject', (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {/* <DropdownMenuItem onClick={() => { }}>
                 <Download className="mr-2 h-4 w-4" />
                 Export Data
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => {}}>
+              <DropdownMenuItem onClick={() => { }}>
                 <Share className="mr-2 h-4 w-4" />
                 Share Project
-              </DropdownMenuItem>
-              
-              {withPermission('admin', 'companySettings', (
+              </DropdownMenuItem> */}
+
+                {/* {withPermission('admin', 'companySettings', (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => {}}>
+                  <DropdownMenuItem onClick={() => { }}>
                     <Settings className="mr-2 h-4 w-4" />
                     Project Settings
                   </DropdownMenuItem>
                 </>
-              ))}
+              ))} */}
 
-              {withFeature('deleteProject', (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="text-red-600 focus:text-red-600"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete Project
-                  </DropdownMenuItem>
-                </>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="text-red-600 focus:text-red-600"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Project
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ))}
         </div>
       </div>
+
+      {/* ADDED: Show notification after header if conditions are met */}
+      {showStartNotification && project?.status === 'not_started' && (
+        <ProjectStartNotification
+          projectId={projectId}
+          projectName={project.name}
+          // message={statusSuggestion?.message}
+          onStatusChange={handleNotificationStatusChange}
+          onDismiss={handleNotificationDismiss}
+        />
+      )}
 
       {/* Progress Bar */}
       {/* <div className="space-y-2">
@@ -408,23 +537,68 @@ export default function ProjectPage() {
             </p>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Team</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">members assigned</p>
-            {withPermission('team', 'assignToProjects', (
-              <Button variant="ghost" size="sm" className="mt-2 h-8 px-2">
-                <Plus className="h-3 w-3 mr-1" />
-                Add member
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
+        {withPermission('team', 'assignToProjects', (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Team</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoadingTeamMembers ? (
+                <>
+                  <Skeleton className="h-8 w-12 mb-2" />
+                  <Skeleton className="h-3 w-24" />
+                </>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{projectTeamMembersCount}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {projectTeamMembersCount === 1 ? 'member' : 'members'} assigned
+                    {activeTeamMembersCount < projectTeamMembersCount &&
+                      ` (${activeTeamMembersCount} active)`
+                    }
+                  </p>
+                </>
+              )}
+              {withPermission('team', 'assignToProjects', (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 h-8 px-2"
+                  onClick={handleAddMemberClick}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add member
+                </Button>
+              ))}
+            </CardContent>
+          </Card>
+        ), (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Tasks</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoadingTasks ? (
+                <>
+                  <Skeleton className="h-8 w-12 mb-2" />
+                  <Skeleton className="h-3 w-24" />
+                </>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold">{projectTasksCount}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {projectTasksCount === 1 ? 'task' : 'tasks'} assigned
+                    {activeTeamMembersCount < projectTeamMembersCount &&
+                      ` (${activeTeamMembersCount} active)`
+                    }
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* MODIFIED: Dynamic tabs based on permissions */}
@@ -520,7 +694,7 @@ export default function ProjectPage() {
                       <div className="flex-1">
                         <h4 className="font-medium">Client Information</h4>
                         <p className="text-sm text-gray-600">{displayClient}</p>
-                        
+
                         {clientContactInfo && (
                           <div className="mt-2 space-y-1">
                             {projectClient?.email && (
@@ -542,9 +716,9 @@ export default function ProjectPage() {
                             {projectClient?.website && (
                               <div className="flex items-center gap-2 text-xs text-gray-500">
                                 <Globe className="h-3 w-3" />
-                                <a 
+                                <a
                                   href={projectClient.website.startsWith('http') ? projectClient.website : `https://${projectClient.website}`}
-                                  target="_blank" 
+                                  target="_blank"
                                   rel="noopener noreferrer"
                                   className="hover:text-blue-600"
                                 >
@@ -606,6 +780,7 @@ export default function ProjectPage() {
               projectId={projectId}
               projectName={project?.name || "Project"}
               projectStatus={project?.status || ""}
+              onMemberAdded={handleTeamMemberAdded}
             />
           </TabsContent>
         )}
@@ -662,6 +837,17 @@ export default function ProjectPage() {
           </TabsContent>
         )}
       </Tabs>
+
+      {/* ADDED: Add Team Member Dialog */}
+      {showAddTeamDialog && (
+        <AddTeamMemberDialog
+          open={showAddTeamDialog}
+          onOpenChange={setShowAddTeamDialog}
+          projectId={projectId}
+          projectName={project?.name || "Project"}
+          onMemberAdded={handleTeamMemberAdded}
+        />
+      )}
 
       {/* MODIFIED: Delete dialog with permission check */}
       {canDeleteProject && (

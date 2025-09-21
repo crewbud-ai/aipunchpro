@@ -44,8 +44,9 @@ export const CompanyInfoStep = ({ formData, errors, onInputChange, onNext }: Com
           <Input
             id="companySlug"
             value={formData.companySlug}
+            disabled
             onChange={(e) => onInputChange("companySlug", e.target.value)}
-            className={`rounded-l-none ${errors.companySlug ? "border-red-500" : ""}`}
+            className={`rounded-l-none !opacity-100 text-gray-500 ${errors.companySlug ? "border-red-500" : ""}`}
             placeholder="abc-construction"
           />
         </div>

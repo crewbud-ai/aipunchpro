@@ -14,7 +14,7 @@
 
 // export default function ProjectsPage() {
 //   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  
+
 //   const {
 //     projects,
 //     pagination,
@@ -175,7 +175,7 @@
 //             className="pl-10"
 //           />
 //         </div>
-        
+
 //         <div className="flex gap-2">
 //           <Select 
 //             value={filters.status || 'all'} 
@@ -282,7 +282,7 @@
 //         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 //           {projects.map((project) => {
 //             const daysUntilDeadline = getDaysUntilDeadline(project.endDate)
-            
+
 //             return (
 //               <Link key={project.id} href={`/dashboard/projects/${project.id}`}>
 //                 <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer group h-full">
@@ -301,7 +301,7 @@
 //                       </Badge>
 //                     </div>
 //                   </CardHeader>
-                  
+
 //                   <CardContent className="space-y-4">
 //                     {/* Progress Bar */}
 //                     {project.progress !== undefined && (
@@ -330,7 +330,7 @@
 //                           <p className="text-gray-600 text-xs">Budget</p>
 //                         </div>
 //                       </div>
-                      
+
 //                       <div className="flex items-center gap-2">
 //                         <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
 //                         <div className="min-w-0 flex-1">
@@ -378,7 +378,7 @@
 //                           </div>
 //                         </div>
 //                       )}
-                      
+
 //                       {project.client?.name && (
 //                         <div className="flex items-center gap-2">
 //                           <Building2 className="h-4 w-4 text-gray-400 flex-shrink-0" />
@@ -412,7 +412,7 @@
 //         <div className="space-y-4">
 //           {projects.map((project) => {
 //             const daysUntilDeadline = getDaysUntilDeadline(project.endDate)
-            
+
 //             return (
 //               <Link key={project.id} href={`/dashboard/projects/${project.id}`}>
 //                 <Card className="hover:shadow-md transition-all duration-200 cursor-pointer">
@@ -437,11 +437,11 @@
 //                             </Badge>
 //                           )}
 //                         </div>
-                        
+
 //                         <p className="text-gray-600 mb-3 line-clamp-1">
 //                           {project.description || "No description provided"}
 //                         </p>
-                        
+
 //                         <div className="flex items-center flex-wrap gap-4 text-sm text-gray-600">
 //                           <div className="flex items-center gap-1">
 //                             <DollarSign className="h-4 w-4" />
@@ -473,7 +473,7 @@
 //                           )}
 //                         </div>
 //                       </div>
-                      
+
 //                       <div className="flex items-center gap-4">
 //                         {/* Progress */}
 //                         {project.progress !== undefined && (
@@ -510,7 +510,7 @@
 //           >
 //             Previous
 //           </Button>
-          
+
 //           <div className="flex items-center gap-1">
 //             {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
 //               const pageNumber = i + 1
@@ -526,7 +526,7 @@
 //               )
 //             })}
 //           </div>
-          
+
 //           <Button
 //             variant="outline"
 //             onClick={() => setPage(pagination.page + 1)}
@@ -560,21 +560,22 @@ import { useMemberProjects } from "@/hooks/projects/use-member-projects"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { hasPermission } from "@/lib/permissions"
+import { formatCurrency, formatDate, formatStatusLabel, getDaysUntilDeadline, getProgressColor, getStatusColor } from "@/utils/format-functions"
 
 export default function ProjectsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  
+
   // Instead of checking role, check ACTUAL PERMISSIONS
   const canViewAllProjects = hasPermission('projects', 'viewAll')
   const canCreateProjects = hasPermission('projects', 'create')
-  
+
   // Use different hooks based on PERMISSIONS, not role
   const adminHookResult = useProjects()
   const memberHookResult = useMemberProjects()
-  
+
   // Use the appropriate hook based on permissions
   const hookResult = canViewAllProjects ? adminHookResult : memberHookResult
-  
+
   const {
     projects,
     pagination,
@@ -590,31 +591,9 @@ export default function ProjectsPage() {
     clearError,
     state,
   } = hookResult
-  
+
   // Get project stats (only for users without viewAll permission)
   const projectStats = !canViewAllProjects ? memberHookResult.projectStats : undefined
-
-  // ... existing utility functions (getStatusColor, formatDate, etc.)
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "in_progress": return "bg-blue-100 text-blue-800 border-blue-200"
-      case "not_started": return "bg-gray-100 text-gray-800 border-gray-200"
-      case "on_track": return "bg-green-100 text-green-800 border-green-200"
-      case "ahead_of_schedule": return "bg-emerald-100 text-emerald-800 border-emerald-200"
-      case "behind_schedule": return "bg-red-100 text-red-800 border-red-200"
-      case "on_hold": return "bg-yellow-100 text-yellow-800 border-yellow-200"
-      case "completed": return "bg-purple-100 text-purple-800 border-purple-200"
-      case "cancelled": return "bg-gray-100 text-gray-600 border-gray-200"
-      default: return "bg-gray-100 text-gray-800 border-gray-200"
-    }
-  }
-
-  const getProgressColor = (progress: number) => {
-    if (progress >= 90) return "bg-green-500"
-    if (progress >= 70) return "bg-blue-500"
-    if (progress >= 50) return "bg-yellow-500"
-    return "bg-gray-400"
-  }
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -623,48 +602,6 @@ export default function ProjectsPage() {
       case 'member': return "bg-blue-100 text-blue-800 border-blue-200"
       default: return "bg-gray-100 text-gray-800 border-gray-200"
     }
-  }
-
-  const formatStatusLabel = (status: string) => {
-    switch (status) {
-      case 'not_started': return 'Not Started'
-      case 'in_progress': return 'In Progress'
-      case 'on_track': return 'On Track'
-      case 'ahead_of_schedule': return 'Ahead of Schedule'
-      case 'behind_schedule': return 'Behind Schedule'
-      case 'on_hold': return 'On Hold'
-      case 'completed': return 'Completed'
-      case 'cancelled': return 'Cancelled'
-      default: return status
-    }
-  }
-
-  const formatCurrency = (amount?: number) => {
-    if (!amount) return "$0"
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
-  }
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "Not set"
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
-
-  const getDaysUntilDeadline = (endDate?: string) => {
-    if (!endDate) return null
-    const deadline = new Date(endDate)
-    const now = new Date()
-    const diffTime = deadline.getTime() - now.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays
   }
 
   // Loading state
@@ -678,7 +615,7 @@ export default function ProjectsPage() {
           </div>
           <Skeleton className="h-10 w-32" />
         </div>
-        
+
         {/* Member Stats Skeleton - PERMISSION-BASED */}
         <PermissionGuard condition={!canViewAllProjects}>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -696,7 +633,7 @@ export default function ProjectsPage() {
             ))}
           </div>
         </PermissionGuard>
-        
+
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i}>
@@ -739,13 +676,13 @@ export default function ProjectsPage() {
             {canViewAllProjects ? "Projects" : "My Projects"}
           </h1>
           <p className="text-gray-600">
-            {canViewAllProjects 
-              ? "Manage and track all your construction projects" 
+            {canViewAllProjects
+              ? "Manage and track all your construction projects"
               : "Projects you're assigned to work on"
             }
           </p>
         </div>
-        
+
         {/* Create Project Button - Using your permission system */}
         <PermissionGuard category="projects" permission="create">
           <Link href="/dashboard/projects/new">
@@ -835,8 +772,8 @@ export default function ProjectsPage() {
           </div>
 
           {/* Status Filter */}
-          <Select 
-            value={filters.status || 'all'} 
+          <Select
+            value={filters.status || 'all'}
             onValueChange={(value) => updateFilters({ status: value === 'all' ? undefined : value as any })}
           >
             <SelectTrigger className="w-[160px]">
@@ -856,8 +793,8 @@ export default function ProjectsPage() {
           </Select>
 
           {/* Sort - PERMISSION-BASED OPTIONS */}
-          <Select 
-            value={filters.sortBy || 'created_at'} 
+          <Select
+            value={filters.sortBy || 'created_at'}
             onValueChange={(value) => updateFilters({ sortBy: value as any })}
           >
             <SelectTrigger className="w-[140px]">
@@ -932,7 +869,7 @@ export default function ProjectsPage() {
           <p className="text-gray-600 mb-6">
             {filters.search || filters.status
               ? "Try adjusting your search criteria or filters."
-              : canViewAllProjects 
+              : canViewAllProjects
                 ? "Get started by creating your first construction project."
                 : "You haven't been assigned to any projects yet. Contact your supervisor for project assignments."
             }
@@ -953,9 +890,9 @@ export default function ProjectsPage() {
       {/* Projects Grid */}
       {hasProjects && viewMode === 'grid' && (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project) => {
+          {projects.map((project: any) => {
             const daysUntilDeadline = getDaysUntilDeadline(project.endDate)
-            
+
             return (
               <Link key={project.id} href={`/dashboard/projects/${project.id}`}>
                 <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer group h-full">
@@ -993,9 +930,9 @@ export default function ProjectsPage() {
 
                   <CardContent className="space-y-4">
                     {/* Project Details */}
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-3 justify-between gap-4 text-sm">
                       {/* Timeline */}
-                      <div className="space-y-1">
+                      <div className="col-span-2">
                         <div className="flex items-center text-gray-600">
                           <Calendar className="mr-2 h-4 w-4" />
                           Timeline
@@ -1004,14 +941,13 @@ export default function ProjectsPage() {
                           {formatDate(project.startDate)} - {formatDate(project.endDate)}
                         </div>
                         {daysUntilDeadline !== null && (
-                          <div className={`text-xs ${
-                            daysUntilDeadline < 0 
-                              ? 'text-red-600' 
-                              : daysUntilDeadline < 30 
-                                ? 'text-yellow-600' 
-                                : 'text-green-600'
-                          }`}>
-                            {daysUntilDeadline < 0 
+                          <div className={`text-xs ${daysUntilDeadline < 0
+                            ? 'text-red-600'
+                            : daysUntilDeadline < 30
+                              ? 'text-yellow-600'
+                              : 'text-green-600'
+                            }`}>
+                            {daysUntilDeadline < 0
                               ? `${Math.abs(daysUntilDeadline)} days overdue`
                               : `${daysUntilDeadline} days remaining`
                             }
@@ -1037,38 +973,36 @@ export default function ProjectsPage() {
 
                     {/* Progress & Budget Row */}
                     <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                      <div className="flex items-center gap-4">
-                        {/* Progress */}
-                        {project.progress !== undefined && (
-                          <div className="text-center min-w-[80px]">
-                            <div className="text-2xl font-bold text-gray-900">
-                              {project.progress}%
+                      {/* Progress */}
+                      {project.progress !== undefined && (
+                        <div className="text-center min-w-[80px]">
+                          <div className="text-2xl font-bold text-gray-900">
+                            {project.progress}%
+                          </div>
+                          <div className="text-xs text-gray-600">Complete</div>
+                          <div className="w-16 bg-gray-200 rounded-full h-2 mt-1">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-300 ${getProgressColor(project.progress)}`}
+                              style={{ width: `${project.progress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Budget - PERMISSION-BASED */}
+                      <PermissionGuard category="financials" permission="view">
+                        {project.budget && (
+                          <div className="text-center">
+                            <div className="flex items-center text-gray-600">
+                              <DollarSign className="mr-1 h-4 w-4" />
+                              Budget
                             </div>
-                            <div className="text-xs text-gray-600">Complete</div>
-                            <div className="w-16 bg-gray-200 rounded-full h-2 mt-1">
-                              <div 
-                                className={`h-2 rounded-full transition-all duration-300 ${getProgressColor(project.progress)}`}
-                                style={{ width: `${project.progress}%` }} 
-                              />
+                            <div className="font-bold text-green-600">
+                              {formatCurrency(project.budget)}
                             </div>
                           </div>
                         )}
-
-                        {/* Budget - PERMISSION-BASED */}
-                        <PermissionGuard category="financials" permission="view">
-                          {project.budget && (
-                            <div className="text-center">
-                              <div className="flex items-center text-gray-600">
-                                <DollarSign className="mr-1 h-4 w-4" />
-                                Budget
-                              </div>
-                              <div className="font-bold text-green-600">
-                                {formatCurrency(project.budget)}
-                              </div>
-                            </div>
-                          )}
-                        </PermissionGuard>
-                      </div>
+                      </PermissionGuard>
 
                       {/* Project Number */}
                       {project.projectNumber && (
@@ -1087,7 +1021,7 @@ export default function ProjectsPage() {
       )}
 
       {/* List View and Pagination remain the same, just replace isMember checks with permission checks */}
-      
+
       {/* Pagination */}
       {hasProjects && pagination.totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
@@ -1098,7 +1032,7 @@ export default function ProjectsPage() {
           >
             Previous
           </Button>
-          
+
           <div className="flex items-center gap-1">
             {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
               const pageNumber = i + 1
@@ -1114,7 +1048,7 @@ export default function ProjectsPage() {
               )
             })}
           </div>
-          
+
           <Button
             variant="outline"
             onClick={() => setPage(pagination.page + 1)}

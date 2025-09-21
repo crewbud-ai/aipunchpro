@@ -15,6 +15,7 @@ import {
   type CreateScheduleProjectFormData, 
   type UpdateScheduleProjectFormData 
 } from "@/types/schedule-projects"
+import { formatStatusLabel, getStatusColor } from "@/utils/format-functions"
 
 // ==============================================
 // GENERIC FORM DATA TYPE
@@ -170,8 +171,8 @@ export const WorkInfoStep = React.memo<WorkInfoStepProps>(({
                 <SelectItem key={project.id} value={project.id}>
                   <div className="flex items-center justify-between w-full">
                     <span>{project.name}</span>
-                    <Badge variant="outline" className="ml-2 text-xs">
-                      {project.status}
+                    <Badge variant="outline" className={`ml-2 text-xs ${getStatusColor(project.status)}`}>
+                      {formatStatusLabel(project.status)} 
                     </Badge>
                   </div>
                 </SelectItem>

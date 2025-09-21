@@ -34,15 +34,15 @@ export default function AddTeamMemberPage() {
   } = useCreateTeamMember()
 
   // Load projects for the dropdown
-  const { 
-    projects, 
-    isLoading: isProjectsLoading, 
-    hasError: hasProjectsError 
+  const {
+    projects,
+    isLoading: isProjectsLoading,
+    hasError: hasProjectsError
   } = useProjects()
 
   // Filter only active projects for assignment
-  const activeProjects = projects.filter(project => 
-    project.status === 'in_progress' || 
+  const activeProjects = projects.filter(project =>
+    project.status === 'in_progress' ||
     project.status === 'not_started' ||
     project.status === 'on_track'
   )
@@ -50,22 +50,22 @@ export default function AddTeamMemberPage() {
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Transform data to match API expectations
     const submissionData = {
       ...formData,
       role: 'member' as const,
       // Convert certifications array to string (API expects string)
-      certifications: Array.isArray(formData.certifications) 
-        ? formData.certifications.join(', ') 
+      certifications: Array.isArray(formData.certifications)
+        ? formData.certifications.join(', ')
         : formData.certifications || '',
       // Clean up emergency contact fields - if name is empty, clear phone too
       emergencyContactName: formData.emergencyContactName?.trim() || undefined,
-      emergencyContactPhone: formData.emergencyContactName?.trim() 
-        ? formData.emergencyContactPhone 
+      emergencyContactPhone: formData.emergencyContactName?.trim()
+        ? formData.emergencyContactPhone
         : undefined,
     }
-    
+
     // Create cleaned data object with proper typing
     const cleanedData: any = {
       firstName: submissionData.firstName,
@@ -83,48 +83,44 @@ export default function AddTeamMemberPage() {
       emergencyContactPhone: submissionData.emergencyContactPhone,
       isActive: submissionData.isActive,
     }
-    
+
     // Add project fields only if assigning to project
     if (formData.assignToProject && formData.projectId) {
       cleanedData.projectId = formData.projectId
-      cleanedData.projectHourlyRate = formData.projectHourlyRate
-      cleanedData.projectOvertimeRate = formData.projectOvertimeRate
-      cleanedData.projectNotes = formData.projectNotes
+      cleanedData.hourlyRate = formData.projectHourlyRate
+      cleanedData.overtimeRate = formData.projectOvertimeRate
+      cleanedData.assignmentNotes = formData.projectNotes
     }
-    
+
     // Remove undefined values
     Object.keys(cleanedData).forEach(key => {
       if (cleanedData[key] === undefined) {
         delete cleanedData[key]
       }
     })
-    
-    // Debug validation before submission
-    console.log('Original form data:', formData)
-    console.log('Cleaned submission data:', cleanedData)
-    
+
     await createTeamMember(cleanedData)
   }
 
   // Handle input changes with error clearing and smart auto-calculation
   const handleInputChange = (field: keyof typeof formData, value: any) => {
     updateFormData(field, value)
-    
+
     // Auto-calculate overtime rate (1.5x regular rate) for hourly rate changes
     // Only auto-calculate if overtime rate is empty or equals the previous 1.5x calculation
     if (field === "hourlyRate" && value) {
       const hourlyRate = parseFloat(value)
       if (!isNaN(hourlyRate)) {
         const newOvertimeRate = (hourlyRate * 1.5)
-        
+
         // Only auto-update if:
         // 1. Overtime rate is empty, OR
         // 2. Overtime rate currently equals 1.5x the previous hourly rate
         const currentOvertimeRate = formData.overtimeRate
         const previousHourlyRate = formData.hourlyRate
-        const shouldAutoUpdate = !currentOvertimeRate || 
+        const shouldAutoUpdate = !currentOvertimeRate ||
           (previousHourlyRate && currentOvertimeRate === (previousHourlyRate * 1.5))
-        
+
         if (shouldAutoUpdate) {
           updateFormData("overtimeRate", newOvertimeRate)
         }
@@ -132,42 +128,21 @@ export default function AddTeamMemberPage() {
     }
   }
 
-  // Debug: Check form validation status
-  console.log('Form validation debug:', {
-    hasErrors,
-    isLoading,
-    firstName: formData.firstName,
-    lastName: formData.lastName,
-    email: formData.email,
-    canSubmit,
-    errors,
-    formData,
-    // Check specific validation conditions
-    assignToProject: formData.assignToProject,
-    projectId: formData.projectId,
-    emergencyContactName: formData.emergencyContactName,
-    emergencyContactPhone: formData.emergencyContactPhone,
-    hourlyRate: formData.hourlyRate,
-    overtimeRate: formData.overtimeRate
-  })
-
   // Additional validation check - ensure required fields are filled
-  const hasRequiredFields = formData.firstName?.trim() && 
-                           formData.lastName?.trim() && 
-                           formData.email?.trim()
-  
+  const hasRequiredFields = formData.firstName?.trim() &&
+    formData.lastName?.trim() &&
+    formData.email?.trim()
+
   // Manual validation to bypass hook issues
   const manualValidation = {
     hasEmergencyContactIssue: (formData.emergencyContactName?.trim() && !formData.emergencyContactPhone) ||
-                             (!formData.emergencyContactName?.trim() && formData.emergencyContactPhone),
+      (!formData.emergencyContactName?.trim() && formData.emergencyContactPhone),
     hasOvertimeIssue: formData.overtimeRate && !formData.hourlyRate,
     hasProjectAssignmentIssue: formData.assignToProject && !formData.projectId
   }
-  
+
   const hasManualErrors = Object.values(manualValidation).some(Boolean)
-  
-  console.log('Manual validation check:', manualValidation)
-  
+
   const canActuallySubmit = hasRequiredFields && !hasManualErrors && !isLoading
 
   return (
@@ -329,7 +304,7 @@ export default function AddTeamMemberPage() {
                   {/* Role - Fixed to 'member' for MVP */}
                   <div>
                     <Label htmlFor="role">Role</Label>
-                    <Select 
+                    <Select
                       value="member"
                       disabled={true}
                     >
@@ -348,8 +323,8 @@ export default function AddTeamMemberPage() {
                   {/* Trade Specialty */}
                   <div>
                     <Label htmlFor="tradeSpecialty">Trade/Specialty</Label>
-                    <Select 
-                      value={formData.tradeSpecialty || "none"} 
+                    <Select
+                      value={formData.tradeSpecialty || "none"}
                       onValueChange={(value) => handleInputChange("tradeSpecialty", value === "none" ? undefined : value)}
                     >
                       <SelectTrigger className={errors.tradeSpecialty ? "border-red-500" : ""}>
@@ -446,7 +421,7 @@ export default function AddTeamMemberPage() {
               {/* Project Assignment */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Project Assignment (Optional)</h3>
-                
+
                 <div className="space-y-4">
                   {/* Assign to Project Checkbox */}
                   <div className="flex items-center space-x-2">
@@ -467,8 +442,8 @@ export default function AddTeamMemberPage() {
                     <div className="space-y-4 pl-6 border-l-2 border-orange-100">
                       <div>
                         <Label htmlFor="projectId">Select Project *</Label>
-                        <Select 
-                          value={formData.projectId || "none"} 
+                        <Select
+                          value={formData.projectId || "none"}
                           onValueChange={(value) => handleInputChange("projectId", value === "none" ? undefined : value)}
                         >
                           <SelectTrigger className={errors.projectId ? "border-red-500" : ""}>
@@ -559,16 +534,16 @@ export default function AddTeamMemberPage() {
 
               {/* Submit Buttons */}
               <div className="flex justify-end gap-4 pt-6 border-t">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => window.history.back()}
                   disabled={isLoading}
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={!canActuallySubmit}
                   className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
                 >

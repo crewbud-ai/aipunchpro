@@ -162,3 +162,9 @@ body {
     color: hsl(var(--foreground));
   }
 }
+
+
+/* Edit date/time field's icon of full width */
+/* input[type="date"]::-internal-datetime-container {
+  width: inherit !important;
+} */

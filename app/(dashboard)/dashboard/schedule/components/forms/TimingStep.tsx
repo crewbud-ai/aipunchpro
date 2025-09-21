@@ -77,8 +77,8 @@ export const TimingStep = React.memo<TimingStepProps>(({
               value={formData.startDate}
               onChange={(e) => handleStartDateChange(e.target.value)}
               className={cn(
-                "pr-10",
-                errors.startDate && "border-red-500 focus:border-red-500 focus:ring-red-500"
+                "block",
+                errors.startDate && "border-red-500 focus:border-red-500 focus:ring-red-500 w-full"
               )}
               style={{
                 colorScheme: 'light',
@@ -107,7 +107,7 @@ export const TimingStep = React.memo<TimingStepProps>(({
                 clearFieldError('endDate')
               }}
               className={cn(
-                "pr-10",
+                "block",
                 errors.endDate && "border-red-500 focus:border-red-500 focus:ring-red-500"
               )}
               style={{
@@ -134,17 +134,17 @@ export const TimingStep = React.memo<TimingStepProps>(({
             <Input
               id="startTime"
               type="time"
-              value={formData.startTime}
+              value={formData.startTime || "08:00"}
               onChange={(e) => {
                 updateFormData('startTime', e.target.value)
                 clearFieldError('startTime')
               }}
               className={cn(
-                "pr-10",
+                "block",
                 errors.startTime && "border-red-500 focus:border-red-500 focus:ring-red-500"
               )}
             />
-            <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            {/* <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" /> */}
           </div>
           {errors.startTime && (
             <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
@@ -162,17 +162,17 @@ export const TimingStep = React.memo<TimingStepProps>(({
             <Input
               id="endTime"
               type="time"
-              value={formData.endTime}
+              value={formData.endTime || "17:00"}
               onChange={(e) => {
                 updateFormData('endTime', e.target.value)
                 clearFieldError('endTime')
               }}
               className={cn(
-                "pr-10",
+                "block",
                 errors.endTime && "border-red-500 focus:border-red-500 focus:ring-red-500"
               )}
             />
-            <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            {/* <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" /> */}
           </div>
           {errors.endTime && (
             <p className="text-sm text-red-600 mt-2 flex items-center gap-1">

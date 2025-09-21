@@ -91,7 +91,7 @@ export function DetailsStep({
                 value={formData.startDate || ''}
                 onChange={(e) => onStartDateChange(e.target.value)}
                 className={cn(
-                  "pr-10", // Add padding for calendar icon
+                  "block", // Add padding for calendar icon
                   errors.startDate && "border-red-500 focus:border-red-500 focus:ring-red-500"
                 )}
                 style={{
@@ -120,7 +120,7 @@ export function DetailsStep({
                   onFieldErrorClear('endDate')
                 }}
                 className={cn(
-                  "pr-10", // Add padding for calendar icon
+                  "block", // Add padding for calendar icon
                   errors.endDate && "border-red-500 focus:border-red-500 focus:ring-red-500"
                 )}
                 style={{

@@ -201,8 +201,6 @@ export async function POST(request: NextRequest) {
     // Validate input data
     const validation = validateCreateTeamMember(body)
 
-    console.log(validation, 'validation')
-
     if (!validation.success) {
       return NextResponse.json(
         {
@@ -379,7 +377,7 @@ export async function POST(request: NextRequest) {
         updatedAt: newUser.updated_at,
       },
       assignmentStatus,
-      activeProjectCount: projectAssignment ? 1 : 0,
+      activeProjectCount: projectAssignment ? 1 : 0, 
     }
 
     // Add project assignment details if created

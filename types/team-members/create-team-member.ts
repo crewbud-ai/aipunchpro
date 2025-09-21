@@ -4,6 +4,7 @@
 
 import { z } from 'zod'
 import type { TeamMember } from './team-member'
+import { WeekNumberProps } from 'react-day-picker'
 
 // ==============================================
 // CREATE TEAM MEMBER INTERFACES
@@ -56,6 +57,15 @@ export interface CreateTeamMemberResult {
     }
     assignmentStatus: 'not_assigned' | 'assigned' | 'inactive'
     activeProjectCount: number
+
+    statusSuggestion?:{
+      shouldSuggest: boolean,
+      currentStatus: string,
+      suggestedStatus: string,
+      message: string,
+      reason: string,
+      teamCount: number
+    }
     
     // Project assignment details if created
     projectAssignment?: {

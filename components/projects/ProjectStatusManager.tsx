@@ -151,14 +151,14 @@ export const ProjectStatusManager = React.memo<ProjectStatusManagerProps>(({
             </div>
 
             {/* Success feedback (subtle) */}
-            {result?.success && !isUpdating && !error && (
+            {/* {result?.success && !isUpdating && !error && (
                 <Alert className="py-2 bg-green-50 border-green-200">
                     <CheckCircle className="h-4 w-4 text-green-600" />
                     <AlertDescription className="text-sm text-green-800">
                         Status updated successfully
                     </AlertDescription>
                 </Alert>
-            )}
+            )} */}
 
             {/* Status Validation Dialog */}
             <StatusValidationDialog

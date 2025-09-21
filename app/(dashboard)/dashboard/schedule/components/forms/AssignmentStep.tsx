@@ -17,6 +17,7 @@ import {
     type CreateScheduleProjectFormData,
     type UpdateScheduleProjectFormData
 } from "@/types/schedule-projects"
+import { formatRoleLabel } from "@/utils/format-functions"
 
 // ==============================================
 // GENERIC FORM DATA TYPE
@@ -136,7 +137,7 @@ export const AssignmentStep = React.memo<AssignmentStepProps>(({
                                             {member.firstName} {member.lastName}
                                         </span>
                                         <Badge variant="outline" className="text-xs">
-                                            {member.role}
+                                            {formatRoleLabel(member.role)}
                                         </Badge>
                                     </div>
                                     <p className="text-xs text-gray-600 mt-1">

@@ -268,11 +268,11 @@ export const useCreateTeamMember = () => {
       }))
 
       // Optionally redirect to team member details page
-      if (response.data.user.id) {
-        setTimeout(() => {
-          router.push(`/dashboard/team/${response.data.user.id}`)
-        }, 1500)
-      }
+      // if (response.data.user.id) {
+      //   setTimeout(() => {
+      //     router.push(`/dashboard/team/${response.data.user.id}`)
+      //   }, 1500)
+      // }
 
     } catch (error: any) {
       console.error('Error creating team member:', error)

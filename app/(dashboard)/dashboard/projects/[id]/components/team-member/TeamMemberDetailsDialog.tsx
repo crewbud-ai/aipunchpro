@@ -47,6 +47,7 @@ import {
 } from 'lucide-react'
 import { useTeamMember } from '@/hooks/team-members'
 import { useRemoveTeamMember } from '@/hooks/team-members/use-remove-team-member'
+import { formatDate, formatStatusLabel, getStatusColor } from '@/utils/format-functions'
 
 interface TeamMemberDetailsDialogProps {
   memberId: string
@@ -118,6 +119,8 @@ export const TeamMemberDetailsDialog: React.FC<TeamMemberDetailsDialogProps> = (
         (project: any) => project.id === projectId
       )
       
+      console.log(projectAssignment, 'projectAssignment')
+
       setEditData({
         projectHourlyRate: projectAssignment?.hourlyRate?.toString() || '',
         projectOvertimeRate: projectAssignment?.overtimeRate?.toString() || '',
@@ -151,16 +154,6 @@ export const TeamMemberDetailsDialog: React.FC<TeamMemberDetailsDialogProps> = (
       case 'member': return 'Team Member'
       default: return role || 'Member'
     }
-  }
-
-  // Format date
-  const formatDate = (date: string | null | undefined) => {
-    if (!date) return 'Not set'
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
   }
 
   // Format rate
@@ -504,9 +497,9 @@ export const TeamMemberDetailsDialog: React.FC<TeamMemberDetailsDialogProps> = (
                           <p className="text-sm">{formatDate(projectAssignment.joinedAt)}</p>
                         </div>
                         <div>
-                          <Label className="text-sm font-medium text-gray-600">Status</Label>
-                          <Badge variant={projectAssignment.status === 'active' ? 'default' : 'secondary'}>
-                            {projectAssignment.status}
+                          <Label className="text-sm font-medium text-gray-600 mr-2">Status</Label>
+                          <Badge className={getStatusColor(projectAssignment.status)} variant={projectAssignment.status === 'active' ? 'default' : 'secondary'}>
+                            {formatStatusLabel(projectAssignment.status)}
                           </Badge>
                         </div>
                       </div>
