@@ -79,6 +79,9 @@ import { ProjectStartNotification } from "./components/notification/ProjectStart
 import { formatStatus, formatToUpperCase, getStatusColor } from "@/utils/format-functions"
 import { useScheduleProjects, useScheduleProjectStats } from "@/hooks/schedule-projects"
 
+// ADDED: Import Locaiton Display Map
+import { LocationDisplayMap } from "@/components/maps/LocationDisplayMap"
+
 export default function ProjectPage() {
   const params = useParams()
   const router = useRouter()
@@ -191,6 +194,8 @@ export default function ProjectPage() {
     refreshTeamMembers()
     refreshProject()
     setShowAddTeamDialog(false)
+
+    console.log(suggestion, 'suggestion')
 
     // Check if we received a status suggestion
     if (suggestion?.shouldSuggest) {
@@ -374,7 +379,7 @@ export default function ProjectPage() {
             </div>
           </div>
         </div>
-        
+
         {/* MODIFIED: Action buttons with permission checks */}
         <div className="flex items-end gap-2">
 
@@ -435,16 +440,21 @@ export default function ProjectPage() {
         </div>
       </div>
 
-      {/* ADDED: Show notification after header if conditions are met */}
-      {showStartNotification && project?.status === 'not_started' && (
-        <ProjectStartNotification
-          projectId={projectId}
-          projectName={project.name}
-          // message={statusSuggestion?.message}
-          onStatusChange={handleNotificationStatusChange}
-          onDismiss={handleNotificationDismiss}
-        />
-      )}
+      {/* ADDED: Show notification after header if conditions are met only shown to the admin */}
+      {withPermission('projects', 'edit', (
+        <>
+          {showStartNotification && project?.status === 'not_started' && (
+            <ProjectStartNotification
+              projectId={projectId}
+              projectName={project.name}
+              // message={statusSuggestion?.message}
+              onStatusChange={handleNotificationStatusChange}
+              onDismiss={handleNotificationDismiss}
+            />
+          )}
+        </>
+      ))}
+
 
       {/* Progress Bar */}
       {/* <div className="space-y-2">
@@ -669,12 +679,13 @@ export default function ProjectPage() {
               <CardHeader>
                 <CardTitle>Location & Client</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 {hasLocation && (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
+                    {/* Location Info */}
                     <div className="flex items-start gap-3">
                       <MapPin className="h-5 w-5 text-gray-500 mt-0.5" />
-                      <div>
+                      <div className="flex-1">
                         <h4 className="font-medium">Project Location</h4>
                         <p className="text-sm text-gray-600">{displayLocation}</p>
                         {projectLocation?.coordinates && (
@@ -684,6 +695,24 @@ export default function ProjectPage() {
                         )}
                       </div>
                     </div>
+
+                    {/* Map Display - Only show if coordinates exist */}
+                    {projectLocation?.coordinates && (
+                      <div className="mt-4">
+                        <LocationDisplayMap
+                          location={{
+                            address: projectLocation.address,
+                            displayName: projectLocation.displayName || displayLocation,
+                            coordinates: projectLocation.coordinates,
+                            placeId: projectLocation.placeId,
+                          }}
+                          height={250}
+                          showControls={true}
+                          showAddress={false} // We already show address above
+                          className="w-full"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
 

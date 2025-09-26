@@ -7,13 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
-import { 
-  ArrowLeft, 
-  Save, 
-  Loader2, 
-  AlertCircle, 
-  Calendar, 
-  Building, 
+import {
+  ArrowLeft,
+  Save,
+  Loader2,
+  AlertCircle,
+  Calendar,
+  Building,
   ChevronRight,
   ChevronLeft,
   User
@@ -27,7 +27,7 @@ import { ProjectInfoStep, LocationStep, DetailsStep } from "../components/forms"
 export default function CreateProjectPage() {
   const [activeStep, setActiveStep] = useState(1)
   const totalSteps = 3
-  
+
   // ==============================================
   // HOOKS
   // ==============================================
@@ -42,7 +42,7 @@ export default function CreateProjectPage() {
     canSubmit,
     clearFieldError,
     validateForm,
-    
+
     // Location autocomplete
     locationSuggestions,
     isLoadingLocation,
@@ -51,7 +51,7 @@ export default function CreateProjectPage() {
     selectLocationFree,
     clearLocationSuggestions,
     hasLocationSuggestions,
-    
+
     // Project number
     projectNumber,
     isLoadingProjectNumber,
@@ -69,7 +69,7 @@ export default function CreateProjectPage() {
   // ==============================================
   // EFFECTS
   // ==============================================
-  
+
   // Auto-generate project number on mount
   useEffect(() => {
     generateProjectNumber()
@@ -105,23 +105,23 @@ export default function CreateProjectPage() {
   // Form validation for each step
   const stepValidation = useMemo(() => {
     // Step 1: Project name is required and available (if checked)
-    const step1Valid = 
-      formData.name.trim().length > 0 && 
-      !errors.name && 
+    const step1Valid =
+      formData.name.trim().length > 0 &&
+      !errors.name &&
       !errors.description &&
       (isNameAvailable !== false) && // Name must not be unavailable
       !isCheckingName // Must not be currently checking
 
     const step2Valid = Boolean(formData.selectedLocation) && !errors.selectedLocation && !errors.location
-    
+
     // Step 3: Only check for actual validation errors, not all fields
-    const step3Valid = !errors.startDate && !errors.endDate && !errors.estimatedHours && 
+    const step3Valid = !errors.startDate && !errors.endDate && !errors.estimatedHours &&
       !errors.budget && !errors.clientEmail && !errors.clientPhone && !errors.tags &&
       !errors.clientWebsite // Include website validation
-    
+
     return {
       1: step1Valid,
-      2: step2Valid, 
+      2: step2Valid,
       3: step3Valid
     }
   }, [formData, errors, isNameAvailable, isCheckingName])
@@ -131,7 +131,7 @@ export default function CreateProjectPage() {
   // ==============================================
   // EVENT HANDLERS
   // ==============================================
-  
+
   // Navigation handlers
   const handleNext = () => {
     if (activeStep < totalSteps && canProceedToNext) {
@@ -150,7 +150,7 @@ export default function CreateProjectPage() {
     console.log('Submit clicked - Errors:', errors)
     console.log('Submit clicked - Can Submit:', canSubmit)
     console.log('Submit clicked - Has Errors:', hasErrors)
-    
+
     if (validateForm()) {
       console.log('Validation passed, creating project...')
       await createProject()
@@ -169,7 +169,25 @@ export default function CreateProjectPage() {
   }
 
   const handleLocationSelect = async (suggestion: any) => {
-    await selectLocationFree(suggestion)
+    // Check if this is a map selection (has isMapSelection flag or coordinates directly)
+    if (suggestion.isMapSelection || suggestion.coordinates) {
+      // Handle map selection directly without API call
+      updateFormDataBulk({
+        locationSearch: suggestion.description,
+        selectedLocation: {
+          address: suggestion.description,
+          displayName: suggestion.structured_formatting?.main_text || suggestion.displayName || 'Selected Location',
+          coordinates: suggestion.coordinates,
+          placeId: suggestion.place_id,
+        },
+      })
+
+      // Clear suggestions and loading state
+      clearLocationSuggestions()
+    } else {
+      // Handle normal dropdown selection
+      await selectLocationFree(suggestion)
+    }
   }
 
   const handleLocationClear = () => {
@@ -182,7 +200,7 @@ export default function CreateProjectPage() {
   const handleStartDateChange = (startDate: string) => {
     updateFormData('startDate', startDate)
     clearFieldError('startDate')
-    
+
     // Auto-set end date to next day if start date is selected and end date is empty or before start date
     if (startDate && (!formData.endDate || new Date(formData.endDate) <= new Date(startDate))) {
       const nextDay = new Date(startDate)
@@ -413,8 +431,8 @@ export default function CreateProjectPage() {
                       i + 1 === activeStep
                         ? "bg-blue-600"
                         : i + 1 < activeStep
-                        ? "bg-green-600"
-                        : "bg-gray-300"
+                          ? "bg-green-600"
+                          : "bg-gray-300"
                     )}
                   />
                 ))}

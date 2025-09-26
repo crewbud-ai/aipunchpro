@@ -962,8 +962,8 @@ export default function ProjectsPage() {
                           Location
                         </div>
                         <div className="font-medium text-sm">
-                          {project.location?.city ? (
-                            <span className="line-clamp-2">{project.location.city}, {project.location.state}</span>
+                          {project.location?.address ? (
+                            <span className="line-clamp-2">{project.location.address}</span>
                           ) : (
                             <span className="text-gray-500 italic">Not specified</span>
                           )}

@@ -79,6 +79,7 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
 
     // Handle successful creation - UPDATED
     useEffect(() => {
+        console.log(result, 'result')
         if (isSuccess && result && onMemberAdded) {
             // Check if there's a status suggestion in the result
             const statusSuggestion = result?.data?.statusSuggestion 

@@ -17,6 +17,7 @@ import {
   type LocationSuggestion,
   LocationSuggestionFree,
 } from '@/types/projects'
+import { SelectedLocation } from '../places'
 
 // ==============================================
 // HOOK INTERFACES
@@ -278,6 +279,42 @@ export const useCreateProject = () => {
         ...prev,
         isLoadingLocation: false,
         locationError: 'Failed to get location details',
+      }))
+    }
+  }, [updateFormDataBulk])
+
+  const selectLocationFromMap = useCallback(async (location: SelectedLocation) => {
+    try {
+      setState(prev => ({
+        ...prev,
+        isLoadingLocation: true,
+        locationError: null,
+      }))
+
+      // For map selections, we already have all the data we need
+      updateFormDataBulk({
+        locationSearch: location.address,
+        selectedLocation: {
+          address: location.address,
+          displayName: location.displayName,
+          coordinates: location.coordinates,
+          placeId: location.placeId,
+        },
+      })
+
+      setState(prev => ({
+        ...prev,
+        locationSuggestions: [], // Clear suggestions when map is used
+        isLoadingLocation: false,
+        locationError: null,
+      }))
+
+    } catch (error: any) {
+      console.error('Error selecting location from map:', error)
+      setState(prev => ({
+        ...prev,
+        isLoadingLocation: false,
+        locationError: 'Failed to select location from map',
       }))
     }
   }, [updateFormDataBulk])

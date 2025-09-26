@@ -355,6 +355,11 @@ export async function POST(request: NextRequest) {
     // Calculate assignment status
     const assignmentStatus = calculateTeamMemberStatus(newUser.is_active, projectAssignment ? 1 : 0)
 
+    const statusSuggestion = await checkProjectStartSuggestion(
+      projectAssignment.id,
+      companyId
+    )
+
     // Build response data
     const responseData: any = {
       user: {
@@ -378,6 +383,7 @@ export async function POST(request: NextRequest) {
       },
       assignmentStatus,
       activeProjectCount: projectAssignment ? 1 : 0, 
+      statusSuggestion: statusSuggestion
     }
 
     // Add project assignment details if created
@@ -453,6 +459,60 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+
+async function checkProjectStartSuggestion(
+  projectId: string,
+  companyId: string
+) {
+  const projectService = new ProjectDatabaseService(true, false)
+  const teamService = new TeamMemberDatabaseService(true, false)
+  
+  // Get project details
+  const project = await projectService.getProjectByIdEnhanced(projectId, companyId)
+  if (!project) return null
+  
+  // Only suggest for not_started projects
+  if (project.status !== 'not_started') return null
+  
+  // Get team members for this project using the correct service
+  const projectMembers = await teamService.getProjectTeamMembers(projectId, companyId)
+  const hasTeamMembers = projectMembers && projectMembers.length > 0
+  
+  // Check if start date condition is met
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  let isStartDateReached = true
+  if (project.start_date) {
+    const startDate = new Date(project.start_date)
+    startDate.setHours(0, 0, 0, 0)
+    isStartDateReached = startDate <= today
+  }
+  
+  if (hasTeamMembers && isStartDateReached) {
+    return {
+      shouldSuggest: true,
+      currentStatus: 'not_started',
+      suggestedStatus: 'in_progress',
+      message: 'Your project now has team members assigned. Would you like to start the project?',
+      reason: 'Team assigned and start date reached',
+      teamCount: projectMembers.length
+    }
+  } else if (hasTeamMembers && !isStartDateReached) {
+    const startDateStr = project.start_date 
+      ? new Date(project.start_date).toLocaleDateString()
+      : 'Not set'
+    return {
+      shouldSuggest: false,
+      currentStatus: 'not_started',
+      message: `Project will auto-start on ${startDateStr}`,
+      reason: 'Start date not yet reached'
+    }
+  }
+  
+  return null
 }
 
 // ==============================================

@@ -99,9 +99,14 @@ export const ProjectTeamMembers: React.FC<ProjectTeamMembersProps> = ({
     }
   }
 
-  const handleMemberAssigned = () => {
+  const handleMemberAssigned = (statusSuggestion?: any) => {
     refreshTeamMembers()
     setShowAssignDialog(false)
+
+    // Pass the suggestion up to parent if callback exists
+    if (onMemberAdded) {
+      onMemberAdded(statusSuggestion)
+    }
   }
 
   const handleMemberUpdated = () => {

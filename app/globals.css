@@ -164,7 +164,65 @@ body {
 }
 
 
-/* Edit date/time field's icon of full width */
-/* input[type="date"]::-internal-datetime-container {
-  width: inherit !important;
-} */
+/* For Location Map */
+
+.leaflet-container {
+  font-family: inherit;
+}
+
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+}
+
+.leaflet-control-zoom a {
+  background-color: white !important;
+  color: #374151 !important;
+  border: 1px solid #d1d5db !important;
+  width: 28px !important;
+  height: 28px !important;
+  line-height: 26px !important;
+  font-size: 16px !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background-color: #f9fafb !important;
+  border-color: #9ca3af !important;
+}
+
+.leaflet-control-zoom-in {
+  border-radius: 6px 6px 0 0 !important;
+}
+
+.leaflet-control-zoom-out {
+  border-radius: 0 0 6px 6px !important;
+  border-top: none !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 6px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+.leaflet-popup-tip {
+  box-shadow: none !important;
+}
+
+/* Custom marker styles */
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-popup .leaflet-popup-content {
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  margin: 8px !important;
+}
+
+/* Responsive map */
+@media (max-width: 640px) {
+  .leaflet-control-zoom {
+    scale: 0.9;
+  }
+}

@@ -118,8 +118,6 @@ export const TeamMemberDetailsDialog: React.FC<TeamMemberDetailsDialogProps> = (
       const projectAssignment = teamMember.currentProjects?.find(
         (project: any) => project.id === projectId
       )
-      
-      console.log(projectAssignment, 'projectAssignment')
 
       setEditData({
         projectHourlyRate: projectAssignment?.hourlyRate?.toString() || '',
@@ -185,12 +183,6 @@ export const TeamMemberDetailsDialog: React.FC<TeamMemberDetailsDialogProps> = (
       // For now, we'll simulate the API call
       await new Promise(resolve => setTimeout(resolve, 1000))
 
-      console.log('Updating project assignment:', {
-        memberId,
-        projectId,
-        ...editData
-      })
-
       setUpdateSuccess(true)
       setIsEditing(false)
       
@@ -208,7 +200,6 @@ export const TeamMemberDetailsDialog: React.FC<TeamMemberDetailsDialogProps> = (
   }
 
   const handleRemoveFromProject = async () => {
-    console.log('Click to Remove From Project')
     if (!teamMember) return
 
     setUpdateError(null)
@@ -289,9 +280,9 @@ export const TeamMemberDetailsDialog: React.FC<TeamMemberDetailsDialogProps> = (
   // ==============================================
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pr-5">
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12">
                 <AvatarFallback className="bg-blue-100 text-blue-700 font-medium text-lg">
@@ -373,7 +364,7 @@ export const TeamMemberDetailsDialog: React.FC<TeamMemberDetailsDialogProps> = (
           </Alert>
         )}
 
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -463,8 +454,8 @@ export const TeamMemberDetailsDialog: React.FC<TeamMemberDetailsDialogProps> = (
                               Joined: {formatDate(project.joinedAt)}
                             </p>
                           </div>
-                          <Badge variant={project.status === 'active' ? 'default' : 'secondary'}>
-                            {project.status}
+                          <Badge className={getStatusColor(project.status)} variant={project.status === 'active' ? 'default' : 'secondary'}>
+                            {formatStatusLabel(project.status)} 
                           </Badge>
                         </div>
                       ))}
