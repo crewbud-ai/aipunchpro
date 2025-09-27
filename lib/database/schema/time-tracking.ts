@@ -19,8 +19,8 @@ import {
 import { sql } from 'drizzle-orm';
 import { companies } from './companies';
 import { projects } from './projects';
-import { tasks } from './tasks';
 import { users } from './users';
+import { scheduleProjects } from './schedule-projects';
 
 // ==============================================
 // TIME ENTRIES TABLE (WORK TIME TRACKING)
@@ -29,17 +29,19 @@ export const timeEntries = pgTable('time_entries', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   companyId: uuid('company_id').references(() => companies.id, { onDelete: 'cascade' }),
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
-  taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+  
+  // Schedule Project Reference (for clock in/out to specific schedule items)
+  scheduleProjectId: uuid('schedule_project_id').references(() => scheduleProjects.id, { onDelete: 'set null' }),
   
   // Worker Information
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }), // For system users
   workerName: varchar('worker_name', { length: 255 }), // For non-system workers
   isSystemUser: boolean('is_system_user').default(false),
   
-  // Time Details
+  // Time Details (PERFECT for clock in/out)
   date: date('date').notNull(),
-  startTime: time('start_time'),
-  endTime: time('end_time'),
+  startTime: time('start_time'), // CLOCK IN time
+  endTime: time('end_time'),     // CLOCK OUT time
   breakMinutes: integer('break_minutes').default(0),
   
   // Calculated Hours
@@ -64,8 +66,9 @@ export const timeEntries = pgTable('time_entries', {
   clockOutLocation: point('clock_out_location'),
   workLocation: text('work_location'), // Description of work area
   
-  // Approval Workflow
-  status: varchar('status', { length: 50 }).default('pending'), // pending, approved, rejected, modified
+  // UPDATED: Status includes session tracking
+  // Values: 'clocked_in', 'clocked_out', 'pending', 'approved', 'rejected', 'modified'
+  status: varchar('status', { length: 50 }).default('clocked_out'),
   submittedAt: timestamp('submitted_at', { withTimezone: true }),
   approvedBy: uuid('approved_by').references(() => users.id),
   approvedAt: timestamp('approved_at', { withTimezone: true }),
@@ -101,7 +104,7 @@ export const timeEntries = pgTable('time_entries', {
   // Indexes for performance
   companyIdIdx: index('idx_time_entries_company_id').on(table.companyId),
   projectIdIdx: index('idx_time_entries_project_id').on(table.projectId),
-  taskIdIdx: index('idx_time_entries_task_id').on(table.taskId),
+  scheduleProjectIdIdx: index('idx_time_entries_schedule_project_id').on(table.scheduleProjectId),
   userIdIdx: index('idx_time_entries_user_id').on(table.userId),
   dateIdx: index('idx_time_entries_date').on(table.date),
   statusIdx: index('idx_time_entries_status').on(table.status),

@@ -1,0 +1,711 @@
+// ==============================================
+// lib/database/services/time-entries.ts - Time Entries Database Service
+// ==============================================
+
+import { createServerClient, createAdminClient } from '@/lib/supabase/server'
+import { createBrowserClient } from '@/lib/supabase/client'
+import type { 
+  ClockInInput, 
+  ClockOutInput, 
+  CreateTimeEntryInput, 
+  UpdateTimeEntryInput,
+  GetTimeEntriesInput 
+} from '@/lib/validations/time-tracking/time-entries'
+
+// ==============================================
+// INTERFACES & TYPES
+// ==============================================
+interface TimeEntryRow {
+  id: string
+  company_id: string
+  project_id: string
+  schedule_project_id?: string
+  user_id: string
+  worker_name?: string
+  is_system_user: boolean
+  date: string
+  start_time?: string
+  end_time?: string
+  break_minutes: number
+  regular_hours: string
+  overtime_hours: string
+  double_time_hours: string
+  total_hours: string
+  regular_rate?: string
+  overtime_rate?: string
+  double_time_rate?: string
+  total_pay?: string
+  description?: string
+  work_type?: string
+  trade?: string
+  clock_in_location?: any
+  clock_out_location?: any
+  work_location?: string
+  status: string
+  submitted_at?: string
+  approved_by?: string
+  approved_at?: string
+  rejection_reason?: string
+  equipment_used?: string[]
+  materials_used?: string[]
+  weather_conditions?: string
+  temperature_f?: number
+  work_conditions?: string
+  safety_incidents?: string
+  ppe?: string[]
+  work_completed?: string
+  issues_encountered?: string
+  next_steps?: string
+  quality_rating?: number
+  created_by?: string
+  last_modified_by?: string
+  created_at: string
+  updated_at: string
+}
+
+interface ClockInData {
+  companyId: string
+  userId: string
+  projectId: string
+  scheduleProjectId?: string
+  workType?: string
+  trade?: string
+  description?: string
+  clockInLocation?: { lat: number; lng: number }
+}
+
+interface ClockOutData {
+  timeEntryId: string
+  userId: string
+  description?: string
+  workCompleted?: string
+  issuesEncountered?: string
+  clockOutLocation?: { lat: number; lng: number }
+}
+
+// ==============================================
+// TIME ENTRIES DATABASE SERVICE
+// ==============================================
+export class TimeEntriesDatabaseService {
+  private supabaseClient: ReturnType<typeof createServerClient>
+  private enableLogging: boolean
+  private enableCache: boolean
+
+  constructor(enableLogging = false, enableCache = false) {
+    this.enableLogging = enableLogging
+    this.enableCache = enableCache
+
+    // Initialize Supabase client (following your exact pattern)
+    this.supabaseClient = createServerClient()
+  }
+
+  // ==============================================
+  // LOGGING HELPER
+  // ==============================================
+  private log(message: string, data?: any) {
+    if (this.enableLogging) {
+      console.log(`[TimeEntriesService] ${message}`, data || '')
+    }
+  }
+
+  // ==============================================
+  // CLOCK IN OPERATION
+  // ==============================================
+  async clockIn(data: ClockInData): Promise<TimeEntryRow> {
+    this.log('Clock in operation', { userId: data.userId, projectId: data.projectId })
+
+    // First check if user already has an active session
+    const activeSession = await this.getActiveSession(data.userId, data.companyId)
+    if (activeSession) {
+      throw new Error('User already has an active clock session. Please clock out first.')
+    }
+
+    // Get current time
+    const now = new Date()
+    const currentTime = now.toTimeString().slice(0, 5) // HH:MM format
+    const currentDate = now.toISOString().split('T')[0] // YYYY-MM-DD format
+
+    // Prepare location data
+    const clockInLocation = data.clockInLocation 
+      ? `(${data.clockInLocation.lat},${data.clockInLocation.lng})`
+      : null
+
+    const { data: timeEntry, error } = await this.supabaseClient
+      .from('time_entries')
+      .insert([{
+        company_id: data.companyId,
+        user_id: data.userId,
+        project_id: data.projectId,
+        schedule_project_id: data.scheduleProjectId || null,
+        date: currentDate,
+        start_time: currentTime,
+        end_time: null,
+        break_minutes: 0,
+        regular_hours: '0',
+        overtime_hours: '0', 
+        double_time_hours: '0',
+        total_hours: '0',
+        status: 'clocked_in',
+        work_type: data.workType || null,
+        trade: data.trade || null,
+        description: data.description || null,
+        clock_in_location: clockInLocation,
+        worker_name: null, // Will be filled by user info
+        is_system_user: true,
+        created_by: data.userId,
+        last_modified_by: data.userId,
+        created_at: now.toISOString(),
+        updated_at: now.toISOString()
+      }])
+      .select()
+      .single()
+
+    if (error) {
+      this.log('Clock in error', error)
+      throw new Error(`Failed to clock in: ${error.message}`)
+    }
+
+    this.log('Clock in successful', { timeEntryId: timeEntry.id })
+    return timeEntry
+  }
+
+  // ==============================================
+  // CLOCK OUT OPERATION
+  // ==============================================
+  async clockOut(data: ClockOutData): Promise<TimeEntryRow> {
+    this.log('Clock out operation', { timeEntryId: data.timeEntryId, userId: data.userId })
+
+    // Get the active time entry
+    const { data: timeEntry, error: fetchError } = await this.supabaseClient
+      .from('time_entries')
+      .select('*')
+      .eq('id', data.timeEntryId)
+      .eq('user_id', data.userId)
+      .eq('status', 'clocked_in')
+      .single()
+
+    if (fetchError || !timeEntry) {
+      throw new Error('No active clock session found')
+    }
+
+    // Calculate total hours
+    const now = new Date()
+    const currentTime = now.toTimeString().slice(0, 5) // HH:MM format
+    const totalHours = this.calculateHours(timeEntry.start_time, currentTime, timeEntry.break_minutes)
+
+    // Prepare location data
+    const clockOutLocation = data.clockOutLocation 
+      ? `(${data.clockOutLocation.lat},${data.clockOutLocation.lng})`
+      : null
+
+    // Update time entry
+    const { data: updatedEntry, error: updateError } = await this.supabaseClient
+      .from('time_entries')
+      .update({
+        end_time: currentTime,
+        total_hours: totalHours.toString(),
+        regular_hours: Math.min(totalHours, 8).toString(), // Assuming 8 hour regular day
+        overtime_hours: Math.max(0, totalHours - 8).toString(),
+        status: 'clocked_out',
+        clock_out_location: clockOutLocation,
+        description: data.description || timeEntry.description,
+        work_completed: data.workCompleted || null,
+        issues_encountered: data.issuesEncountered || null,
+        last_modified_by: data.userId,
+        updated_at: now.toISOString()
+      })
+      .eq('id', data.timeEntryId)
+      .select()
+      .single()
+
+    if (updateError) {
+      this.log('Clock out error', updateError)
+      throw new Error(`Failed to clock out: ${updateError.message}`)
+    }
+
+    this.log('Clock out successful', { timeEntryId: updatedEntry.id, totalHours })
+    return updatedEntry
+  }
+
+  // ==============================================
+  // GET ACTIVE SESSION
+  // ==============================================
+  async getActiveSession(userId: string, companyId: string): Promise<any> {
+    this.log('Getting active session', { userId })
+
+    const { data: activeSession, error } = await this.supabaseClient
+      .from('time_entries')
+      .select(`
+        *,
+        project:projects!inner(id, name, status, project_number),
+        schedule_project:schedule_projects(id, title, status)
+      `)
+      .eq('user_id', userId)
+      .eq('company_id', companyId)
+      .eq('status', 'clocked_in')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      this.log('Get active session error', error)
+      throw new Error(`Failed to get active session: ${error.message}`)
+    }
+
+    return activeSession || null
+  }
+
+  // ==============================================
+  // GET TIME ENTRIES
+  // ==============================================
+  async getTimeEntries(companyId: string, options: Partial<GetTimeEntriesInput> = {}) {
+    this.log('Getting time entries', { companyId, options })
+
+    let query = this.supabaseClient
+      .from('time_entries')
+      .select(`
+        *,
+        project:projects(id, name, status, project_number),
+        schedule_project:schedule_projects(id, title, status),
+        worker:users!time_entries_user_id_users_id_fk(id, first_name, last_name, email),
+        approver:users!time_entries_approved_by_users_id_fk(id, first_name, last_name, email)
+      `)
+      .eq('company_id', companyId)
+
+    // Apply filters
+    if (options.userId) {
+      query = query.eq('user_id', options.userId)
+    }
+
+    if (options.projectId) {
+      query = query.eq('project_id', options.projectId)
+    }
+
+    if (options.scheduleProjectId) {
+      query = query.eq('schedule_project_id', options.scheduleProjectId)
+    }
+
+    if (options.status) {
+      query = query.eq('status', options.status)
+    }
+
+    if (options.workType) {
+      query = query.eq('work_type', options.workType)
+    }
+
+    if (options.trade) {
+      query = query.eq('trade', options.trade)
+    }
+
+    if (options.dateFrom) {
+      query = query.gte('date', options.dateFrom)
+    }
+
+    if (options.dateTo) {
+      query = query.lte('date', options.dateTo)
+    }
+
+    if (options.needsApproval) {
+      query = query.eq('status', 'pending')
+    }
+
+    if (options.isActive) {
+      query = query.eq('status', 'clocked_in')
+    }
+
+    if (options.search) {
+      query = query.or(`description.ilike.%${options.search}%,work_completed.ilike.%${options.search}%`)
+    }
+
+    // Apply sorting
+    const sortBy = options.sortBy || 'date'
+    const sortOrder = options.sortOrder || 'desc'
+    
+    // Map sortBy to actual database column names
+    const sortByColumn = (() => {
+      switch (sortBy) {
+        case 'startTime':
+          return 'start_time'
+        case 'totalHours':
+          return 'total_hours'
+        case 'createdAt':
+          return 'created_at'
+        default:
+          return sortBy
+      }
+    })()
+    
+    query = query.order(sortByColumn, { ascending: sortOrder === 'asc' })
+
+    // Apply pagination
+    const limit = options.limit || 50
+    const offset = options.offset || 0
+    query = query.range(offset, offset + limit - 1)
+
+    const { data: timeEntries, error } = await query
+
+    if (error) {
+      this.log('Get time entries error', error)
+      throw new Error(`Failed to get time entries: ${error.message}`)
+    }
+
+    // Get total count for pagination
+    const { count } = await this.supabaseClient
+      .from('time_entries')
+      .select('*', { count: 'exact', head: true })
+      .eq('company_id', companyId)
+
+    return {
+      timeEntries: timeEntries || [],
+      totalCount: count || 0
+    }
+  }
+
+  // ==============================================
+  // GET SINGLE TIME ENTRY
+  // ==============================================
+  async getTimeEntry(timeEntryId: string, companyId: string): Promise<TimeEntryRow | null> {
+    this.log('Getting time entry', { timeEntryId })
+
+    const { data: timeEntry, error } = await this.supabaseClient
+      .from('time_entries')
+      .select(`
+        *,
+        project:projects(id, name, status, project_number),
+        schedule_project:schedule_projects(id, title, status),
+        worker:users!time_entries_user_id_users_id_fk(id, first_name, last_name, email, trade_specialty),
+        approver:users!time_entries_approved_by_users_id_fk(id, first_name, last_name, email)
+      `)
+      .eq('id', timeEntryId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (error && error.code !== 'PGRST116') {
+      this.log('Get time entry error', error)
+      throw new Error(`Failed to get time entry: ${error.message}`)
+    }
+
+    return timeEntry || null
+  }
+
+  // ==============================================
+  // GET CLOCK IN OPTIONS (projects for selection)
+  // ==============================================
+  async getClockInOptions(userId: string, companyId: string) {
+    this.log('Getting clock in options', { userId })
+
+    // First get user's project IDs
+    const { data: projectMembers, error: memberError } = await this.supabaseClient
+      .from('project_members')
+      .select('project_id')
+      .eq('user_id', userId)
+      .eq('company_id', companyId)
+      .eq('status', 'active')
+
+    if (memberError) {
+      this.log('Get project members error', memberError)
+      throw new Error(`Failed to get project assignments: ${memberError.message}`)
+    }
+
+    const projectIds = projectMembers?.map(pm => pm.project_id).filter(Boolean) || []
+
+    // Get user's assigned projects
+    let projects: any[] = []
+    if (projectIds.length > 0) {
+      const { data: projectsData, error: projectError } = await this.supabaseClient
+        .from('projects')
+        .select('id, name, status, project_number')
+        .in('id', projectIds)
+        .eq('status', 'in_progress') // Only active projects
+
+      if (projectError) {
+        this.log('Get projects error', projectError)
+        throw new Error(`Failed to get assigned projects: ${projectError.message}`)
+      }
+
+      projects = projectsData || []
+    }
+
+    // Get active schedule projects for assigned projects
+    let scheduleProjects: any[] = []
+    if (projectIds.length > 0) {
+      const { data: scheduleData, error: scheduleError } = await this.supabaseClient
+        .from('schedule_projects')
+        .select('id, title, status, start_date, end_date, trade_required, priority, project_id')
+        .in('project_id', projectIds)
+        .eq('status', 'in_progress')
+        .order('start_date', { ascending: true })
+
+      if (scheduleError) {
+        this.log('Get schedule projects error', scheduleError)
+      } else {
+        scheduleProjects = scheduleData || []
+      }
+    }
+
+    // Get user info
+    const { data: userInfo, error: userError } = await this.supabaseClient
+      .from('users')
+      .select('id, first_name, last_name, trade_specialty')
+      .eq('id', userId)
+      .single()
+
+    if (userError) {
+      this.log('Get user info error', userError)
+      throw new Error(`Failed to get user info: ${userError.message}`)
+    }
+
+    return {
+      projects,
+      scheduleProjects,
+      userInfo
+    }
+  }
+
+  // ==============================================
+  // CREATE TIME ENTRY (MANUAL)
+  // ==============================================
+  async createTimeEntry(data: CreateTimeEntryInput, companyId: string, userId: string): Promise<TimeEntryRow> {
+    this.log('Creating time entry', { projectId: data.projectId, date: data.date })
+
+    // Calculate total hours if both start and end time provided
+    let totalHours = 0
+    if (data.startTime && data.endTime) {
+      totalHours = this.calculateHours(data.startTime, data.endTime, data.breakMinutes || 0)
+    }
+
+    // Prepare location data
+    const clockInLocation = data.clockInLocation 
+      ? `(${data.clockInLocation.lat},${data.clockInLocation.lng})`
+      : null
+    const clockOutLocation = data.clockOutLocation 
+      ? `(${data.clockOutLocation.lat},${data.clockOutLocation.lng})`
+      : null
+
+    const now = new Date()
+
+    const { data: timeEntry, error } = await this.supabaseClient
+      .from('time_entries')
+      .insert([{
+        company_id: companyId,
+        user_id: userId,
+        project_id: data.projectId,
+        schedule_project_id: data.scheduleProjectId || null,
+        date: data.date,
+        start_time: data.startTime,
+        end_time: data.endTime || null,
+        break_minutes: data.breakMinutes || 0,
+        regular_hours: Math.min(totalHours, 8).toString(),
+        overtime_hours: Math.max(0, totalHours - 8).toString(),
+        double_time_hours: '0',
+        total_hours: totalHours.toString(),
+        status: data.endTime ? 'clocked_out' : 'clocked_in',
+        work_type: data.workType || null,
+        trade: data.trade || null,
+        description: data.description || null,
+        clock_in_location: clockInLocation,
+        clock_out_location: clockOutLocation,
+        work_location: data.workLocation || null,
+        equipment_used: data.equipmentUsed || null,
+        materials_used: data.materialsUsed || null,
+        weather_conditions: data.weatherConditions || null,
+        temperature_f: data.temperatureF || null,
+        work_conditions: data.workConditions || null,
+        safety_incidents: data.safetyIncidents || null,
+        ppe: data.ppe || null,
+        work_completed: data.workCompleted || null,
+        issues_encountered: data.issuesEncountered || null,
+        next_steps: data.nextSteps || null,
+        quality_rating: data.qualityRating || null,
+        worker_name: null,
+        is_system_user: true,
+        created_by: userId,
+        last_modified_by: userId,
+        created_at: now.toISOString(),
+        updated_at: now.toISOString()
+      }])
+      .select()
+      .single()
+
+    if (error) {
+      this.log('Create time entry error', error)
+      throw new Error(`Failed to create time entry: ${error.message}`)
+    }
+
+    this.log('Time entry created', { timeEntryId: timeEntry.id })
+    return timeEntry
+  }
+
+  // ==============================================
+  // UPDATE TIME ENTRY
+  // ==============================================
+  async updateTimeEntry(timeEntryId: string, data: UpdateTimeEntryInput, companyId: string, userId: string): Promise<TimeEntryRow> {
+    this.log('Updating time entry', { timeEntryId })
+
+    // Calculate total hours if both times are being updated
+    let updateData: any = {
+      last_modified_by: userId,
+      updated_at: new Date().toISOString()
+    }
+
+    // Add provided fields to update
+    if (data.date) updateData.date = data.date
+    if (data.startTime) updateData.start_time = data.startTime
+    if (data.endTime) updateData.end_time = data.endTime
+    if (data.breakMinutes !== undefined) updateData.break_minutes = data.breakMinutes
+    if (data.workType) updateData.work_type = data.workType
+    if (data.trade) updateData.trade = data.trade
+    if (data.description !== undefined) updateData.description = data.description
+    if (data.workLocation !== undefined) updateData.work_location = data.workLocation
+    if (data.status) updateData.status = data.status
+    if (data.rejectionReason !== undefined) updateData.rejection_reason = data.rejectionReason
+
+    // Handle arrays
+    if (data.equipmentUsed !== undefined) updateData.equipment_used = data.equipmentUsed
+    if (data.materialsUsed !== undefined) updateData.materials_used = data.materialsUsed
+    if (data.ppe !== undefined) updateData.ppe = data.ppe
+
+    // Handle optional fields
+    if (data.weatherConditions !== undefined) updateData.weather_conditions = data.weatherConditions
+    if (data.temperatureF !== undefined) updateData.temperature_f = data.temperatureF
+    if (data.workConditions !== undefined) updateData.work_conditions = data.workConditions
+    if (data.safetyIncidents !== undefined) updateData.safety_incidents = data.safetyIncidents
+    if (data.workCompleted !== undefined) updateData.work_completed = data.workCompleted
+    if (data.issuesEncountered !== undefined) updateData.issues_encountered = data.issuesEncountered
+    if (data.nextSteps !== undefined) updateData.next_steps = data.nextSteps
+    if (data.qualityRating !== undefined) updateData.quality_rating = data.qualityRating
+
+    // Handle location updates
+    if (data.clockInLocation) {
+      updateData.clock_in_location = `(${data.clockInLocation.lat},${data.clockInLocation.lng})`
+    }
+    if (data.clockOutLocation) {
+      updateData.clock_out_location = `(${data.clockOutLocation.lat},${data.clockOutLocation.lng})`
+    }
+
+    // Recalculate hours if time fields are updated
+    if (data.startTime || data.endTime || data.breakMinutes !== undefined) {
+      // Get current entry to get missing time values
+      const { data: currentEntry } = await this.supabaseClient
+        .from('time_entries')
+        .select('start_time, end_time, break_minutes')
+        .eq('id', timeEntryId)
+        .single()
+
+      if (currentEntry) {
+        const startTime = data.startTime || currentEntry.start_time
+        const endTime = data.endTime || currentEntry.end_time
+        const breakMinutes = data.breakMinutes !== undefined ? data.breakMinutes : currentEntry.break_minutes
+
+        if (startTime && endTime) {
+          const totalHours = this.calculateHours(startTime, endTime, breakMinutes)
+          updateData.total_hours = totalHours.toString()
+          updateData.regular_hours = Math.min(totalHours, 8).toString()
+          updateData.overtime_hours = Math.max(0, totalHours - 8).toString()
+        }
+      }
+    }
+
+    const { data: updatedEntry, error } = await this.supabaseClient
+      .from('time_entries')
+      .update(updateData)
+      .eq('id', timeEntryId)
+      .eq('company_id', companyId)
+      .select()
+      .single()
+
+    if (error) {
+      this.log('Update time entry error', error)
+      throw new Error(`Failed to update time entry: ${error.message}`)
+    }
+
+    this.log('Time entry updated', { timeEntryId: updatedEntry.id })
+    return updatedEntry
+  }
+
+  // ==============================================
+  // DELETE TIME ENTRY
+  // ==============================================
+  async deleteTimeEntry(timeEntryId: string, companyId: string): Promise<boolean> {
+    this.log('Deleting time entry', { timeEntryId })
+
+    const { error } = await this.supabaseClient
+      .from('time_entries')
+      .delete()
+      .eq('id', timeEntryId)
+      .eq('company_id', companyId)
+
+    if (error) {
+      this.log('Delete time entry error', error)
+      throw new Error(`Failed to delete time entry: ${error.message}`)
+    }
+
+    this.log('Time entry deleted', { timeEntryId })
+    return true
+  }
+
+  // ==============================================
+  // UTILITY METHODS
+  // ==============================================
+  private calculateHours(startTime: string, endTime: string, breakMinutes: number = 0): number {
+    const start = new Date(`1970-01-01T${startTime}`)
+    const end = new Date(`1970-01-01T${endTime}`)
+    
+    const diffMs = end.getTime() - start.getTime()
+    const totalMinutes = Math.floor(diffMs / (1000 * 60)) - breakMinutes
+    
+    return Math.max(0, totalMinutes / 60) // Convert to hours, ensure non-negative
+  }
+
+  // Check if project exists and user has access
+  async checkProjectAccess(projectId: string, userId: string, companyId: string): Promise<boolean> {
+    const { data, error } = await this.supabaseClient
+      .from('project_members')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('user_id', userId)
+      .eq('company_id', companyId)
+      .eq('status', 'active')
+      .single()
+
+    return !error && !!data
+  }
+
+  // Get today's time entries for user
+  async getTodaysTimeEntries(userId: string, companyId: string) {
+    const today = new Date().toISOString().split('T')[0]
+    
+    return this.getTimeEntries(companyId, {
+      userId,
+      dateFrom: today,
+      dateTo: today,
+      sortBy: 'startTime',
+      sortOrder: 'asc'
+    })
+  }
+
+  // Get user's time entry statistics
+  async getTimeEntryStats(userId: string, companyId: string) {
+    const { data: stats, error } = await this.supabaseClient
+      .rpc('get_time_entry_stats', {
+        p_user_id: userId,
+        p_company_id: companyId
+      })
+
+    if (error) {
+      this.log('Get time entry stats error', error)
+      // Return default stats if RPC fails
+      return {
+        totalEntries: 0,
+        totalHours: 0,
+        regularHours: 0,
+        overtimeHours: 0,
+        todayHours: 0,
+        weekHours: 0,
+        pendingEntries: 0
+      }
+    }
+
+    return stats
+  }
+}
