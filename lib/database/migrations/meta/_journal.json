@@ -78,6 +78,13 @@
       "when": 1753261179399,
       "tag": "0010_rich_abomination",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1758968277721,
+      "tag": "0011_free_riptide",
+      "breakpoints": true
     }
   ]
 }

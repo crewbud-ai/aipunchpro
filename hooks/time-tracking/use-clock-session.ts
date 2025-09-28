@@ -1,9 +1,10 @@
 // ==============================================
-// hooks/time-tracking/use-clock-session.ts - Current Session Management Hook
+// hooks/time-tracking/use-clock-session.ts - FIXED VERSION
+// Resolves infinite loading issue
 // ==============================================
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { timeEntriesApi } from '@/lib/api/time-entries'
+import { TimeEntriesApi } from '@/lib/api/time-entries' // FIXED: Import the class directly
 import type { 
   ClockSession, 
   ClockSessionState,
@@ -42,9 +43,11 @@ interface UseClockSessionReturn extends Omit<ClockSessionState, 'currentSession'
 }
 
 // ==============================================
-// MAIN HOOK
+// MAIN HOOK - FIXED VERSION
 // ==============================================
 export function useClockSession(): UseClockSessionReturn {
+  console.log('useClockSession: Hook initialized')
+  
   // ==============================================
   // STATE
   // ==============================================
@@ -70,33 +73,66 @@ export function useClockSession(): UseClockSessionReturn {
   const mountedRef = useRef(true)
 
   // ==============================================
-  // ACTIONS
+  // ACTIONS - FIXED: Proper error handling and API usage
   // ==============================================
   const refreshSession = useCallback(async () => {
+    console.log('useClockSession: refreshSession called')
+    
     try {
       setIsLoading(true)
       setError(undefined)
 
-      const result: GetCurrentSessionResult = await timeEntriesApi.getCurrentSession()
+      console.log('useClockSession: Calling API...')
+      
+      // FIXED: Use TimeEntriesApi class method directly
+      const result: GetCurrentSessionResult = await TimeEntriesApi.getCurrentSession()
+      
+      console.log('useClockSession: API Response:', result)
 
-      if (!mountedRef.current) return
+      if (!mountedRef.current) {
+        console.log('useClockSession: Component unmounted, skipping update')
+        return
+      }
 
-      if (result.success && result.data) {
-        setHasActiveSession(result.data.hasActiveSession)
-        
-        // Set session data directly from API response
-        setCurrentSession(result.data.session)
+      // FIXED: Handle both success and failure cases properly
+      if (result.success) {
+        console.log('useClockSession: API success')
+        if (result.data) {
+          console.log('useClockSession: Setting session data:', result.data)
+          setHasActiveSession(result.data.hasActiveSession || false)
+          setCurrentSession(result.data.session || undefined)
+        } else {
+          console.log('useClockSession: No data in response')
+          setHasActiveSession(false)
+          setCurrentSession(undefined)
+        }
+        setError(undefined) // Clear any previous errors
       } else {
+        console.log('useClockSession: API failed:', result.message)
         setHasActiveSession(false)
         setCurrentSession(undefined)
+        // Don't set error for "no active session" - that's normal
+        if (result.message && !result.message.includes('No active')) {
+          setError(result.message)
+        }
       }
     } catch (err) {
+      console.error('useClockSession: Error:', err)
       if (!mountedRef.current) return
       
+      // FIXED: Better error handling
       const errorMessage = err instanceof Error ? err.message : 'Failed to get current session'
-      setError(errorMessage)
-      console.error('Error fetching current session:', err)
+      
+      // Only set error state if it's not a normal "no session" scenario
+      if (!errorMessage.includes('No active') && !errorMessage.includes('404')) {
+        setError(errorMessage)
+      }
+      
+      // Set default state
+      setHasActiveSession(false)
+      setCurrentSession(undefined)
     } finally {
+      console.log('useClockSession: Setting isLoading to false')
       if (mountedRef.current) {
         setIsLoading(false)
       }
@@ -104,12 +140,14 @@ export function useClockSession(): UseClockSessionReturn {
   }, [])
 
   const clearSession = useCallback(() => {
+    console.log('useClockSession: clearSession called')
     setHasActiveSession(false)
     setCurrentSession(undefined)
     setError(undefined)
   }, [])
 
   const clearError = useCallback(() => {
+    console.log('useClockSession: clearError called')
     setError(undefined)
   }, [])
 
@@ -155,25 +193,91 @@ export function useClockSession(): UseClockSessionReturn {
   const durationString = formattedDuration(sessionDuration)
 
   // ==============================================
-  // EFFECTS
+  // EFFECTS - FIXED: Proper dependency management
   // ==============================================
   
-  // Initial load
+  // Initial load with proper cleanup
   useEffect(() => {
-    refreshSession()
-  }, [refreshSession])
+    console.log('useClockSession: Initial effect triggered')
+    
+    let mounted = true
+    mountedRef.current = true
 
-  // Auto-refresh session data every minute when clocked in
+    // FIXED: Call refreshSession directly to avoid circular dependencies
+    const loadSession = async () => {
+      if (!mounted) return
+      
+      try {
+        setIsLoading(true)
+        setError(undefined)
+
+        const result: GetCurrentSessionResult = await TimeEntriesApi.getCurrentSession()
+        
+        if (!mounted) return
+
+        if (result.success) {
+          if (result.data) {
+            setHasActiveSession(result.data.hasActiveSession || false)
+            setCurrentSession(result.data.session || undefined)
+          } else {
+            setHasActiveSession(false)
+            setCurrentSession(undefined)
+          }
+          setError(undefined)
+        } else {
+          setHasActiveSession(false)
+          setCurrentSession(undefined)
+          if (result.message && !result.message.includes('No active')) {
+            setError(result.message)
+          }
+        }
+      } catch (err) {
+        if (!mounted) return
+        
+        const errorMessage = err instanceof Error ? err.message : 'Failed to get current session'
+        
+        if (!errorMessage.includes('No active') && !errorMessage.includes('404')) {
+          setError(errorMessage)
+        }
+        
+        setHasActiveSession(false)
+        setCurrentSession(undefined)
+      } finally {
+        if (mounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadSession()
+
+    return () => {
+      mounted = false
+      mountedRef.current = false
+    }
+  }, []) // FIXED: No dependencies to prevent infinite loops
+
+  // Auto-refresh when active - FIXED: Better interval management
   useEffect(() => {
-    if (hasActiveSession && currentSession) {
-      intervalRef.current = setInterval(() => {
-        // Only refresh if we're still mounted and have an active session
+    if (hasActiveSession && currentSession && !isLoading) {
+      console.log('useClockSession: Setting up auto-refresh')
+      
+      intervalRef.current = setInterval(async () => {
         if (mountedRef.current && hasActiveSession) {
-          refreshSession()
+          try {
+            const result = await TimeEntriesApi.getCurrentSession()
+            if (mountedRef.current && result.success && result.data) {
+              setHasActiveSession(result.data.hasActiveSession || false)
+              setCurrentSession(result.data.session || undefined)
+            }
+          } catch (err) {
+            console.error('Auto-refresh error:', err)
+          }
         }
       }, 60000) // Refresh every minute
     } else {
       if (intervalRef.current) {
+        console.log('useClockSession: Clearing auto-refresh')
         clearInterval(intervalRef.current)
         intervalRef.current = null
       }
@@ -185,17 +289,30 @@ export function useClockSession(): UseClockSessionReturn {
         intervalRef.current = null
       }
     }
-  }, [hasActiveSession, currentSession, refreshSession])
+  }, [hasActiveSession, currentSession, isLoading])
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      console.log('useClockSession: Cleanup on unmount')
       mountedRef.current = false
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
       }
     }
   }, [])
+
+  // ==============================================
+  // DEBUG LOGGING
+  // ==============================================
+  useEffect(() => {
+    console.log('useClockSession: State update:', { 
+      isLoading, 
+      hasActiveSession, 
+      currentSession: !!currentSession, 
+      error 
+    })
+  }, [isLoading, hasActiveSession, currentSession, error])
 
   // ==============================================
   // RETURN HOOK STATE AND ACTIONS
@@ -220,7 +337,4 @@ export function useClockSession(): UseClockSessionReturn {
   }
 }
 
-// ==============================================
-// ADDITIONAL EXPORT
-// ==============================================
 export default useClockSession

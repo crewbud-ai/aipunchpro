@@ -1,5 +1,5 @@
 // ==============================================
-// app/api/time-entries/route.ts - Time Entries API Routes
+// app/api/time-entries/route.ts - Time Entries API Routes (FIXED)
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -50,13 +50,23 @@ export async function GET(request: NextRequest) {
       offset: url.searchParams.get('offset'),
     }
 
-    // Convert string values to appropriate types
+    // FIXED: Convert null values to undefined and process types correctly
     const processedParams = {
-      ...queryParams,
+      userId: queryParams.userId || undefined,
+      projectId: queryParams.projectId || undefined,
+      scheduleProjectId: queryParams.scheduleProjectId || undefined,
+      status: queryParams.status || undefined,
+      workType: queryParams.workType || undefined,
+      trade: queryParams.trade || undefined,
+      dateFrom: queryParams.dateFrom || undefined,
+      dateTo: queryParams.dateTo || undefined,
+      search: queryParams.search || undefined,
       needsApproval: queryParams.needsApproval === 'true' ? true : 
                      queryParams.needsApproval === 'false' ? false : undefined,
       isActive: queryParams.isActive === 'true' ? true : 
                 queryParams.isActive === 'false' ? false : undefined,
+      sortBy: queryParams.sortBy || undefined,
+      sortOrder: queryParams.sortOrder || undefined,
       limit: queryParams.limit ? parseInt(queryParams.limit) : undefined,
       offset: queryParams.offset ? parseInt(queryParams.offset) : undefined,
     }
@@ -64,6 +74,7 @@ export async function GET(request: NextRequest) {
     // Validate query parameters
     const validation = validateGetTimeEntries(processedParams)
     if (!validation.success) {
+      console.error('Validation error:', validation.error)
       return NextResponse.json(
         {
           success: false,

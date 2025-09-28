@@ -1,9 +1,9 @@
 // ==============================================
-// hooks/time-tracking/use-clock-in-out.ts - Clock In/Out Actions Hook
+// hooks/time-tracking/use-clock-in-out.ts - CLEAN REWRITE
 // ==============================================
 
 import { useState, useCallback, useEffect } from 'react'
-import { timeEntriesApi } from '@/lib/api/time-entries'
+import { TimeEntriesApi } from '@/lib/api/time-entries'
 import type { 
   ClockInData,
   ClockOutData,
@@ -11,30 +11,33 @@ import type {
   ClockOutResult,
   ProjectForClockIn,
   ScheduleProjectForClockIn,
-  ClockActionState,
   GetClockInOptionsResult 
 } from '@/types/time-tracking'
 
 // ==============================================
-// HOOK INTERFACE
+// HOOK RETURN TYPE
 // ==============================================
-interface UseClockInOutReturn extends ClockActionState {
-  // Available options
+interface UseClockInOutReturn {
+  // Loading states
+  isClockingIn: boolean
+  isClockingOut: boolean
+  isLoadingOptions: boolean
+  
+  // Data
   projects: ProjectForClockIn[]
   scheduleProjects: ScheduleProjectForClockIn[]
   userInfo: any
+  error?: string
   
   // Actions
   clockIn: (data: ClockInData) => Promise<ClockInResult | null>
   clockOut: (data: ClockOutData) => Promise<ClockOutResult | null>
   loadClockInOptions: () => Promise<void>
   refreshOptions: () => Promise<void>
-  
-  // State helpers
   clearError: () => void
   reset: () => void
   
-  // Computed values
+  // Computed
   hasProjects: boolean
   hasScheduleProjects: boolean
   canClockIn: boolean
@@ -49,67 +52,12 @@ export function useClockInOut(): UseClockInOutReturn {
   // ==============================================
   const [isClockingIn, setIsClockingIn] = useState(false)
   const [isClockingOut, setIsClockingOut] = useState(false)
-  const [isLoadingOptions, setIsLoadingOptions] = useState(false)
-  const [error, setError] = useState<string | undefined>()
+  const [isLoadingOptions, setIsLoadingOptions] = useState(true) // Start as loading
+  const [error, setError] = useState<string>()
   
-  // Options state
   const [projects, setProjects] = useState<ProjectForClockIn[]>([])
   const [scheduleProjects, setScheduleProjects] = useState<ScheduleProjectForClockIn[]>([])
   const [userInfo, setUserInfo] = useState<any>(null)
-
-  // ==============================================
-  // CLOCK IN ACTION
-  // ==============================================
-  const clockIn = useCallback(async (data: ClockInData): Promise<ClockInResult | null> => {
-    try {
-      setIsClockingIn(true)
-      setError(undefined)
-
-      const result = await timeEntriesApi.clockIn(data)
-
-      if (result.success) {
-        // Clear any previous error
-        setError(undefined)
-        return result
-      } else {
-        throw new Error(result.message || 'Clock in failed')
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to clock in'
-      setError(errorMessage)
-      console.error('Clock in error:', err)
-      return null
-    } finally {
-      setIsClockingIn(false)
-    }
-  }, [])
-
-  // ==============================================
-  // CLOCK OUT ACTION
-  // ==============================================
-  const clockOut = useCallback(async (data: ClockOutData): Promise<ClockOutResult | null> => {
-    try {
-      setIsClockingOut(true)
-      setError(undefined)
-
-      const result = await timeEntriesApi.clockOut(data)
-
-      if (result.success) {
-        // Clear any previous error
-        setError(undefined)
-        return result
-      } else {
-        throw new Error(result.message || 'Clock out failed')
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to clock out'
-      setError(errorMessage)
-      console.error('Clock out error:', err)
-      return null
-    } finally {
-      setIsClockingOut(false)
-    }
-  }, [])
 
   // ==============================================
   // LOAD CLOCK IN OPTIONS
@@ -119,29 +67,100 @@ export function useClockInOut(): UseClockInOutReturn {
       setIsLoadingOptions(true)
       setError(undefined)
 
-      const result: GetClockInOptionsResult = await timeEntriesApi.getClockInOptions()
+      const result: GetClockInOptionsResult = await TimeEntriesApi.getClockInOptions()
 
       if (result.success && result.data) {
         setProjects(result.data.projects || [])
         setScheduleProjects(result.data.scheduleProjects || [])
         setUserInfo(result.data.userInfo || null)
+        setError(undefined)
       } else {
-        throw new Error(result.message || 'Failed to load options')
+        // Handle no projects as normal state, not error
+        setProjects([])
+        setScheduleProjects([])
+        setUserInfo(null)
+        
+        // Only set error for actual API failures
+        if (result.message && !result.message.toLowerCase().includes('no projects')) {
+          setError(result.message)
+        }
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load clock in options'
-      setError(errorMessage)
-      console.error('Load clock in options error:', err)
+      console.error('Failed to load clock-in options:', err)
+      
+      const message = err instanceof Error ? err.message : 'Failed to load options'
+      
+      // Handle common non-error scenarios
+      if (message.includes('403') || message.toLowerCase().includes('not assigned')) {
+        setProjects([])
+        setScheduleProjects([])
+        setUserInfo(null)
+        // Don't set as error - user just has no project access
+      } else {
+        setError(message)
+      }
     } finally {
       setIsLoadingOptions(false)
     }
   }, [])
 
   // ==============================================
-  // UTILITY ACTIONS
+  // CLOCK IN
   // ==============================================
-  const refreshOptions = useCallback(async () => {
-    await loadClockInOptions()
+  const clockIn = useCallback(async (data: ClockInData): Promise<ClockInResult | null> => {
+    try {
+      setIsClockingIn(true)
+      setError(undefined)
+
+      const result = await TimeEntriesApi.clockIn(data)
+
+      if (result.success) {
+        return result
+      } else {
+        setError(result.message || 'Clock in failed')
+        return null
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to clock in'
+      setError(message)
+      console.error('Clock in error:', err)
+      return null
+    } finally {
+      setIsClockingIn(false)
+    }
+  }, [])
+
+  // ==============================================
+  // CLOCK OUT
+  // ==============================================
+  const clockOut = useCallback(async (data: ClockOutData): Promise<ClockOutResult | null> => {
+    try {
+      setIsClockingOut(true)
+      setError(undefined)
+
+      const result = await TimeEntriesApi.clockOut(data)
+
+      if (result.success) {
+        return result
+      } else {
+        setError(result.message || 'Clock out failed')
+        return null
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to clock out'
+      setError(message)
+      console.error('Clock out error:', err)
+      return null
+    } finally {
+      setIsClockingOut(false)
+    }
+  }, [])
+
+  // ==============================================
+  // UTILITY FUNCTIONS
+  // ==============================================
+  const refreshOptions = useCallback(() => {
+    return loadClockInOptions()
   }, [loadClockInOptions])
 
   const clearError = useCallback(() => {
@@ -151,7 +170,6 @@ export function useClockInOut(): UseClockInOutReturn {
   const reset = useCallback(() => {
     setIsClockingIn(false)
     setIsClockingOut(false)
-    setIsLoadingOptions(false)
     setError(undefined)
   }, [])
 
@@ -172,19 +190,19 @@ export function useClockInOut(): UseClockInOutReturn {
   }, [loadClockInOptions])
 
   // ==============================================
-  // RETURN HOOK STATE AND ACTIONS
+  // RETURN
   // ==============================================
   return {
-    // State
+    // Loading states
     isClockingIn,
     isClockingOut,
     isLoadingOptions,
-    error,
     
-    // Options
+    // Data
     projects,
     scheduleProjects,
     userInfo,
+    error,
     
     // Actions
     clockIn,
@@ -194,7 +212,7 @@ export function useClockInOut(): UseClockInOutReturn {
     clearError,
     reset,
     
-    // Computed values
+    // Computed
     hasProjects,
     hasScheduleProjects,
     canClockIn,
@@ -202,11 +220,11 @@ export function useClockInOut(): UseClockInOutReturn {
 }
 
 // ==============================================
-// ADDITIONAL CONVENIENCE HOOKS
+// CONVENIENCE HOOKS
 // ==============================================
 
 /**
- * Hook for quick clock in with minimal data
+ * Quick clock in with minimal data
  */
 export function useQuickClockIn() {
   const { clockIn, isClockingIn, error, projects } = useClockInOut()
@@ -233,7 +251,7 @@ export function useQuickClockIn() {
 }
 
 /**
- * Hook for quick clock out with minimal data
+ * Quick clock out with minimal data
  */
 export function useQuickClockOut() {
   const { clockOut, isClockingOut, error } = useClockInOut()
@@ -252,6 +270,6 @@ export function useQuickClockOut() {
 }
 
 // ==============================================
-// ADDITIONAL EXPORTS
+// DEFAULT EXPORT
 // ==============================================
 export default useClockInOut
