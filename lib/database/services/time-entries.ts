@@ -757,4 +757,35 @@ export class TimeEntriesDatabaseService {
 
     return stats
   }
+
+  // Get recent time entries for a user
+  async getRecentEntries(
+    userId: string,
+    companyId: string,
+    limit: number = 10,
+    offset: number = 0
+  ): Promise<any[]> {
+    this.log('Getting recent entries', { userId, limit, offset })
+
+    const { data: entries, error } = await this.supabaseClient
+      .from('time_entries')
+      .select(`
+      *,
+      project:projects!inner(id, name, status, project_number),
+      schedule_project:schedule_projects(id, title, status)
+    `)
+      .eq('user_id', userId)
+      .eq('company_id', companyId)
+      .order('date', { ascending: false })
+      .order('start_time', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) {
+      this.log('Get recent entries error', error)
+      throw new Error(`Failed to get recent entries: ${error.message}`)
+    }
+
+    this.log('Recent entries retrieved', { count: entries?.length || 0 })
+    return entries || []
+  }
 }
