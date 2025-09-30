@@ -43,12 +43,12 @@ interface ClockInOutWidgetProps {
 // ==============================================
 // MAIN COMPONENT - FIXED VERSION
 // ==============================================
-export function ClockInOutWidget({ 
-  className, 
+export function ClockInOutWidget({
+  className,
   showTodaysSummary = true,
-  compact = false 
+  compact = false
 }: ClockInOutWidgetProps) {
-  
+
   console.log('ClockInOutWidget: Component rendered')
 
   // ==============================================
@@ -128,14 +128,20 @@ export function ClockInOutWidget({
 
   const handleClockInSuccess = async () => {
     setShowClockInModal(false)
-    await refreshSession()
     clearError()
+
+    // Wait a moment for DB to sync
+    await new Promise(resolve => setTimeout(resolve, 500))
+    await refreshSession()
   }
 
   const handleClockOutSuccess = async () => {
     setShowClockOutModal(false)
-    await refreshSession()
     clearError()
+
+    // Wait a moment for DB to sync
+    await new Promise(resolve => setTimeout(resolve, 500))
+    await refreshSession()
   }
 
   const handleCloseModals = () => {
@@ -157,7 +163,7 @@ export function ClockInOutWidget({
   // LOADING STATE WITH TIMEOUT FALLBACK - FIXED
   // ==============================================
   const [forceShowContent, setForceShowContent] = useState(false)
-  
+
   useEffect(() => {
     // Force show content after 5 seconds to prevent infinite loading
     const timeout = setTimeout(() => {
@@ -184,7 +190,7 @@ export function ClockInOutWidget({
         <CardContent className="space-y-4">
           <Skeleton className="h-12 w-full" />
           {showTodaysSummary && <Skeleton className="h-16 w-full" />}
-          
+
           {/* Debug info - will be removed */}
           <div className="text-xs text-gray-500 bg-yellow-50 p-2 rounded">
             Debug: sessionLoading={String(sessionLoading)}, isLoadingOptions={String(isLoadingOptions)}
@@ -214,8 +220,8 @@ export function ClockInOutWidget({
             </AlertDescription>
           </Alert>
           <div className="flex gap-2 mt-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 refreshSession()
                 clearError()
@@ -223,8 +229,8 @@ export function ClockInOutWidget({
             >
               Try Again
             </Button>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => setForceShowContent(true)}
             >
@@ -250,13 +256,13 @@ export function ClockInOutWidget({
                 Time Tracking
               </CardTitle>
               <CardDescription className={cn(compact && "text-xs")}>
-                {isClocked 
-                  ? `Working on ${currentSession?.projectName || 'a project'}` 
+                {isClocked
+                  ? `Working on ${currentSession?.projectName || 'a project'}`
                   : "Ready to start your workday"
                 }
               </CardDescription>
             </div>
-            
+
             {/* Status Indicator */}
             <div className="flex items-center gap-2">
               {isClocked ? (
@@ -277,7 +283,7 @@ export function ClockInOutWidget({
         <CardContent className="space-y-4">
           {/* Current Session Display */}
           {isClocked && currentSession && (
-            <CurrentSessionDisplay 
+            <CurrentSessionDisplay
               session={currentSession}
               duration={formattedDuration}
               compact={compact}
@@ -386,7 +392,7 @@ export function ClockInOutWidget({
           )}
 
           {/* Debug Panel - TEMPORARY */}
-          {process.env.NODE_ENV === 'development' && (
+          {/* {process.env.NODE_ENV === 'development' && (
             <div className="text-xs bg-gray-100 p-2 rounded space-y-1">
               <div>Session Loading: {String(sessionLoading)}</div>
               <div>Options Loading: {String(isLoadingOptions)}</div>
@@ -396,7 +402,7 @@ export function ClockInOutWidget({
               <div>Errors: {hasError || 'None'}</div>
               <div>Force Show: {String(forceShowContent)}</div>
             </div>
-          )}
+          )} */}
         </CardContent>
       </Card>
 

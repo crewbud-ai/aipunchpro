@@ -4,12 +4,12 @@
 
 import { createServerClient, createAdminClient } from '@/lib/supabase/server'
 import { createBrowserClient } from '@/lib/supabase/client'
-import type { 
-  ClockInInput, 
-  ClockOutInput, 
-  CreateTimeEntryInput, 
+import type {
+  ClockInInput,
+  ClockOutInput,
+  CreateTimeEntryInput,
   UpdateTimeEntryInput,
-  GetTimeEntriesInput 
+  GetTimeEntriesInput
 } from '@/lib/validations/time-tracking/time-entries'
 
 // ==============================================
@@ -126,7 +126,7 @@ export class TimeEntriesDatabaseService {
     const currentDate = now.toISOString().split('T')[0] // YYYY-MM-DD format
 
     // Prepare location data
-    const clockInLocation = data.clockInLocation 
+    const clockInLocation = data.clockInLocation
       ? `(${data.clockInLocation.lat},${data.clockInLocation.lng})`
       : null
 
@@ -142,7 +142,7 @@ export class TimeEntriesDatabaseService {
         end_time: null,
         break_minutes: 0,
         regular_hours: '0',
-        overtime_hours: '0', 
+        overtime_hours: '0',
         double_time_hours: '0',
         total_hours: '0',
         status: 'clocked_in',
@@ -194,7 +194,7 @@ export class TimeEntriesDatabaseService {
     const totalHours = this.calculateHours(timeEntry.start_time, currentTime, timeEntry.break_minutes)
 
     // Prepare location data
-    const clockOutLocation = data.clockOutLocation 
+    const clockOutLocation = data.clockOutLocation
       ? `(${data.clockOutLocation.lat},${data.clockOutLocation.lng})`
       : null
 
@@ -320,7 +320,7 @@ export class TimeEntriesDatabaseService {
     // Apply sorting
     const sortBy = options.sortBy || 'date'
     const sortOrder = options.sortOrder || 'desc'
-    
+
     // Map sortBy to actual database column names
     const sortByColumn = (() => {
       switch (sortBy) {
@@ -334,7 +334,7 @@ export class TimeEntriesDatabaseService {
           return sortBy
       }
     })()
-    
+
     query = query.order(sortByColumn, { ascending: sortOrder === 'asc' })
 
     // Apply pagination
@@ -394,10 +394,10 @@ export class TimeEntriesDatabaseService {
   async getClockInOptions(userId: string, companyId: string) {
     this.log('Getting clock in options', { userId })
 
-    // First get user's project IDs
+    // First get user's project_member records (we need the IDs)
     const { data: projectMembers, error: memberError } = await this.supabaseClient
       .from('project_members')
-      .select('project_id')
+      .select('project_id, id')
       .eq('user_id', userId)
       .eq('company_id', companyId)
       .eq('status', 'active')
@@ -408,6 +408,10 @@ export class TimeEntriesDatabaseService {
     }
 
     const projectIds = projectMembers?.map(pm => pm.project_id).filter(Boolean) || []
+    const projectMemberIds = projectMembers?.map(pm => pm.id).filter(Boolean) || []
+
+    this.log('User project assignments', { projectIds, projectMemberIds })
+    console.log('🔍 DEBUG - Project Member IDs:', projectMemberIds)
 
     // Get user's assigned projects
     let projects: any[] = []
@@ -416,7 +420,7 @@ export class TimeEntriesDatabaseService {
         .from('projects')
         .select('id, name, status, project_number')
         .in('id', projectIds)
-        .eq('status', 'in_progress') // Only active projects
+        .eq('status', 'in_progress')
 
       if (projectError) {
         this.log('Get projects error', projectError)
@@ -424,27 +428,61 @@ export class TimeEntriesDatabaseService {
       }
 
       projects = projectsData || []
+      this.log('Found projects', { count: projects.length })
     }
 
-    // Get active schedule projects for assigned projects
+    // Get schedule projects where user is assigned via project_member_id
+    // Get schedule projects where user is assigned by USER_ID (not project_member_id)
     let scheduleProjects: any[] = []
     if (projectIds.length > 0) {
       const { data: scheduleData, error: scheduleError } = await this.supabaseClient
         .from('schedule_projects')
-        .select('id, title, status, start_date, end_date, trade_required, priority, project_id')
+        .select('id, project_id, title, status, start_date, end_date, trade_required, priority, assigned_project_member_ids')
         .in('project_id', projectIds)
-        .eq('status', 'in_progress')
-        .order('start_date', { ascending: true })
+        .in('status', ['planned', 'in_progress'])
 
       if (scheduleError) {
         this.log('Get schedule projects error', scheduleError)
+        console.warn('Failed to get schedule projects:', scheduleError.message)
       } else {
-        scheduleProjects = scheduleData || []
+        this.log('Raw schedule projects', { count: scheduleData?.length || 0 })
+
+        // FIXED: Filter by userId instead of project_member_id
+        // The assigned_project_member_ids field actually contains user_ids
+        scheduleProjects = (scheduleData || [])
+          .filter(sp => {
+            const assignedIds = sp.assigned_project_member_ids || []
+
+            // Check if user's ID is in the assigned list
+            const isAssigned = assignedIds.includes(userId)
+
+            if (isAssigned) {
+              this.log('User is assigned to schedule project', {
+                scheduleProjectId: sp.id,
+                title: sp.title
+              })
+            }
+
+            return isAssigned
+          })
+          .map(sp => ({
+            id: sp.id,
+            projectId: sp.project_id,
+            title: sp.title,
+            status: sp.status,
+            startDate: sp.start_date,
+            endDate: sp.end_date,
+            trade: sp.trade_required,
+            priority: sp.priority,
+            isActive: sp.status === 'in_progress',
+          }))
+
+        this.log('Filtered schedule projects', { count: scheduleProjects.length })
       }
     }
 
     // Get user info
-    const { data: userInfo, error: userError } = await this.supabaseClient
+    const { data: userData, error: userError } = await this.supabaseClient
       .from('users')
       .select('id, first_name, last_name, trade_specialty')
       .eq('id', userId)
@@ -452,13 +490,24 @@ export class TimeEntriesDatabaseService {
 
     if (userError) {
       this.log('Get user info error', userError)
-      throw new Error(`Failed to get user info: ${userError.message}`)
     }
 
+    const transformedProjects = projects.map(p => ({
+      id: p.id,
+      name: p.name,
+      status: p.status,
+      projectNumber: p.project_number,
+      isActive: p.status === 'in_progress',
+    }))
+
     return {
-      projects,
-      scheduleProjects,
-      userInfo
+      projects: transformedProjects,
+      scheduleProjects: scheduleProjects,
+      userInfo: userData ? {
+        id: userData.id,
+        name: `${userData.first_name} ${userData.last_name}`,
+        tradeSpecialty: userData.trade_specialty,
+      } : null,
     }
   }
 
@@ -475,10 +524,10 @@ export class TimeEntriesDatabaseService {
     }
 
     // Prepare location data
-    const clockInLocation = data.clockInLocation 
+    const clockInLocation = data.clockInLocation
       ? `(${data.clockInLocation.lat},${data.clockInLocation.lng})`
       : null
-    const clockOutLocation = data.clockOutLocation 
+    const clockOutLocation = data.clockOutLocation
       ? `(${data.clockOutLocation.lat},${data.clockOutLocation.lng})`
       : null
 
@@ -650,10 +699,10 @@ export class TimeEntriesDatabaseService {
   private calculateHours(startTime: string, endTime: string, breakMinutes: number = 0): number {
     const start = new Date(`1970-01-01T${startTime}`)
     const end = new Date(`1970-01-01T${endTime}`)
-    
+
     const diffMs = end.getTime() - start.getTime()
     const totalMinutes = Math.floor(diffMs / (1000 * 60)) - breakMinutes
-    
+
     return Math.max(0, totalMinutes / 60) // Convert to hours, ensure non-negative
   }
 
@@ -674,7 +723,7 @@ export class TimeEntriesDatabaseService {
   // Get today's time entries for user
   async getTodaysTimeEntries(userId: string, companyId: string) {
     const today = new Date().toISOString().split('T')[0]
-    
+
     return this.getTimeEntries(companyId, {
       userId,
       dateFrom: today,

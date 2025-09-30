@@ -10,23 +10,13 @@ import type { WorkType, TradeType } from './time-entry'
 export interface ClockInData {
   projectId: string
   scheduleProjectId?: string
-  workType?: WorkType
-  trade?: TradeType
   description?: string
-  location?: {
-    lat: number
-    lng: number
-  }
 }
 
 export interface ClockOutData {
   description?: string
   workCompleted?: string
   issuesEncountered?: string
-  location?: {
-    lat: number
-    lng: number
-  }
 }
 
 // ==============================================
@@ -91,8 +81,6 @@ export interface GetCurrentSessionResult {
       duration: number
       projectName: string
       scheduleProjectTitle?: string
-      workType?: WorkType
-      trade?: TradeType
       status: 'clocked_in'
     }
   }
@@ -115,6 +103,7 @@ export interface ProjectForClockIn {
 
 export interface ScheduleProjectForClockIn {
   id: string
+  projectId: string
   title: string
   status: string
   startDate: string
@@ -152,8 +141,6 @@ export interface ClockSessionState {
     scheduleProjectTitle?: string
     startTime: string
     duration: number
-    workType?: WorkType
-    trade?: TradeType
   }
   isLoading: boolean
   error?: string

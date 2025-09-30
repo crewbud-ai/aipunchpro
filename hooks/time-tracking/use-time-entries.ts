@@ -4,12 +4,12 @@
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { timeEntriesApi } from '@/lib/api/time-entries'
-import type { 
+import type {
   TimeEntrySummary,
   TimeEntryFilters,
   TimeEntriesState,
   GetTimeEntriesResult,
-  TimeEntryStats 
+  TimeEntryStats
 } from '@/types/time-tracking'
 
 // ==============================================
@@ -102,11 +102,11 @@ export function useTimeEntries(): UseTimeEntriesReturn {
     const today = new Date().toISOString().split('T')[0]
     const todayEntries = timeEntries.filter(t => t.date === today)
     stats.todayHours = todayEntries.reduce((sum, t) => sum + t.totalHours, 0)
-    
+
     // Determine today's status
     const hasActiveToday = todayEntries.some(t => t.status === 'clocked_in')
     const hasCompletedToday = todayEntries.some(t => t.status === 'clocked_out' || t.status === 'approved')
-    
+
     if (hasActiveToday) {
       stats.todayStatus = 'clocked_in'
     } else if (hasCompletedToday) {
@@ -119,10 +119,10 @@ export function useTimeEntries(): UseTimeEntriesReturn {
     const startOfWeek = new Date()
     startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay())
     const startOfWeekStr = startOfWeek.toISOString().split('T')[0]
-    
+
     const weekEntries = timeEntries.filter(t => t.date >= startOfWeekStr)
     stats.weekHours = weekEntries.reduce((sum, t) => sum + t.totalHours, 0)
-    
+
     // Calculate unique days worked this week
     const uniqueDays = new Set(weekEntries.map(t => t.date))
     stats.weekDays = uniqueDays.size
@@ -141,8 +141,10 @@ export function useTimeEntries(): UseTimeEntriesReturn {
       const searchFilters = newFilters ? { ...filters, ...newFilters } : filters
 
       // Add pagination to filters
-      const filtersWithPagination = {
+      const filtersWithPagination: Partial<TimeEntryFilters> = {
         ...searchFilters,
+        sortBy: (searchFilters.sortBy || 'date') as 'date' | 'startTime' | 'totalHours' | 'status' | 'createdAt',
+        sortOrder: (searchFilters.sortOrder || 'desc') as 'asc' | 'desc',
         limit: pagination.limit,
         offset: pagination.offset,
       }
@@ -200,14 +202,14 @@ export function useTimeEntries(): UseTimeEntriesReturn {
   const setPage = useCallback((page: number) => {
     const newOffset = (page - 1) * pagination.limit
     setPagination(prev => ({ ...prev, offset: newOffset }))
-    
+
     // Load with new pagination
     loadTimeEntries()
   }, [pagination.limit, loadTimeEntries])
 
   const setLimit = useCallback((limit: number) => {
     setPagination(prev => ({ ...prev, limit, offset: 0 }))
-    
+
     // Load with new pagination
     loadTimeEntries()
   }, [loadTimeEntries])
@@ -219,7 +221,7 @@ export function useTimeEntries(): UseTimeEntriesReturn {
   // ==============================================
   // EFFECTS
   // ==============================================
-  
+
   // Initial load
   useEffect(() => {
     loadTimeEntries()
@@ -263,7 +265,7 @@ export function useTimeEntries(): UseTimeEntriesReturn {
  */
 export function useTodaysTimeEntries() {
   const today = new Date().toISOString().split('T')[0]
-  
+
   const filters = useMemo(() => ({
     dateFrom: today,
     dateTo: today,

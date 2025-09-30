@@ -28,10 +28,7 @@ const locationSchema = z.object({
 export const clockInSchema = z.object({
   projectId: uuidSchema,
   scheduleProjectId: uuidSchema.optional(),
-  workType: z.enum(WORK_TYPE_VALUES).optional(),
-  trade: z.enum(TRADE_TYPE_VALUES).optional(),
-  description: z.string().max(500, 'Description too long').optional(),
-  location: locationSchema
+  description: z.string().max(500, 'Description too long').optional()
 })
 
 // ==============================================
@@ -40,8 +37,7 @@ export const clockInSchema = z.object({
 export const clockOutSchema = z.object({
   description: z.string().max(500, 'Description too long').optional(),
   workCompleted: z.string().max(1000, 'Work completed description too long').optional(),
-  issuesEncountered: z.string().max(1000, 'Issues description too long').optional(),
-  location: locationSchema
+  issuesEncountered: z.string().max(1000, 'Issues description too long').optional()
 })
 
 // ==============================================
@@ -265,10 +261,7 @@ export function transformClockInFormData(formData: any): ClockInInput {
   return {
     projectId: formData.projectId,
     scheduleProjectId: formData.scheduleProjectId || undefined,
-    workType: formData.workType || undefined,
-    trade: formData.trade || undefined,
-    description: formData.description || undefined,
-    location: formData.useLocation && formData.location ? formData.location : undefined
+    description: formData.description || undefined
   }
 }
 
@@ -276,8 +269,7 @@ export function transformClockOutFormData(formData: any): ClockOutInput {
   return {
     description: formData.description || undefined,
     workCompleted: formData.workCompleted || undefined,
-    issuesEncountered: formData.issuesEncountered || undefined,
-    location: formData.useLocation && formData.location ? formData.location : undefined
+    issuesEncountered: formData.issuesEncountered || undefined
   }
 }
 

@@ -36,13 +36,13 @@ export const formatStatusLabel = (status: string) => {
 }
 
 export const formatRoleLabel = (role: string) => {
-  switch (role) {
-    case 'super_admin': return 'Super Admin'
-    case 'admin': return 'Admin'
-    case 'supervisor': return 'Supervisor'
-    case 'member': return 'Member'
-    default: return role
-  }
+    switch (role) {
+        case 'super_admin': return 'Super Admin'
+        case 'admin': return 'Admin'
+        case 'supervisor': return 'Supervisor'
+        case 'member': return 'Member'
+        default: return role
+    }
 }
 
 
@@ -93,4 +93,76 @@ export const getDaysUntilDeadline = (endDate?: string) => {
     const diffTime = deadline.getTime() - now.getTime()
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     return diffDays
+}
+
+// ==============================================
+// lib/utils/time-format.ts - Time Formatting Utilities
+// ==============================================
+
+/**
+ * Format 24-hour time to 12-hour format with AM/PM
+ * @param time - Time string in HH:MM format (24-hour)
+ * @returns Formatted time string (12-hour with AM/PM)
+ */
+export function formatTime12Hour(time: string): string {
+  if (!time) return ''
+  
+  const [hours, minutes] = time.split(':')
+  const hour = parseInt(hours)
+  const ampm = hour >= 12 ? 'PM' : 'AM'
+  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour
+  
+  return `${displayHour}:${minutes} ${ampm}`
+}
+
+/**
+ * Format time entry status to human-readable label
+ */
+export function formatTimeEntryStatus(status: string): string {
+  const statusMap: Record<string, string> = {
+    'clocked_in': 'Clocked In',
+    'clocked_out': 'Clocked Out',
+    'pending': 'Pending',
+    'approved': 'Approved',
+    'rejected': 'Rejected',
+    'modified': 'Modified'
   }
+  
+  return statusMap[status] || status
+}
+
+/**
+ * Get status badge variant for UI display
+ */
+export function getStatusBadgeVariant(status: string): 'default' | 'secondary' | 'outline' | 'destructive' {
+  switch (status) {
+    case 'approved':
+      return 'default'
+    case 'pending':
+      return 'secondary'
+    case 'rejected':
+      return 'destructive'
+    case 'clocked_in':
+      return 'outline'
+    default:
+      return 'outline'
+  }
+}
+
+/**
+ * Get status color classes for UI display
+ */
+export function getStatusColorClass(status: string): string {
+  switch (status) {
+    case 'approved':
+      return 'bg-green-100 text-green-800'
+    case 'pending':
+      return 'bg-amber-100 text-amber-800'
+    case 'clocked_in':
+      return 'bg-blue-100 text-blue-800'
+    case 'rejected':
+      return 'bg-red-100 text-red-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}

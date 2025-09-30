@@ -1,5 +1,5 @@
 // ==============================================
-// hooks/time-tracking/use-clock-in-out.ts - CLEAN REWRITE
+// hooks/time-tracking/use-clock-in-out.ts - UPDATED FOR SIMPLIFIED CLOCK IN
 // ==============================================
 
 import { useState, useCallback, useEffect } from 'react'
@@ -52,7 +52,7 @@ export function useClockInOut(): UseClockInOutReturn {
   // ==============================================
   const [isClockingIn, setIsClockingIn] = useState(false)
   const [isClockingOut, setIsClockingOut] = useState(false)
-  const [isLoadingOptions, setIsLoadingOptions] = useState(true) // Start as loading
+  const [isLoadingOptions, setIsLoadingOptions] = useState(true)
   const [error, setError] = useState<string>()
   
   const [projects, setProjects] = useState<ProjectForClockIn[]>([])
@@ -75,12 +75,10 @@ export function useClockInOut(): UseClockInOutReturn {
         setUserInfo(result.data.userInfo || null)
         setError(undefined)
       } else {
-        // Handle no projects as normal state, not error
         setProjects([])
         setScheduleProjects([])
         setUserInfo(null)
         
-        // Only set error for actual API failures
         if (result.message && !result.message.toLowerCase().includes('no projects')) {
           setError(result.message)
         }
@@ -90,12 +88,10 @@ export function useClockInOut(): UseClockInOutReturn {
       
       const message = err instanceof Error ? err.message : 'Failed to load options'
       
-      // Handle common non-error scenarios
       if (message.includes('403') || message.toLowerCase().includes('not assigned')) {
         setProjects([])
         setScheduleProjects([])
         setUserInfo(null)
-        // Don't set as error - user just has no project access
       } else {
         setError(message)
       }
@@ -105,7 +101,7 @@ export function useClockInOut(): UseClockInOutReturn {
   }, [])
 
   // ==============================================
-  // CLOCK IN
+  // CLOCK IN - SIMPLIFIED
   // ==============================================
   const clockIn = useCallback(async (data: ClockInData): Promise<ClockInResult | null> => {
     try {
@@ -131,7 +127,7 @@ export function useClockInOut(): UseClockInOutReturn {
   }, [])
 
   // ==============================================
-  // CLOCK OUT
+  // CLOCK OUT - SIMPLIFIED
   // ==============================================
   const clockOut = useCallback(async (data: ClockOutData): Promise<ClockOutResult | null> => {
     try {
@@ -183,8 +179,6 @@ export function useClockInOut(): UseClockInOutReturn {
   // ==============================================
   // EFFECTS
   // ==============================================
-  
-  // Load options on mount
   useEffect(() => {
     loadClockInOptions()
   }, [loadClockInOptions])
@@ -193,26 +187,19 @@ export function useClockInOut(): UseClockInOutReturn {
   // RETURN
   // ==============================================
   return {
-    // Loading states
     isClockingIn,
     isClockingOut,
     isLoadingOptions,
-    
-    // Data
     projects,
     scheduleProjects,
     userInfo,
     error,
-    
-    // Actions
     clockIn,
     clockOut,
     loadClockInOptions,
     refreshOptions,
     clearError,
     reset,
-    
-    // Computed
     hasProjects,
     hasScheduleProjects,
     canClockIn,
@@ -220,11 +207,11 @@ export function useClockInOut(): UseClockInOutReturn {
 }
 
 // ==============================================
-// CONVENIENCE HOOKS
+// CONVENIENCE HOOKS - UPDATED FOR SIMPLIFIED INTERFACE
 // ==============================================
 
 /**
- * Quick clock in with minimal data
+ * Quick clock in with minimal data - SIMPLIFIED
  */
 export function useQuickClockIn() {
   const { clockIn, isClockingIn, error, projects } = useClockInOut()
@@ -235,9 +222,9 @@ export function useQuickClockIn() {
       throw new Error('Project not found')
     }
 
+    // SIMPLIFIED: Only projectId and description
     return await clockIn({
       projectId,
-      workType: 'general',
       description: `Working on ${project.name}`,
     })
   }, [clockIn, projects])
@@ -251,12 +238,13 @@ export function useQuickClockIn() {
 }
 
 /**
- * Quick clock out with minimal data
+ * Quick clock out with minimal data - SIMPLIFIED
  */
 export function useQuickClockOut() {
   const { clockOut, isClockingOut, error } = useClockInOut()
   
   const quickClockOut = useCallback(async () => {
+    // SIMPLIFIED: Only description
     return await clockOut({
       description: 'Work completed',
     })

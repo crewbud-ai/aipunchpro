@@ -1,5 +1,6 @@
 // ==============================================
-// components/time-tracking/ProjectSelectionModal.tsx - Project Selection for Clock In
+// components/time-tracking/ProjectSelectionModal.tsx - COMPLETE FIXED VERSION
+// Only shows schedule project dropdown when schedule projects exist and user is assigned
 // ==============================================
 
 "use client"
@@ -7,7 +8,6 @@
 import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -29,19 +29,16 @@ import {
 import {
   Building2,
   Calendar,
-  MapPin,
-  Briefcase,
   Play,
   AlertCircle,
   Loader2,
-  Clock,
   CheckCircle,
+  Info,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // Import types and hooks
 import { useClockInOut } from "@/hooks/time-tracking"
-import { WORK_TYPE_OPTIONS, TRADE_TYPE_OPTIONS } from "@/types/time-tracking"
 import type { ProjectForClockIn, ScheduleProjectForClockIn } from "@/types/time-tracking"
 
 // ==============================================
@@ -58,10 +55,7 @@ interface ProjectSelectionModalProps {
 interface ClockInFormData {
   projectId: string
   scheduleProjectId: string
-  workType: string
-  trade: string
   description: string
-  useLocation: boolean
 }
 
 // ==============================================
@@ -77,20 +71,17 @@ export function ProjectSelectionModal({
   // ==============================================
   // HOOKS
   // ==============================================
-  const { clockIn, scheduleProjects, userInfo, error, clearError } = useClockInOut()
+  const { clockIn, scheduleProjects, error, clearError } = useClockInOut()
 
   // ==============================================
   // LOCAL STATE
   // ==============================================
   const [formData, setFormData] = useState<ClockInFormData>({
     projectId: '',
-    scheduleProjectId: '',
-    workType: '',
-    trade: '',
+    scheduleProjectId: 'none',
     description: '',
-    useLocation: false,
   })
-  
+
   const [selectedProject, setSelectedProject] = useState<ProjectForClockIn | null>(null)
   const [filteredScheduleProjects, setFilteredScheduleProjects] = useState<ScheduleProjectForClockIn[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -98,27 +89,26 @@ export function ProjectSelectionModal({
   // ==============================================
   // EFFECTS
   // ==============================================
-  
+
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       setFormData({
         projectId: '',
-        scheduleProjectId: '',
-        workType: userInfo?.tradeSpecialty || '',
-        trade: userInfo?.tradeSpecialty || '',
+        scheduleProjectId: 'none',
         description: '',
-        useLocation: false,
       })
       setSelectedProject(null)
       clearError()
     }
-  }, [isOpen, userInfo, clearError])
+  }, [isOpen, clearError])
 
-  // Filter schedule projects based on selected project
+  // Filter schedule projects by selected project's ID
   useEffect(() => {
-    if (formData.projectId) {
-      const filtered = scheduleProjects.filter(sp => sp.id === formData.projectId)
+    if (formData.projectId && scheduleProjects.length > 0) {
+      // Filter schedule projects that belong to the selected project
+      // AND where the user is assigned (already filtered by backend)
+      const filtered = scheduleProjects.filter(sp => sp.projectId === formData.projectId)
       setFilteredScheduleProjects(filtered)
     } else {
       setFilteredScheduleProjects([])
@@ -138,24 +128,24 @@ export function ProjectSelectionModal({
   // ==============================================
   // HANDLERS
   // ==============================================
-  const handleInputChange = (field: keyof ClockInFormData, value: string | boolean) => {
+  const handleInputChange = (field: keyof ClockInFormData, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }))
-    
+
     // Clear schedule project if project changes
     if (field === 'projectId') {
       setFormData(prev => ({
         ...prev,
-        scheduleProjectId: ''
+        scheduleProjectId: 'none'
       }))
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.projectId) {
       return
     }
@@ -164,37 +154,15 @@ export function ProjectSelectionModal({
       setIsSubmitting(true)
       clearError()
 
-      // Get location if requested
-      let location: { lat: number; lng: number } | undefined
-      if (formData.useLocation && 'geolocation' in navigator) {
-        try {
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              timeout: 10000,
-              enableHighAccuracy: true
-            })
-          })
-          location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          }
-        } catch (err) {
-          console.warn('Could not get location:', err)
-        }
-      }
-
-      // Prepare clock in data
+      // Prepare simplified clock in data
       const clockInData = {
         projectId: formData.projectId,
-        scheduleProjectId: formData.scheduleProjectId || undefined,
-        workType: (formData.workType as any) || undefined,
-        trade: (formData.trade as any) || undefined,
+        scheduleProjectId: formData.scheduleProjectId !== 'none' ? formData.scheduleProjectId : undefined,  // Changed
         description: formData.description || undefined,
-        location,
       }
 
       const result = await clockIn(clockInData)
-      
+
       if (result) {
         onSuccess()
       }
@@ -215,7 +183,7 @@ export function ProjectSelectionModal({
   // COMPUTED VALUES
   // ==============================================
   const canSubmit = formData.projectId && !isSubmitting && !isLoading
-  const selectedScheduleProject = formData.scheduleProjectId 
+  const selectedScheduleProject = formData.scheduleProjectId && formData.scheduleProjectId !== 'none'
     ? filteredScheduleProjects.find(sp => sp.id === formData.scheduleProjectId)
     : null
 
@@ -231,12 +199,12 @@ export function ProjectSelectionModal({
             Clock In to Project
           </DialogTitle>
           <DialogDescription>
-            Select a project and provide work details to start tracking your time.
+            Select a project and optional task to start tracking your time.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Project Selection */}
+          {/* Project Selection - REQUIRED */}
           <div className="space-y-2">
             <Label htmlFor="project" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
@@ -265,12 +233,12 @@ export function ProjectSelectionModal({
             </Select>
           </div>
 
-          {/* Schedule Project Selection (Optional) */}
-          {filteredScheduleProjects.length > 0 && (
+          {/* Schedule Project Selection - ONLY SHOW IF THERE ARE SCHEDULE PROJECTS */}
+          {formData.projectId && filteredScheduleProjects.length > 0 && (
             <div className="space-y-2">
               <Label htmlFor="scheduleProject" className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                Schedule Item (Optional)
+                Scheduled Task (Optional)
               </Label>
               <Select
                 value={formData.scheduleProjectId}
@@ -278,123 +246,88 @@ export function ProjectSelectionModal({
                 disabled={isSubmitting}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a schedule item" />
+                  <SelectValue placeholder="Select a scheduled task or skip for general work" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">
-                    <span className="text-gray-500">General project work</span>
+                  <SelectItem value="none">
+                    <span className="text-gray-500">General project work (no specific task)</span>
                   </SelectItem>
                   {filteredScheduleProjects.map((scheduleProject) => (
                     <SelectItem key={scheduleProject.id} value={scheduleProject.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{scheduleProject.title}</span>
-                        {scheduleProject.trade && (
-                          <span className="text-xs text-gray-500">({scheduleProject.trade})</span>
-                        )}
+                      <div className="flex flex-col">
+                        <span className="font-medium">{scheduleProject.title}</span>
+                        <div className="flex gap-2 text-xs text-gray-500">
+                          {scheduleProject.trade && <span>Trade: {scheduleProject.trade}</span>}
+                          {scheduleProject.priority && <span>• Priority: {scheduleProject.priority}</span>}
+                          <span>• {scheduleProject.status}</span>
+                        </div>
                       </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-gray-500 flex items-center gap-1">
+                <Info className="h-3 w-3" />
+                {filteredScheduleProjects.length} task(s) assigned to you in this project
+              </p>
             </div>
           )}
 
-          {/* Work Type and Trade */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="workType">Work Type</Label>
-              <Select
-                value={formData.workType}
-                onValueChange={(value) => handleInputChange('workType', value)}
-                disabled={isSubmitting}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {WORK_TYPE_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Info message when project selected but no schedule projects */}
+          {formData.projectId && filteredScheduleProjects.length === 0 && (
+            <div className="text-sm text-gray-600 p-3 bg-gray-50 rounded border border-gray-200">
+              <p className="font-medium flex items-center gap-2">
+                <Info className="h-4 w-4" />
+                No scheduled tasks assigned
+              </p>
+              <p className="text-xs mt-1">
+                You'll be working on general project activities.
+              </p>
             </div>
+          )}
 
-            <div className="space-y-2">
-              <Label htmlFor="trade">Trade</Label>
-              <Select
-                value={formData.trade}
-                onValueChange={(value) => handleInputChange('trade', value)}
-                disabled={isSubmitting}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select trade" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TRADE_TYPE_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Description */}
+          {/* Description - OPTIONAL */}
           <div className="space-y-2">
             <Label htmlFor="description">Work Description (Optional)</Label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Describe what you'll be working on..."
+              placeholder="Brief description of what you'll be working on..."
               disabled={isSubmitting}
               rows={2}
+              maxLength={500}
             />
-          </div>
-
-          {/* Location Option */}
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="useLocation"
-              checked={formData.useLocation}
-              onChange={(e) => handleInputChange('useLocation', e.target.checked)}
-              disabled={isSubmitting}
-              className="rounded"
-            />
-            <Label htmlFor="useLocation" className="flex items-center gap-2 text-sm">
-              <MapPin className="h-4 w-4" />
-              Include my location
-            </Label>
+            <p className="text-xs text-gray-500">
+              {formData.description.length}/500 characters
+            </p>
           </div>
 
           {/* Selected Project Summary */}
           {selectedProject && (
-            <Card>
+            <Card className="bg-blue-50 border-blue-200">
               <CardContent className="pt-4">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <Building2 className="h-4 w-4 text-blue-600" />
-                    <span className="font-medium">{selectedProject.name}</span>
+                    <span className="font-medium text-blue-900">{selectedProject.name}</span>
                   </div>
                   {selectedScheduleProject && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 text-sm text-blue-700">
                       <Calendar className="h-3 w-3" />
                       <span>{selectedScheduleProject.title}</span>
                     </div>
                   )}
-                  {(formData.workType || formData.trade) && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Briefcase className="h-3 w-3" />
-                      <span>
-                        {formData.workType && WORK_TYPE_OPTIONS.find(w => w.value === formData.workType)?.label}
-                        {formData.workType && formData.trade && ' • '}
-                        {formData.trade && TRADE_TYPE_OPTIONS.find(t => t.value === formData.trade)?.label}
-                      </span>
+                  {!selectedScheduleProject && formData.projectId && (
+                    <div className="text-sm text-blue-700 flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3" />
+                      <span>Working on general project activities</span>
                     </div>
+                  )}
+                  {formData.description && (
+                    <p className="text-sm text-blue-700 mt-2 pt-2 border-t border-blue-300">
+                      {formData.description}
+                    </p>
                   )}
                 </div>
               </CardContent>
@@ -427,7 +360,7 @@ export function ProjectSelectionModal({
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Clocking In...
+                  Starting...
                 </>
               ) : (
                 <>
@@ -443,7 +376,4 @@ export function ProjectSelectionModal({
   )
 }
 
-// ==============================================
-// EXPORTS
-// ==============================================
 export default ProjectSelectionModal
