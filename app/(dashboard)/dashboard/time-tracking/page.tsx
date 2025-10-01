@@ -1,10 +1,10 @@
 // ==============================================
-// app/(dashboard)/dashboard/time-tracking/page.tsx - Member View
+// app/(dashboard)/dashboard/time-tracking/page.tsx - Member View - FIXED
 // ==============================================
 
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,104 +23,40 @@ import {
   TrendingUp,
   DollarSign,
   Timer,
-  MapPin
 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { isAdmin } from '@/lib/permissions'
 import Link from 'next/link'
-
-interface TimeEntry {
-  id: string
-  projectId: string
-  projectName: string
-  scheduleProjectTitle?: string
-  date: string
-  startTime: string
-  endTime: string | null
-  totalHours: string
-  regularHours?: string
-  overtimeHours?: string
-  status: string
-  workType?: string
-  trade?: string
-  description?: string
-  workCompleted?: string
-  issuesEncountered?: string
-  clockInLocation?: any
-  clockOutLocation?: any
-}
+import { useTimeEntries } from '@/hooks/time-tracking'
+import type { TimeEntrySummary } from '@/types/time-tracking'
 
 export default function TimeTrackingPage() {
-  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null)
+  // ==============================================
+  // HOOKS - Use the existing time entries hook
+  // ==============================================
+  const { 
+    timeEntries, 
+    isLoading, 
+    timeEntryStats
+  } = useTimeEntries()
+  
+  // ==============================================
+  // LOCAL STATE
+  // ==============================================
+  const [selectedEntry, setSelectedEntry] = useState<TimeEntrySummary | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
   const userIsAdmin = isAdmin()
 
   // ==============================================
-  // FETCH TIME ENTRIES
+  // CALCULATE STATS - Using hook's timeEntryStats
   // ==============================================
-  useEffect(() => {
-    const fetchTimeEntries = async () => {
-      try {
-        const response = await fetch('/api/time-entries')
-        const data = await response.json()
-        
-        if (data.success) {
-          // Sort by date DESC, then by start time DESC
-          const sorted = (data.data || []).sort((a: TimeEntry, b: TimeEntry) => {
-            if (a.date !== b.date) {
-              return new Date(b.date).getTime() - new Date(a.date).getTime()
-            }
-            return (b.startTime || '').localeCompare(a.startTime || '')
-          })
-          setTimeEntries(sorted)
-        }
-      } catch (error) {
-        console.error('Failed to fetch time entries:', error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchTimeEntries()
-  }, [])
-
-  // ==============================================
-  // CALCULATE STATS
-  // ==============================================
-  const stats = React.useMemo(() => {
-    const totalHours = timeEntries.reduce((sum, entry) => 
-      sum + parseFloat(entry.totalHours || '0'), 0
-    )
-    
-    const thisWeekEntries = timeEntries.filter(entry => {
-      const entryDate = new Date(entry.date)
-      const now = new Date()
-      const weekStart = new Date(now.setDate(now.getDate() - now.getDay()))
-      return entryDate >= weekStart
-    })
-    
-    const weekHours = thisWeekEntries.reduce((sum, entry) => 
-      sum + parseFloat(entry.totalHours || '0'), 0
-    )
-    
-    const pendingCount = timeEntries.filter(entry => 
-      entry.status === 'pending'
-    ).length
-    
-    const approvedCount = timeEntries.filter(entry => 
-      entry.status === 'approved'
-    ).length
-
-    return {
-      totalHours: totalHours.toFixed(1),
-      weekHours: weekHours.toFixed(1),
-      pendingCount,
-      approvedCount,
-      totalEntries: timeEntries.length
-    }
-  }, [timeEntries])
+  const stats = useMemo(() => ({
+    totalHours: timeEntryStats.totalHours.toFixed(1),
+    weekHours: timeEntryStats.weekHours.toFixed(1),
+    pendingCount: timeEntryStats.byStatus.pending,
+    approvedCount: timeEntryStats.byStatus.approved,
+    totalEntries: timeEntryStats.totalEntries
+  }), [timeEntryStats])
 
   // ==============================================
   // FORMAT FUNCTIONS
@@ -144,7 +80,7 @@ export default function TimeTrackingPage() {
     })
   }
 
-  const formatTime = (time: string) => {
+  const formatTime = (time?: string) => {
     if (!time) return '-'
     const [hours, minutes] = time.split(':')
     const hour = parseInt(hours)
@@ -177,7 +113,7 @@ export default function TimeTrackingPage() {
   // ==============================================
   // HANDLE VIEW DETAILS
   // ==============================================
-  const handleViewDetails = (entry: TimeEntry) => {
+  const handleViewDetails = (entry: TimeEntrySummary) => {
     setSelectedEntry(entry)
     setIsDetailOpen(true)
   }
@@ -326,7 +262,7 @@ export default function TimeTrackingPage() {
                       </td>
                       <td className="p-3">
                         <div className="font-semibold text-gray-900">
-                          {entry.totalHours ? `${parseFloat(entry.totalHours).toFixed(1)}h` : '-'}
+                          {entry.totalHours ? `${entry.totalHours.toFixed(1)}h` : '-'}
                         </div>
                       </td>
                       <td className="p-3">
@@ -358,7 +294,7 @@ export default function TimeTrackingPage() {
           <DialogHeader>
             <DialogTitle>Time Entry Details</DialogTitle>
             <DialogDescription>
-              View complete information for this time entry
+              View information for this time entry
             </DialogDescription>
           </DialogHeader>
           
@@ -402,32 +338,10 @@ export default function TimeTrackingPage() {
                 <div>
                   <p className="text-sm text-gray-500">Total Hours</p>
                   <p className="font-medium text-lg">
-                    {selectedEntry.totalHours ? `${parseFloat(selectedEntry.totalHours).toFixed(2)}h` : '-'}
+                    {selectedEntry.totalHours ? `${selectedEntry.totalHours.toFixed(2)}h` : '-'}
                   </p>
                 </div>
               </div>
-
-              {/* Work Details */}
-              {selectedEntry.description && (
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Description</p>
-                  <p className="text-sm bg-gray-50 p-3 rounded-md">{selectedEntry.description}</p>
-                </div>
-              )}
-
-              {selectedEntry.workCompleted && (
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Work Completed</p>
-                  <p className="text-sm bg-gray-50 p-3 rounded-md">{selectedEntry.workCompleted}</p>
-                </div>
-              )}
-
-              {selectedEntry.issuesEncountered && (
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Issues/Notes</p>
-                  <p className="text-sm bg-gray-50 p-3 rounded-md">{selectedEntry.issuesEncountered}</p>
-                </div>
-              )}
 
               {/* Additional Info */}
               {(selectedEntry.workType || selectedEntry.trade) && (
@@ -444,30 +358,6 @@ export default function TimeTrackingPage() {
                       <p className="font-medium capitalize">{selectedEntry.trade}</p>
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* Location Info */}
-              {(selectedEntry.clockInLocation || selectedEntry.clockOutLocation) && (
-                <div className="pt-4 border-t">
-                  <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-                    <MapPin className="h-4 w-4" />
-                    <span>Location Information</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    {selectedEntry.clockInLocation && (
-                      <div className="bg-gray-50 p-3 rounded-md">
-                        <p className="text-xs text-gray-500 mb-1">Clock In Location</p>
-                        <p className="text-xs font-medium">Location Recorded</p>
-                      </div>
-                    )}
-                    {selectedEntry.clockOutLocation && (
-                      <div className="bg-gray-50 p-3 rounded-md">
-                        <p className="text-xs text-gray-500 mb-1">Clock Out Location</p>
-                        <p className="text-xs font-medium">Location Recorded</p>
-                      </div>
-                    )}
-                  </div>
                 </div>
               )}
 

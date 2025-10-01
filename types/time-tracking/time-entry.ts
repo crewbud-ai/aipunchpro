@@ -184,6 +184,9 @@ export interface TimeEntrySummary {
   // Project info
   projectName: string
   scheduleProjectTitle?: string
+
+  description?: string
+  workCompleted?: string
   
   // Quick status
   isActive: boolean  // status === 'clocked_in'

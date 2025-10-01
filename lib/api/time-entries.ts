@@ -14,7 +14,8 @@ import type {
   CreateTimeEntryResult,
   GetTimeEntriesResult,
   GetTimeEntryResult,
-  TimeEntryFilters
+  TimeEntryFilters,
+  TimeEntrySummary
 } from '@/types/time-tracking'
 
 import type {
@@ -198,7 +199,7 @@ export class TimeEntriesApi {
    */
   static async forceEndSession(userId?: string): Promise<{ success: boolean; message: string }> {
     try {
-      const url = userId 
+      const url = userId
         ? `/api/time-entries/current-session?userId=${userId}`
         : '/api/time-entries/current-session'
 
@@ -234,7 +235,7 @@ export class TimeEntriesApi {
   static async getTimeEntries(filters: Partial<TimeEntryFilters> = {}): Promise<GetTimeEntriesResult> {
     try {
       const queryParams = new URLSearchParams()
-      
+
       // Add filters to query params
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
@@ -243,7 +244,7 @@ export class TimeEntriesApi {
       })
 
       const url = `/api/time-entries${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
-      
+
       return await apiCall<GetTimeEntriesResult>(url)
     } catch (error) {
       if (error instanceof ApiError) {
@@ -341,8 +342,8 @@ export class TimeEntriesApi {
         body: JSON.stringify(data),
       })
 
-      const statusMessage = data.status === 'approved' ? 'approved' : 
-                           data.status === 'rejected' ? 'rejected' : 'updated'
+      const statusMessage = data.status === 'approved' ? 'approved' :
+        data.status === 'rejected' ? 'rejected' : 'updated'
 
       toast({
         title: 'Status Updated',
@@ -389,6 +390,40 @@ export class TimeEntriesApi {
     }
   }
 
+
+  /**
+   * Get recent time entries for current user (for dashboard widget)
+   * @param limit Number of entries to retrieve (default: 5, max: 50)
+   */
+  static async getRecentEntries(limit: number = 5): Promise<{ success: boolean; data: TimeEntrySummary[]; message: string }> {
+    try {
+      // Validate limit
+      const validLimit = Math.min(Math.max(limit, 1), 50)
+
+      const response = await fetch(`${API_BASE_URL}/api/time-entries/recent?limit=${validLimit}`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new ApiError(
+          response.status,
+          result.message || 'Failed to load recent entries'
+        )
+      }
+
+      return result
+    } catch (error) {
+      if (error instanceof ApiError) {
+        console.error('Failed to load recent entries:', error.message)
+      }
+      throw error
+    }
+  }
+
   // ==============================================
   // CONVENIENCE METHODS
   // ==============================================
@@ -398,7 +433,7 @@ export class TimeEntriesApi {
    */
   static async getTodaysTimeEntries(): Promise<GetTimeEntriesResult> {
     const today = new Date().toISOString().split('T')[0]
-    
+
     return this.getTimeEntries({
       dateFrom: today,
       dateTo: today,
@@ -493,7 +528,7 @@ export class TimeEntriesApi {
   static async exportTimeEntries(filters: Partial<TimeEntryFilters> = {}): Promise<Blob> {
     try {
       const queryParams = new URLSearchParams()
-      
+
       // Add filters to query params
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
@@ -502,7 +537,7 @@ export class TimeEntriesApi {
       })
 
       const url = `/api/time-entries/export${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
-      
+
       const response = await fetch(`${API_BASE_URL}${url}`, {
         headers: {
           'Content-Type': 'application/json',

@@ -776,8 +776,9 @@ export class TimeEntriesDatabaseService {
     `)
       .eq('user_id', userId)
       .eq('company_id', companyId)
-      .order('date', { ascending: false })
-      .order('start_time', { ascending: false })
+      .order('date', { ascending: false })        // Latest date first
+      .order('start_time', { ascending: false })  // Latest time first (within same date)
+      .order('created_at', { ascending: false })  // Fallback: latest created first
       .range(offset, offset + limit - 1)
 
     if (error) {
@@ -785,7 +786,15 @@ export class TimeEntriesDatabaseService {
       throw new Error(`Failed to get recent entries: ${error.message}`)
     }
 
-    this.log('Recent entries retrieved', { count: entries?.length || 0 })
+    this.log('Recent entries retrieved', {
+      count: entries?.length || 0,
+      firstEntry: entries?.[0] ? {
+        date: entries[0].date,
+        startTime: entries[0].start_time,
+        createdAt: entries[0].created_at
+      } : null
+    })
+
     return entries || []
   }
 }

@@ -6,6 +6,7 @@
 export * from './use-clock-session'
 export * from './use-clock-in-out'
 export * from './use-time-entries'
+export * from './use-recent-entries'
 
 // ==============================================
 // CONVENIENCE EXPORTS FOR COMMON HOOKS
@@ -15,6 +16,7 @@ export * from './use-time-entries'
 export { default as useClockSession } from './use-clock-session'
 export { default as useClockInOut } from './use-clock-in-out'
 export { default as useTimeEntries } from './use-time-entries'
+export { default as useRecentEntries } from './use-recent-entries'
 
 // Specialized hooks from use-clock-in-out
 export { useQuickClockIn, useQuickClockOut } from './use-clock-in-out'
