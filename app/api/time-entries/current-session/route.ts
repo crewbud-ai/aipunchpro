@@ -60,6 +60,12 @@ export async function GET(request: NextRequest) {
     const project = activeSession.project || { name: 'Unknown Project' }
     const scheduleProject = activeSession.schedule_project
 
+    // Parse rates from active session
+    const regularRate = parseFloat(activeSession.regular_rate || '0')
+    const overtimeRate = parseFloat(activeSession.overtime_rate || '0')
+    const doubleTimeRate = parseFloat(activeSession.double_time_rate || '0')
+    const breakMinutes = activeSession.break_minutes || 0
+
     // Transform response
     const sessionData = {
       id: activeSession.id,
@@ -67,14 +73,29 @@ export async function GET(request: NextRequest) {
       projectId: activeSession.project_id,
       scheduleProjectId: activeSession.schedule_project_id,
       startTime: activeSession.start_time,
+      date: activeSession.date,
       duration: Math.max(0, durationMinutes), // Ensure non-negative
+      breakMinutes,
+      regularRate,
+      overtimeRate,
+      doubleTimeRate,
+
       projectName: project.name,
       scheduleProjectTitle: scheduleProject?.title,
       workType: activeSession.work_type,
       trade: activeSession.trade,
       status: activeSession.status,
-      date: activeSession.date,
       description: activeSession.description,
+
+      // For component compatibility
+      project: {
+        id: activeSession.project_id,
+        name: project.name,
+      },
+      scheduleProject: scheduleProject ? {
+        id: activeSession.schedule_project_id,
+        title: scheduleProject.title,
+      } : undefined,
     }
 
     return NextResponse.json(

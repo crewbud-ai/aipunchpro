@@ -174,7 +174,19 @@ export interface TimeEntrySummary {
   date: string
   startTime?: string
   endTime?: string
+  breakMinutes: number
+
+  // Hours breakdown
+  regularHours: number
+  overtimeHours: number
+  doubleTimeHours: number
   totalHours: number
+
+  // Rates & Payment
+  regularRate?: number
+  overtimeRate?: number
+  doubleTimeRate?: number
+  totalPay?: number
   
   // Work info
   workType?: WorkType

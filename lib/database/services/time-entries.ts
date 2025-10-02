@@ -11,6 +11,7 @@ import type {
   UpdateTimeEntryInput,
   GetTimeEntriesInput
 } from '@/lib/validations/time-tracking/time-entries'
+import PaymentCalculationService from './payment-calculation'
 
 // ==============================================
 // INTERFACES & TYPES
@@ -205,6 +206,28 @@ export class TimeEntriesDatabaseService {
     const currentTime = now.toTimeString().slice(0, 5) // HH:MM format
     const totalHours = this.calculateHours(timeEntry.start_time, currentTime, timeEntry.break_minutes)
 
+    // Get rates from the time entry (they were saved during clock in)
+    const regularRate = parseFloat(timeEntry.regular_rate || '0')
+    const overtimeRate = parseFloat(timeEntry.overtime_rate || '0')
+    const doubleTimeRate = parseFloat(timeEntry.double_time_rate || '0')
+
+    this.log('Rates retrieved from time entry', {
+      regularRate,
+      overtimeRate,
+      doubleTimeRate
+    })
+
+    // Calculate payment using PaymentCalculationService
+    const paymentService = new PaymentCalculationService(this.enableLogging)
+    const paymentBreakdown = paymentService.calculatePayment({
+      totalHours,
+      regularRate,
+      overtimeRate,
+      doubleTimeRate,
+    })
+
+    this.log('Payment breakdown calculated', paymentBreakdown)
+
     // Prepare location data
     const clockOutLocation = data.clockOutLocation
       ? `(${data.clockOutLocation.lat},${data.clockOutLocation.lng})`
@@ -215,9 +238,11 @@ export class TimeEntriesDatabaseService {
       .from('time_entries')
       .update({
         end_time: currentTime,
-        total_hours: totalHours.toString(),
-        regular_hours: Math.min(totalHours, 8).toString(), // Assuming 8 hour regular day
-        overtime_hours: Math.max(0, totalHours - 8).toString(),
+        total_hours: paymentBreakdown.totalHours.toString(),
+        regular_hours: paymentBreakdown.regularHours.toString(),
+        overtime_hours: paymentBreakdown.overtimeHours.toString(),
+        double_time_hours: paymentBreakdown.doubleTimeHours.toString(),
+        total_pay: paymentBreakdown.totalPay.toString(),
         status: 'clocked_out',
         clock_out_location: clockOutLocation,
         description: data.description || timeEntry.description,
@@ -235,7 +260,11 @@ export class TimeEntriesDatabaseService {
       throw new Error(`Failed to clock out: ${updateError.message}`)
     }
 
-    this.log('Clock out successful', { timeEntryId: updatedEntry.id, totalHours })
+    this.log('Clock out successful', {
+      timeEntryId: updatedEntry.id,
+      totalHours: paymentBreakdown.totalHours,
+      totalPay: paymentBreakdown.totalPay
+    })
     return updatedEntry
   }
 
