@@ -1,5 +1,6 @@
 // ==============================================
-// app/(dashboard)/dashboard/time-tracking/page.tsx - Member View - FIXED
+// app/(dashboard)/dashboard/time-tracking/page.tsx - FIXED VERSION
+// Using shared TimeEntryDetailsDialog component
 // ==============================================
 
 "use client"
@@ -8,13 +9,6 @@ import React, { useState, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { 
   Clock, 
   Calendar,
@@ -28,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { isAdmin } from '@/lib/permissions'
 import Link from 'next/link'
 import { useTimeEntries } from '@/hooks/time-tracking'
+import { TimeEntryDetailsDialog } from '@/components/time-tracking/TimeEntryDetailsDialog'
 import type { TimeEntrySummary } from '@/types/time-tracking'
 
 export default function TimeTrackingPage() {
@@ -118,6 +113,11 @@ export default function TimeTrackingPage() {
     setIsDetailOpen(true)
   }
 
+  const handleCloseDetails = () => {
+    setIsDetailOpen(false)
+    setSelectedEntry(null)
+  }
+
   // ==============================================
   // LOADING STATE
   // ==============================================
@@ -140,20 +140,20 @@ export default function TimeTrackingPage() {
   // ==============================================
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">My Time Tracking</h1>
-          <p className="text-gray-600">View your work hours and time entries</p>
+          <h1 className="text-3xl font-bold">Time Tracking</h1>
+          <p className="text-gray-600 mt-1">View and manage your time entries</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
           {userIsAdmin && (
             <Link href="/dashboard/time-tracking/admin">
-              <Button className="bg-orange-600 hover:bg-orange-700">
+              <Button size="sm">
                 Admin View
               </Button>
             </Link>
@@ -165,34 +165,34 @@ export default function TimeTrackingPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Week</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
             <Clock className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.weekHours}h</div>
-            <p className="text-xs text-muted-foreground">Hours worked</p>
+            <div className="text-2xl font-bold">{stats.totalHours}h</div>
+            <p className="text-xs text-gray-600">All time entries</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
-            <Timer className="h-4 w-4 text-green-600" />
+            <CardTitle className="text-sm font-medium">This Week</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalHours}h</div>
-            <p className="text-xs text-muted-foreground">All time</p>
+            <div className="text-2xl font-bold">{stats.weekHours}h</div>
+            <p className="text-xs text-gray-600">Current week</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending</CardTitle>
-            <TrendingUp className="h-4 w-4 text-yellow-600" />
+            <Timer className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.pendingCount}</div>
-            <p className="text-xs text-muted-foreground">Awaiting approval</p>
+            <p className="text-xs text-gray-600">Awaiting approval</p>
           </CardContent>
         </Card>
 
@@ -203,7 +203,7 @@ export default function TimeTrackingPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.approvedCount}</div>
-            <p className="text-xs text-muted-foreground">Entries approved</p>
+            <p className="text-xs text-gray-600">Ready for payroll</p>
           </CardContent>
         </Card>
       </div>
@@ -213,7 +213,7 @@ export default function TimeTrackingPage() {
         <CardHeader>
           <CardTitle>Time Entries</CardTitle>
           <CardDescription>
-            Your complete work history ({stats.totalEntries} {stats.totalEntries === 1 ? 'entry' : 'entries'})
+            {stats.totalEntries} {stats.totalEntries === 1 ? 'entry' : 'entries'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -247,9 +247,11 @@ export default function TimeTrackingPage() {
                       </td>
                       <td className="p-3">
                         <div>
-                          <p className="font-medium text-gray-900">{entry.projectName}</p>
-                          {entry.scheduleProjectTitle && (
-                            <p className="text-xs text-gray-500">{entry.scheduleProjectTitle}</p>
+                          <p className="font-medium text-gray-900">
+                            {(entry as any).project?.name || 'Unknown Project'}
+                          </p>
+                          {(entry as any).scheduleProject?.title && (
+                            <p className="text-xs text-gray-500">{(entry as any).scheduleProject.title}</p>
                           )}
                         </div>
                       </td>
@@ -288,92 +290,12 @@ export default function TimeTrackingPage() {
         </CardContent>
       </Card>
 
-      {/* Details Dialog */}
-      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Time Entry Details</DialogTitle>
-            <DialogDescription>
-              View information for this time entry
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedEntry && (
-            <div className="space-y-4">
-              {/* Basic Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Date</p>
-                  <p className="font-medium">{formatDate(selectedEntry.date)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Status</p>
-                  <Badge variant="outline" className={getStatusColor(selectedEntry.status)}>
-                    {getStatusLabel(selectedEntry.status)}
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Project Info */}
-              <div>
-                <p className="text-sm text-gray-500">Project</p>
-                <p className="font-medium">{selectedEntry.projectName}</p>
-                {selectedEntry.scheduleProjectTitle && (
-                  <p className="text-sm text-gray-600">{selectedEntry.scheduleProjectTitle}</p>
-                )}
-              </div>
-
-              {/* Time Info */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Start Time</p>
-                  <p className="font-medium">{formatTime(selectedEntry.startTime)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">End Time</p>
-                  <p className="font-medium">
-                    {selectedEntry.endTime ? formatTime(selectedEntry.endTime) : 'In Progress'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Total Hours</p>
-                  <p className="font-medium text-lg">
-                    {selectedEntry.totalHours ? `${selectedEntry.totalHours.toFixed(2)}h` : '-'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Additional Info */}
-              {(selectedEntry.workType || selectedEntry.trade) && (
-                <div className="grid grid-cols-2 gap-4 pt-2 border-t">
-                  {selectedEntry.workType && (
-                    <div>
-                      <p className="text-sm text-gray-500">Work Type</p>
-                      <p className="font-medium capitalize">{selectedEntry.workType}</p>
-                    </div>
-                  )}
-                  {selectedEntry.trade && (
-                    <div>
-                      <p className="text-sm text-gray-500">Trade</p>
-                      <p className="font-medium capitalize">{selectedEntry.trade}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Dialog Actions */}
-              <div className="flex justify-end pt-4 border-t">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setIsDetailOpen(false)}
-                >
-                  Close
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* FIXED: Use shared TimeEntryDetailsDialog component */}
+      <TimeEntryDetailsDialog
+        isOpen={isDetailOpen}
+        onClose={handleCloseDetails}
+        entry={selectedEntry}
+      />
     </div>
   )
 }

@@ -72,6 +72,9 @@ interface ClockInData {
   trade?: string
   description?: string
   clockInLocation?: { lat: number; lng: number }
+  regularRate?: number
+  overtimeRate?: number
+  doubleTimeRate?: number
 }
 
 interface ClockOutData {
@@ -145,12 +148,17 @@ export class TimeEntriesDatabaseService {
         overtime_hours: '0',
         double_time_hours: '0',
         total_hours: '0',
+
+        regular_rate: data.regularRate ? data.regularRate.toString() : null,
+        overtime_rate: data.overtimeRate ? data.overtimeRate.toString() : null,
+        double_time_rate: data.doubleTimeRate ? data.doubleTimeRate.toString() : null,
+        total_pay: null,
         status: 'clocked_in',
         work_type: data.workType || null,
         trade: data.trade || null,
         description: data.description || null,
         clock_in_location: clockInLocation,
-        worker_name: null, // Will be filled by user info
+        worker_name: null,
         is_system_user: true,
         created_by: data.userId,
         last_modified_by: data.userId,
@@ -165,7 +173,11 @@ export class TimeEntriesDatabaseService {
       throw new Error(`Failed to clock in: ${error.message}`)
     }
 
-    this.log('Clock in successful', { timeEntryId: timeEntry.id })
+    this.log('Clock in successful with rates stored', {
+      timeEntryId: timeEntry.id,
+      regularRate: data.regularRate,
+      overtimeRate: data.overtimeRate
+    })
     return timeEntry
   }
 

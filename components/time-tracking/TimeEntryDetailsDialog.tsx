@@ -1,5 +1,5 @@
 // ==============================================
-// components/time-tracking/TimeEntryDetailsDialog.tsx - REUSABLE DIALOG
+// components/time-tracking/TimeEntryDetailsDialog.tsx - FIXED FOR NESTED DATA
 // ==============================================
 
 "use client"
@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
-// Type for the entry - supports both nested and flat structures
+// Type for the entry - properly handles the nested structure from API
 interface TimeEntryForDialog {
   id: string
   date: string
@@ -29,14 +29,23 @@ interface TimeEntryForDialog {
   workCompleted?: string
   issuesEncountered?: string
   
-  // Support both flat and nested project structures
-  projectName?: string
-  scheduleProjectTitle?: string
+  // Nested structure from API
   project?: {
+    id: string
     name: string
+    status: string
+    projectNumber?: string
   }
   scheduleProject?: {
+    id: string
     title: string
+    status: string
+  } | null
+  worker?: {
+    id: string
+    firstName: string
+    lastName: string
+    email: string
   }
 }
 
@@ -55,9 +64,12 @@ export function TimeEntryDetailsDialog({
   // ==============================================
   // FORMAT FUNCTIONS
   // ==============================================
-  const formatTime = (time?: string) => {
+  const formatTime = (time?: string | null) => {
     if (!time) return '-'
-    const [hours, minutes] = time.split(':')
+    // Handle both HH:MM and HH:MM:SS formats
+    const parts = time.split(':')
+    const hours = parts[0]
+    const minutes = parts[1]
     const hour = parseInt(hours)
     const ampm = hour >= 12 ? 'PM' : 'AM'
     const displayHour = hour % 12 || 12
@@ -104,17 +116,21 @@ export function TimeEntryDetailsDialog({
     return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
   }
 
-  // Get project name - support both flat and nested structures
+  // ==============================================
+  // DATA EXTRACTION - Handle nested structure
+  // ==============================================
   const getProjectName = () => {
-    if (entry?.projectName) return entry.projectName
-    if ((entry as any)?.project?.name) return (entry as any).project.name
-    return 'Unknown Project'
+    return entry?.project?.name || 'Unknown Project'
   }
 
-  // Get schedule project title - support both flat and nested structures
   const getScheduleProjectTitle = () => {
-    if (entry?.scheduleProjectTitle) return entry.scheduleProjectTitle
-    if ((entry as any)?.scheduleProject?.title) return (entry as any).scheduleProject.title
+    return entry?.scheduleProject?.title || null
+  }
+
+  const getWorkerName = () => {
+    if (entry?.worker) {
+      return `${entry.worker.firstName} ${entry.worker.lastName}`
+    }
     return null
   }
 
@@ -149,16 +165,33 @@ export function TimeEntryDetailsDialog({
           </div>
 
           {/* Project Info */}
-          <div>
+          <div className="pt-2 border-t">
             <p className="text-sm text-gray-500">Project</p>
             <p className="font-medium">{getProjectName()}</p>
+            {entry.project?.projectNumber && (
+              <p className="text-xs text-gray-500">{entry.project.projectNumber}</p>
+            )}
             {getScheduleProjectTitle() && (
-              <p className="text-sm text-gray-600">{getScheduleProjectTitle()}</p>
+              <div className="mt-2">
+                <p className="text-sm text-gray-500">Schedule Task</p>
+                <p className="text-sm font-medium text-gray-700">{getScheduleProjectTitle()}</p>
+              </div>
             )}
           </div>
 
+          {/* Worker Info (if available) */}
+          {getWorkerName() && (
+            <div className="pt-2 border-t">
+              <p className="text-sm text-gray-500">Worker</p>
+              <p className="font-medium">{getWorkerName()}</p>
+              {entry.worker?.email && (
+                <p className="text-xs text-gray-500">{entry.worker.email}</p>
+              )}
+            </div>
+          )}
+
           {/* Time Info */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-4 pt-2 border-t">
             <div>
               <p className="text-sm text-gray-500">Start Time</p>
               <p className="font-medium">{formatTime(entry.startTime)}</p>
@@ -166,7 +199,9 @@ export function TimeEntryDetailsDialog({
             <div>
               <p className="text-sm text-gray-500">End Time</p>
               <p className="font-medium">
-                {entry.endTime ? formatTime(entry.endTime) : 'In Progress'}
+                {entry.endTime ? formatTime(entry.endTime) : (
+                  <span className="text-green-600">In Progress</span>
+                )}
               </p>
             </div>
             <div>
@@ -205,13 +240,13 @@ export function TimeEntryDetailsDialog({
               {entry.workType && (
                 <div>
                   <p className="text-sm text-gray-500">Work Type</p>
-                  <p className="font-medium capitalize">{entry.workType}</p>
+                  <p className="font-medium capitalize">{entry.workType.replace('_', ' ')}</p>
                 </div>
               )}
               {entry.trade && (
                 <div>
                   <p className="text-sm text-gray-500">Trade</p>
-                  <p className="font-medium capitalize">{entry.trade}</p>
+                  <p className="font-medium capitalize">{entry.trade.replace('_', ' ')}</p>
                 </div>
               )}
             </div>

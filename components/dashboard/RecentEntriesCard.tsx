@@ -1,5 +1,5 @@
 // ==============================================
-// components/dashboard/RecentEntriesCard.tsx - CORRECT DATA MAPPING
+// components/dashboard/RecentEntriesCard.tsx - COMPLETE WITH DIALOG
 // ==============================================
 
 "use client"
@@ -92,6 +92,19 @@ export function RecentEntriesCard() {
   }
 
   // ==============================================
+  // HANDLERS
+  // ==============================================
+  const handleViewDetails = (entry: any) => {
+    setSelectedEntry(entry)
+    setIsDetailOpen(true)
+  }
+
+  const handleCloseDetails = () => {
+    setIsDetailOpen(false)
+    setSelectedEntry(null)
+  }
+
+  // ==============================================
   // LOADING STATE
   // ==============================================
   if (isLoading) {
@@ -102,108 +115,110 @@ export function RecentEntriesCard() {
   // RENDER
   // ==============================================
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-              <History className="h-5 w-5 text-purple-600" />
-            </div>
-            <div>
-              <CardTitle className="text-base">Recent Entries</CardTitle>
-              <CardDescription className="text-sm">Your latest time entries</CardDescription>
-            </div>
-          </div>
-
-          {/* VIEW ALL BUTTON */}
-          <Link href="/dashboard/time-tracking">
-            <Button variant="ghost" size="sm" className="gap-2">
-              View All
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
-      </CardHeader>
-
-      <CardContent>
-        {recentEntries.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="font-medium">No time entries yet</p>
-            <p className="text-sm mt-1">Clock in to start tracking!</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {recentEntries.map((entry) => (
-              <div
-                key={entry.id}
-                className="flex items-start justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                {/* LEFT SIDE - Entry Details */}
-                <div className="flex-1 space-y-1">
-                  {/* Project Name - Access nested object */}
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="h-4 w-4 text-gray-400" />
-                    <p className="font-medium text-sm">
-                      {(entry as any).project?.name || 'Unknown Project'}
-                    </p>
-                  </div>
-
-                  {/* Schedule Project Title - Access nested object */}
-                  {(entry as any).scheduleProject?.title && (
-                    <p className="text-xs text-gray-500 ml-6">
-                      {(entry as any).scheduleProject.title}
-                    </p>
-                  )}
-
-                  {/* Date and Time */}
-                  <div className="flex items-center gap-3 ml-6 text-xs text-gray-600">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {formatDate(entry.date)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatTime(entry.startTime)} - {entry.endTime ? formatTime(entry.endTime) : 'In Progress'}
-                    </span>
-                  </div>
-
-                  {/* Work Type and Trade */}
-                  {(entry.workType || entry.trade) && (
-                    <div className="flex items-center gap-2 ml-6 text-xs">
-                      {entry.workType && (
-                        <span className="text-gray-600 capitalize">{entry.workType}</span>
-                      )}
-                      {entry.workType && entry.trade && (
-                        <span className="text-gray-400">•</span>
-                      )}
-                      {entry.trade && (
-                        <span className="text-gray-600 capitalize">{entry.trade}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* RIGHT SIDE - Hours and Status */}
-                <div className="flex flex-col items-end gap-2 ml-4">
-                  {/* Hours - Direct access from root level */}
-                  <div className="font-semibold text-sm text-gray-900">
-                    {entry.totalHours ? `${entry.totalHours.toFixed(1)}h` : '-'}
-                  </div>
-
-                  {/* Status Badge - Direct access from root level */}
-                  <Badge
-                    variant="outline"
-                    className={`text-xs ${getStatusColor(entry.status)}`}
-                  >
-                    {getStatusLabel(entry.status)}
-                  </Badge>
-                </div>
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                <History className="h-5 w-5 text-purple-600" />
               </div>
-            ))}
+              <div>
+                <CardTitle className="text-base">Recent Entries</CardTitle>
+                <CardDescription className="text-sm">Your latest time entries</CardDescription>
+              </div>
+            </div>
+
+            {/* VIEW ALL BUTTON */}
+            <Link href="/dashboard/time-tracking">
+              <Button variant="ghost" size="sm" className="gap-2">
+                View All
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardHeader>
+
+        <CardContent>
+          {recentEntries.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="font-medium">No time entries yet</p>
+              <p className="text-sm mt-1">Clock in from the dashboard to start tracking</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-gray-50">
+                    <th className="text-left p-3 font-medium text-sm">Date</th>
+                    <th className="text-left p-3 font-medium text-sm">Project</th>
+                    <th className="text-left p-3 font-medium text-sm">Time</th>
+                    <th className="text-left p-3 font-medium text-sm">Hours</th>
+                    <th className="text-left p-3 font-medium text-sm">Status</th>
+                    <th className="text-center p-3 font-medium text-sm">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentEntries.map((entry) => (
+                    <tr key={entry.id} className="border-b hover:bg-gray-50 transition-colors">
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-gray-400" />
+                          <span className="font-medium">{formatDate(entry.date)}</span>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {(entry as any).project?.name || 'Unknown Project'}
+                          </p>
+                          {(entry as any).scheduleProject?.title && (
+                            <p className="text-xs text-gray-500">{(entry as any).scheduleProject.title}</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <div className="text-sm">
+                          <p className="text-gray-900">
+                            {formatTime(entry.startTime)} - {entry.endTime ? formatTime(entry.endTime) : 'In Progress'}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <div className="font-semibold text-gray-900">
+                          {entry.totalHours ? `${entry.totalHours.toFixed(1)}h` : '-'}
+                        </div>
+                      </td>
+                      <td className="p-3">
+                        <Badge variant="outline" className={getStatusColor(entry.status)}>
+                          {getStatusLabel(entry.status)}
+                        </Badge>
+                      </td>
+                      <td className="p-3 text-center">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleViewDetails(entry)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* TIME ENTRY DETAILS DIALOG */}
+      <TimeEntryDetailsDialog
+        isOpen={isDetailOpen}
+        onClose={handleCloseDetails}
+        entry={selectedEntry}
+      />
+    </>
   )
 }

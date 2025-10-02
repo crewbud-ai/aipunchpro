@@ -1,5 +1,5 @@
 // ==============================================
-// app/api/time-entries/clock-in/route.ts - Clock In API Route
+// app/api/time-entries/clock-in/route.ts - UPDATED WITH RATE FETCHING
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -8,6 +8,7 @@ import {
   formatTimeEntryErrors,
 } from '@/lib/validations/time-tracking/time-entries'
 import { TimeEntriesDatabaseService } from '@/lib/database/services/time-entries'
+import { RateCalculationService } from '@/lib/database/services/rate-calculation'
 
 // ==============================================
 // POST /api/time-entries/clock-in - Clock In User
@@ -45,8 +46,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create service instance
+    // Create service instances
     const timeEntriesService = new TimeEntriesDatabaseService(true, false)
+    const rateService = new RateCalculationService(true) // ⭐ NEW SERVICE
 
     // Check if user has access to the project
     const hasProjectAccess = await timeEntriesService.checkProjectAccess(
@@ -79,19 +81,43 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Prepare clock in data
+    // Fetch hourly rates before clocking in
+    let rates
+    try {
+      rates = await rateService.getAllRates(userId, validation.data.projectId, companyId)
+      
+      console.log('✅ Rates fetched successfully:', {
+        regularRate: rates.regularRate,
+        overtimeRate: rates.overtimeRate,
+        source: rates.source
+      })
+    } catch (rateError) {
+      console.error('❌ Rate fetching error:', rateError)
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Rate not configured',
+          message: rateError instanceof Error 
+            ? rateError.message 
+            : 'No hourly rate found. Please contact your administrator to set up your rates.',
+        },
+        { status: 400 }
+      )
+    }
+
+    // Prepare clock in data with rates
     const clockInData = {
       companyId,
       userId,
       projectId: validation.data.projectId,
       scheduleProjectId: validation.data.scheduleProjectId,
-      workType: validation.data.workType,
-      trade: validation.data.trade,
       description: validation.data.description,
-      clockInLocation: validation.data.location,
+      regularRate: rates.regularRate,
+      overtimeRate: rates.overtimeRate,
+      doubleTimeRate: rates.doubleTimeRate,
     }
 
-    // Clock in user
+    // Clock in user (this will store the rates)
     const timeEntry = await timeEntriesService.clockIn(clockInData)
 
     // Get project and schedule project names for response
@@ -101,7 +127,7 @@ export async function POST(request: NextRequest) {
       ? clockInOptions.scheduleProjects.find((sp: any) => sp.id === validation.data.scheduleProjectId)
       : null
 
-    // Transform response
+    // Transform response with rates
     const response = {
       timeEntry: {
         id: timeEntry.id,
@@ -110,20 +136,25 @@ export async function POST(request: NextRequest) {
         startTime: timeEntry.start_time,
         status: timeEntry.status,
         date: timeEntry.date,
+        regularRate: rates.regularRate,
+        overtimeRate: rates.overtimeRate,
       },
       session: {
         id: timeEntry.id,
         projectName: project?.name || 'Unknown Project',
         scheduleProjectTitle: scheduleProject?.title,
         startTime: timeEntry.start_time,
-        duration: 0, // Just started
+        duration: 0,
+        regularRate: rates.regularRate,
+        overtimeRate: rates.overtimeRate,
+        rateSource: rates.source, // 'project_override' or 'user_default'
       }
     }
 
     return NextResponse.json(
       {
         success: true,
-        message: `Successfully clocked into ${project?.name || 'project'}`,
+        message: `Successfully clocked into ${project?.name || 'project'} at $${rates.regularRate}/hr`,
         data: response,
       },
       { status: 201 }
