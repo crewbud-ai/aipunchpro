@@ -424,6 +424,154 @@ export class TimeEntriesApi {
     }
   }
 
+
+  /**
+ * Approve a time entry
+ * @param timeEntryId The time entry ID to approve
+ */
+  static async approveTimeEntry(timeEntryId: string): Promise<{
+    success: boolean;
+    message: string;
+    data?: any;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/time-entries/${timeEntryId}/approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new ApiError(
+          response.status,
+          result.message || 'Failed to approve time entry'
+        )
+      }
+
+      // Show success toast
+      toast({
+        title: 'Time Entry Approved',
+        description: result.message || 'The time entry has been approved successfully.',
+      })
+
+      return result
+    } catch (error) {
+      if (error instanceof ApiError) {
+        toast({
+          title: 'Failed to Approve',
+          description: error.message,
+          variant: 'destructive',
+        })
+      }
+      throw error
+    }
+  }
+
+  /**
+ * Reject a time entry
+ * @param timeEntryId The time entry ID to reject
+ * @param reason The reason for rejection
+ */
+  static async rejectTimeEntry(
+    timeEntryId: string,
+    reason: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data?: any;
+  }> {
+    try {
+      if (!reason || reason.trim().length === 0) {
+        throw new Error('A reason is required to reject a time entry')
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/time-entries/${timeEntryId}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new ApiError(
+          response.status,
+          result.message || 'Failed to reject time entry'
+        )
+      }
+
+      // Show success toast
+      toast({
+        title: 'Time Entry Rejected',
+        description: result.message || 'The time entry has been rejected.',
+      })
+
+      return result
+    } catch (error) {
+      if (error instanceof ApiError) {
+        toast({
+          title: 'Failed to Reject',
+          description: error.message,
+          variant: 'destructive',
+        })
+      }
+      throw error
+    }
+  }
+
+  // /**
+  //  * Bulk approve multiple time entries
+  //  * @param timeEntryIds Array of time entry IDs to approve
+  //  */
+  // static async bulkApproveTimeEntries(timeEntryIds: string[]): Promise<{
+  //   success: boolean;
+  //   message: string;
+  //   data?: { approved: number; failed: number };
+  // }> {
+  //   try {
+  //     const response = await fetch(`${API_BASE_URL}/api/time-entries/bulk-approve`, {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify({ timeEntryIds }),
+  //     })
+
+  //     const result = await response.json()
+
+  //     if (!response.ok) {
+  //       throw new ApiError(
+  //         response.status,
+  //         result.message || 'Failed to approve time entries'
+  //       )
+  //     }
+
+  //     // Show success toast
+  //     toast({
+  //       title: 'Bulk Approval Complete',
+  //       description: `Approved ${result.data.approved} of ${timeEntryIds.length} entries.`,
+  //     })
+
+  //     return result
+  //   } catch (error) {
+  //     if (error instanceof ApiError) {
+  //       toast({
+  //         title: 'Bulk Approval Failed',
+  //         description: error.message,
+  //         variant: 'destructive',
+  //       })
+  //     }
+  //     throw error
+  //   }
+  // }
+
+
+
   // ==============================================
   // CONVENIENCE METHODS
   // ==============================================

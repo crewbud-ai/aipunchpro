@@ -1,5 +1,6 @@
 // ==============================================
-// components/time-tracking/TimeEntryDetailsDialog.tsx - FIXED FOR NESTED DATA
+// components/time-tracking/TimeEntryDetailsDialog.tsx
+// Updated to show payment/earnings information
 // ==============================================
 
 "use client"
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { DollarSign, Clock, TrendingUp } from "lucide-react"
 
 // Type for the entry - properly handles the nested structure from API
 interface TimeEntryForDialog {
@@ -22,6 +24,18 @@ interface TimeEntryForDialog {
   startTime?: string
   endTime?: string | null
   totalHours?: number
+  
+  // Hours breakdown
+  regularHours?: number
+  overtimeHours?: number
+  doubleTimeHours?: number
+  
+  // Rates & Payment
+  regularRate?: number
+  overtimeRate?: number
+  doubleTimeRate?: number
+  totalPay?: number
+  
   status: string
   workType?: string
   trade?: string
@@ -136,6 +150,12 @@ export function TimeEntryDetailsDialog({
 
   if (!entry) return null
 
+  // Calculate payment breakdown with proper null checks
+  const hasPaymentInfo = entry.totalPay !== undefined && entry.totalPay !== null
+  const regularPay = (entry.regularHours ?? 0) * (entry.regularRate ?? 0)
+  const overtimePay = (entry.overtimeHours ?? 0) * (entry.overtimeRate ?? 0)
+  const doubleTimePay = (entry.doubleTimeHours ?? 0) * (entry.doubleTimeRate ?? 0)
+
   // ==============================================
   // RENDER
   // ==============================================
@@ -145,7 +165,7 @@ export function TimeEntryDetailsDialog({
         <DialogHeader>
           <DialogTitle>Time Entry Details</DialogTitle>
           <DialogDescription>
-            View information for this time entry
+            View complete information for this time entry
           </DialogDescription>
         </DialogHeader>
         
@@ -211,6 +231,100 @@ export function TimeEntryDetailsDialog({
               </p>
             </div>
           </div>
+
+          {/* ⭐ NEW: Payment/Earnings Section */}
+          {hasPaymentInfo && (
+            <div className="pt-4 border-t">
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-green-900 flex items-center gap-2">
+                    <DollarSign className="h-4 w-4" />
+                    Earnings Breakdown
+                  </h3>
+                  <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                    {entry.status === 'approved' ? 'Approved' : 'Pending'}
+                  </Badge>
+                </div>
+
+                {/* Total Earnings */}
+                <div className="mb-4 pb-4 border-b border-green-200">
+                  <p className="text-xs text-green-700 mb-1">Total Earnings</p>
+                  <p className="text-3xl font-bold text-green-700">
+                    ${(entry.totalPay ?? 0).toFixed(2)}
+                  </p>
+                </div>
+
+                {/* Hours & Pay Breakdown */}
+                <div className="space-y-3">
+                  {/* Regular Hours */}
+                  {(entry.regularHours ?? 0) > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-200">
+                      <div>
+                        <p className="text-xs text-gray-600">Regular Hours</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {(entry.regularHours ?? 0).toFixed(2)}h × ${(entry.regularRate ?? 0).toFixed(2)}/hr
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-gray-900">
+                          ${regularPay.toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Overtime Hours */}
+                  {(entry.overtimeHours ?? 0) > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-300">
+                      <div>
+                        <p className="text-xs text-yellow-700 flex items-center gap-1">
+                          <TrendingUp className="h-3 w-3" />
+                          Overtime Hours
+                        </p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {(entry.overtimeHours ?? 0).toFixed(2)}h × ${(entry.overtimeRate ?? 0).toFixed(2)}/hr
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-yellow-800">
+                          ${overtimePay.toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Double Time Hours */}
+                  {(entry.doubleTimeHours ?? 0) > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-300">
+                      <div>
+                        <p className="text-xs text-red-700 flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          Double Time Hours
+                        </p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {(entry.doubleTimeHours ?? 0).toFixed(2)}h × ${(entry.doubleTimeRate ?? 0).toFixed(2)}/hr
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-red-800">
+                          ${doubleTimePay.toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Payment Status Note */}
+                <div className="mt-4 pt-3 border-t border-green-200">
+                  <p className="text-xs text-green-700 text-center">
+                    {entry.status === 'approved' 
+                      ? '✓ This payment has been approved and will be included in the next payroll' 
+                      : '💡 Earnings are pending approval by your administrator'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Work Details */}
           {entry.description && (

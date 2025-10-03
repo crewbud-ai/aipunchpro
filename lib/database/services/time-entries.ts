@@ -269,6 +269,157 @@ export class TimeEntriesDatabaseService {
   }
 
   // ==============================================
+  // APPROVE TIME ENTRY
+  // ==============================================
+  async approveTimeEntry(
+    timeEntryId: string,
+    approvedBy: string,
+    companyId: string
+  ): Promise<TimeEntryRow> {
+    this.log('Approving time entry', { timeEntryId, approvedBy, companyId })
+
+    // First, verify the time entry exists and belongs to the company
+    const { data: existingEntry, error: fetchError } = await this.supabaseClient
+      .from('time_entries')
+      .select('*')
+      .eq('id', timeEntryId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (fetchError || !existingEntry) {
+      this.log('Time entry not found', fetchError)
+      throw new Error('Time entry not found')
+    }
+
+    // Check if already approved
+    if (existingEntry.status === 'approved') {
+      this.log('Time entry already approved')
+      return existingEntry
+    }
+
+    // Check if entry has an end time (not currently clocked in)
+    if (!existingEntry.end_time) {
+      this.log('Cannot approve entry without end time')
+      throw new Error('Cannot approve an active time entry. Please clock out first.')
+    }
+
+    const now = new Date()
+
+    // Update the time entry
+    const { data: updatedEntry, error: updateError } = await this.supabaseClient
+      .from('time_entries')
+      .update({
+        status: 'approved',
+        approved_by: approvedBy,
+        approved_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      })
+      .eq('id', timeEntryId)
+      .select()
+      .single()
+
+    if (updateError) {
+      this.log('Approve time entry error', updateError)
+      throw new Error(`Failed to approve time entry: ${updateError.message}`)
+    }
+
+    this.log('Time entry approved successfully', {
+      timeEntryId: updatedEntry.id,
+      approvedBy,
+    })
+
+    return updatedEntry
+  }
+
+  // ==============================================
+  // REJECT TIME ENTRY
+  // ==============================================
+  async rejectTimeEntry(
+    timeEntryId: string,
+    rejectedBy: string,
+    companyId: string,
+    reason: string
+  ): Promise<TimeEntryRow> {
+    this.log('Rejecting time entry', { timeEntryId, rejectedBy, companyId, reason })
+
+    // First, verify the time entry exists and belongs to the company
+    const { data: existingEntry, error: fetchError } = await this.supabaseClient
+      .from('time_entries')
+      .select('*')
+      .eq('id', timeEntryId)
+      .eq('company_id', companyId)
+      .single()
+
+    if (fetchError || !existingEntry) {
+      this.log('Time entry not found', fetchError)
+      throw new Error('Time entry not found')
+    }
+
+    // Check if already rejected
+    if (existingEntry.status === 'rejected') {
+      this.log('Time entry already rejected')
+      return existingEntry
+    }
+
+    const now = new Date()
+
+    // Update the time entry
+    const { data: updatedEntry, error: updateError } = await this.supabaseClient
+      .from('time_entries')
+      .update({
+        status: 'rejected',
+        rejection_reason: reason,
+        approved_by: rejectedBy, // Track who rejected it
+        approved_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      })
+      .eq('id', timeEntryId)
+      .select()
+      .single()
+
+    if (updateError) {
+      this.log('Reject time entry error', updateError)
+      throw new Error(`Failed to reject time entry: ${updateError.message}`)
+    }
+
+    this.log('Time entry rejected successfully', {
+      timeEntryId: updatedEntry.id,
+      rejectedBy,
+      reason,
+    })
+
+    return updatedEntry
+  }
+
+  // ==============================================
+  // BULK APPROVE TIME ENTRIES
+  // ==============================================
+  async bulkApproveTimeEntries(
+    timeEntryIds: string[],
+    approvedBy: string,
+    companyId: string
+  ): Promise<{ approved: number; failed: number }> {
+    this.log('Bulk approving time entries', { count: timeEntryIds.length, approvedBy })
+
+    let approved = 0
+    let failed = 0
+
+    for (const entryId of timeEntryIds) {
+      try {
+        await this.approveTimeEntry(entryId, approvedBy, companyId)
+        approved++
+      } catch (error) {
+        this.log(`Failed to approve entry ${entryId}`, error)
+        failed++
+      }
+    }
+
+    this.log('Bulk approve completed', { approved, failed })
+
+    return { approved, failed }
+  }
+
+  // ==============================================
   // GET ACTIVE SESSION
   // ==============================================
   async getActiveSession(userId: string, companyId: string): Promise<any> {
