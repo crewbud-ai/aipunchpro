@@ -777,7 +777,7 @@ export const projectsApi = {
     }> {
         try {
             // Get all projects to calculate stats
-            const response = await this.getProjects({ limit: 1000 })
+            const response = await this.getProjects({ limit: 100 })
             const projects = response.data.projects
 
             const stats = {

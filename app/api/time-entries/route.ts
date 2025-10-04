@@ -174,9 +174,7 @@ export async function GET(request: NextRequest) {
       } : null,
     }))
 
-    console.log(transformedTimeEntries, 'transformedTimeEntries')
-    // console.log(result, 'result')
-
+    
     return NextResponse.json(
       {
         success: true,

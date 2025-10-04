@@ -12,7 +12,7 @@
 //   '/dashboard',
 //   '/profile',
 //   '/settings',
-  
+
 //   // API routes that require authentication
 //   '/api/user',
 //   '/api/company',
@@ -21,7 +21,7 @@
 //   '/api/schedule-projects',    // ← NEW: Schedule projects API
 //   '/api/punchlist-items',      // ← NEW: Punchlist items API
 //   '/api/protected',
-  
+
 //   // Additional API endpoints that might exist
 //   '/api/files',
 //   '/api/reports',
@@ -184,48 +184,71 @@ const protectedRoutes = [
   '/dashboard',
   '/profile',
   '/settings',
-  
+
   // API routes that require authentication
   '/api/user',
   '/api/company',
-  
+
   // Original API routes
   '/api/projects',
   '/api/team-members',
   '/api/schedule-projects',
   '/api/punchlist-items',
   '/api/protected',
-  
+  '/api/time-entries',
+
+  // Additional API endpoints
+  '/api/files',
+  '/api/reports',
+  '/api/notifications',
+  '/api/stats',
+
   // NEW: Coordinated status management routes
   '/api/projects/*/status-coordinated',
-  '/api/schedule-projects/*/status-coordinated', 
+  '/api/schedule-projects/*/status-coordinated',
   '/api/team-members/*/deactivate-coordinated',
   '/api/team-members/*/reactivate-coordinated',
   '/api/team-members/reassign-work',
   '/api/team-members/*/replacement-suggestions',
-  
+
   // NEW: Status validation and analysis routes
   '/api/projects/*/validate-status-change',
   '/api/schedule-projects/*/validate-dependencies',
   '/api/schedule-projects/*/completion-readiness',
   '/api/projects/*/status-summary',
-  
+
   // NEW: Bulk operations routes
   '/api/projects/bulk-status-update',
   '/api/schedule-projects/bulk-status-update',
   '/api/team-members/bulk-deactivate',
   '/api/team-members/bulk-role-change',
-  
+
   // NEW: Cross-module coordination routes
   '/api/coordination/status-sync',
   '/api/coordination/validate-consistency',
   '/api/coordination/impact-analysis',
-  
-  // Additional API endpoints that might exist
-  '/api/files',
-  '/api/reports',
-  '/api/notifications',
-  '/api/stats',
+]
+
+// ==============================================
+// ADMIN-ONLY ROUTES (New Feature)
+// ==============================================
+const adminOnlyRoutes = [
+  '/dashboard/admin',
+  '/dashboard/payroll',
+  '/dashboard/team',
+  '/dashboard/settings',
+  '/api/team-members/stats',
+  '/api/projects/stats',
+  '/api/time-entries/*/approve',
+  '/api/time-entries/*/reject',
+]
+
+// ==============================================
+// MEMBER-ONLY ROUTES (Admins redirected away)
+// ==============================================
+const memberOnlyRoutes = [
+  '/dashboard/member',
+  '/dashboard/time-tracking',
 ]
 
 // Public routes that don't require authentication
@@ -242,6 +265,18 @@ const publicRoutes = [
   '/api/health', // Health check endpoint (if exists)
   '/api/status', // Status endpoint (if exists)
 ]
+
+// ==============================================
+// HELPER: Check if path matches pattern (supports wildcards)
+// ==============================================
+function matchesPattern(pathname: string, pattern: string): boolean {
+  if (pattern.includes('*')) {
+    const regexPattern = pattern.replace(/\*/g, '[^/]+')
+    const regex = new RegExp(`^${regexPattern}$`)
+    return regex.test(pathname)
+  }
+  return pathname.startsWith(pattern)
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -260,19 +295,8 @@ export async function middleware(request: NextRequest) {
   const sessionToken = request.cookies.get('sessionToken')?.value
 
   // Check if route requires authentication - UPDATED to handle wildcard patterns
-  const isProtectedRoute = protectedRoutes.some(route => {
-    if (route.includes('*')) {
-      // Convert wildcard pattern to regex
-      const regexPattern = route.replace(/\*/g, '[^/]+')
-      const regex = new RegExp(`^${regexPattern}$`)
-      return regex.test(pathname)
-    }
-    return pathname.startsWith(route)
-  })
-
-  const isPublicRoute = publicRoutes.some(route =>
-    pathname === route || pathname.startsWith(route)
-  )
+  const isProtectedRoute = protectedRoutes.some(route => matchesPattern(pathname, route))
+  const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route))
 
   // If it's a protected route and no token, redirect to login
   if (isProtectedRoute && !sessionToken) {
@@ -303,7 +327,7 @@ export async function middleware(request: NextRequest) {
       // FIX: Add type guard to ensure data exists before accessing user
       if (!sessionValidation.data) {
         console.log('Session validation missing data')
-        
+
         const response = isProtectedRoute
           ? NextResponse.redirect(new URL('/auth/login', request.url))
           : NextResponse.next()
@@ -315,14 +339,47 @@ export async function middleware(request: NextRequest) {
 
       // NOW we can safely access sessionValidation.data
       const { user } = sessionValidation.data
+      const userRole = user?.role
+
+      // ==============================================
+      // NEW: ROLE-BASED ROUTE PROTECTION
+      // ==============================================
+
+      // Check if route is admin-only
+      const isAdminRoute = adminOnlyRoutes.some(route => matchesPattern(pathname, route))
       
+      // Check if route is member-only
+      const isMemberRoute = memberOnlyRoutes.some(route => matchesPattern(pathname, route))
+
+      // PROTECTION: Admin-only routes
+      if (isAdminRoute && userRole) {
+        const isAdmin = userRole === 'super_admin' || userRole === 'admin'
+        
+        if (!isAdmin) {
+          // Non-admins trying to access admin routes → Redirect to member dashboard
+          console.log(`Non-admin (${userRole}) blocked from: ${pathname}`)
+          return NextResponse.redirect(new URL('/dashboard/member', request.url))
+        }
+      }
+
+      // PROTECTION: Member-only routes (admins should use admin dashboard)
+      if (isMemberRoute && userRole) {
+        const isAdmin = userRole === 'super_admin' || userRole === 'admin'
+        
+        if (isAdmin) {
+          // Admins trying to access member routes → Redirect to admin dashboard
+          console.log(`Admin blocked from member route: ${pathname}`)
+          return NextResponse.redirect(new URL('/dashboard/admin', request.url))
+        }
+      }
+
       // Clone the request headers
       const requestHeaders = new Headers(request.headers)
-      
+
       // Add session info to headers
       requestHeaders.set('x-user-id', sessionValidation.data.userId || user?.id)
       requestHeaders.set('x-session-id', sessionValidation.data.sessionId)
-      
+
       // Add user information to headers for API consumption
       if (user) {
         // RESTORED: Company ID handling from previous version
@@ -331,15 +388,15 @@ export async function middleware(request: NextRequest) {
         } else if (user.company?.id) {
           requestHeaders.set('x-company-id', user.company.id)
         }
-        
+
         if (user.role) {
           requestHeaders.set('x-user-role', user.role)
         }
-        
+
         if (user.email) {
           requestHeaders.set('x-user-email', user.email)
         }
-        
+
         // NEW: Add user permissions for coordinated operations
         if (user.permissions) {
           let permissionsString = user.permissions
@@ -348,7 +405,7 @@ export async function middleware(request: NextRequest) {
           }
           requestHeaders.set('x-user-permissions', permissionsString)
         }
-        
+
         // NEW: Add user name for audit trails in coordinated operations
         if (user.first_name && user.last_name) {
           requestHeaders.set('x-user-name', `${user.first_name} ${user.last_name}`)
@@ -438,7 +495,7 @@ export function hasCoordinationPermission(
   try {
     const permissionsStr = request.headers.get('x-user-permissions')
     if (!permissionsStr) return false
-    
+
     const permissions = JSON.parse(permissionsStr)
     return permissions[requiredPermission.category]?.[requiredPermission.permission] === true
   } catch {
@@ -457,7 +514,7 @@ export function createCoordinationAuditEntry(
   details?: any
 ) {
   const context = getCoordinationContext(request)
-  
+
   return {
     userId: context.userId,
     companyId: context.companyId,

@@ -719,16 +719,86 @@ export class TeamMemberDatabaseService {
     // STATISTICS & ANALYTICS
     // ==============================================
 
+    // async getTeamMemberStats(companyId: string) {
+    //     const { data: users, error } = await this.supabaseClient
+    //         .from('users')
+    //         .select(`
+    //     *,
+    //     project_memberships:project_members(
+    //       id,
+    //       status
+    //     )
+    //   `)
+    //         .eq('company_id', companyId)
+
+    //     if (error) throw error
+
+    //     const roleCounts = {
+    //         super_admin: 0,
+    //         admin: 0,
+    //         supervisor: 0,
+    //         member: 0,
+    //     }
+
+    //     const statusCounts = {
+    //         active: 0,
+    //         inactive: 0,
+    //     }
+
+    //     const assignmentCounts = {
+    //         not_assigned: 0,
+    //         assigned: 0,
+    //         inactive: 0,
+    //     }
+
+    //     const tradeSpecialties: Record<string, number> = {}
+
+    //     users.forEach(user => {
+    //         // Role counts
+    //         roleCounts[user.role as keyof typeof roleCounts]++
+
+    //         // Status counts
+    //         statusCounts[user.is_active ? 'active' : 'inactive']++
+
+    //         // Assignment status counts
+    //         const activeAssignments = user.project_memberships?.filter((pm: any) => pm.status === 'active') || []
+    //         const assignmentStatus = calculateTeamMemberStatus(user.is_active, activeAssignments.length)
+    //         assignmentCounts[assignmentStatus]++
+
+    //         // Trade specialty counts
+    //         if (user.trade_specialty) {
+    //             tradeSpecialties[user.trade_specialty] = (tradeSpecialties[user.trade_specialty] || 0) + 1
+    //         }
+    //     })
+
+    //     const topTradeSpecialties = Object.entries(tradeSpecialties)
+    //         .sort(([, a], [, b]) => b - a)
+    //         .slice(0, 5)
+    //         .map(([name, count]) => ({ name, count }))
+
+    //     return {
+    //         totalTeamMembers: users.length,
+    //         byRole: roleCounts,
+    //         byStatus: statusCounts,
+    //         byAssignmentStatus: assignmentCounts,
+    //         topTradeSpecialties,
+    //         averageHourlyRate: users.length > 0
+    //             ? Math.round((users.reduce((sum, u) => sum + (u.hourly_rate || 0), 0) / users.length) * 100) / 100
+    //             : 0,
+    //     }
+    // }
+
     async getTeamMemberStats(companyId: string) {
+        // FIXED: Specify the exact foreign key relationship to avoid ambiguity
         const { data: users, error } = await this.supabaseClient
             .from('users')
             .select(`
-        *,
-        project_memberships:project_members(
-          id,
-          status
-        )
-      `)
+            *,
+            project_memberships:project_members!project_members_user_id_users_id_fk(
+                id,
+                status
+            )
+        `)
             .eq('company_id', companyId)
 
         if (error) throw error
@@ -760,31 +830,49 @@ export class TeamMemberDatabaseService {
             // Status counts
             statusCounts[user.is_active ? 'active' : 'inactive']++
 
-            // Assignment status counts
-            const activeAssignments = user.project_memberships?.filter((pm: any) => pm.status === 'active') || []
-            const assignmentStatus = calculateTeamMemberStatus(user.is_active, activeAssignments.length)
-            assignmentCounts[assignmentStatus]++
+            // Assignment counts
+            const activeProjectMemberships = user.project_memberships?.filter(
+                (pm: any) => pm.status === 'active'
+            ).length || 0
+
+            if (!user.is_active) {
+                assignmentCounts.inactive++
+            } else if (activeProjectMemberships === 0) {
+                assignmentCounts.not_assigned++
+            } else {
+                assignmentCounts.assigned++
+            }
 
             // Trade specialty counts
             if (user.trade_specialty) {
-                tradeSpecialties[user.trade_specialty] = (tradeSpecialties[user.trade_specialty] || 0) + 1
+                tradeSpecialties[user.trade_specialty] =
+                    (tradeSpecialties[user.trade_specialty] || 0) + 1
             }
         })
 
-        const topTradeSpecialties = Object.entries(tradeSpecialties)
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, 5)
-            .map(([name, count]) => ({ name, count }))
+        // Calculate recently added (last 30 days)
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+        const recentlyAdded = users.filter(user =>
+            new Date(user.created_at) >= thirtyDaysAgo
+        ).length
+
+        // Calculate average hourly rate (only for active members with rates)
+        const usersWithRates = users.filter(u => u.is_active && u.hourly_rate)
+        const averageHourlyRate = usersWithRates.length > 0
+            ? usersWithRates.reduce((sum, u) => sum + parseFloat(u.hourly_rate || '0'), 0) / usersWithRates.length
+            : undefined
 
         return {
-            totalTeamMembers: users.length,
-            byRole: roleCounts,
-            byStatus: statusCounts,
-            byAssignmentStatus: assignmentCounts,
-            topTradeSpecialties,
-            averageHourlyRate: users.length > 0
-                ? Math.round((users.reduce((sum, u) => sum + (u.hourly_rate || 0), 0) / users.length) * 100) / 100
-                : 0,
+            totalMembers: users.length,
+            activeMembers: statusCounts.active,
+            inactiveMembers: statusCounts.inactive,
+            assignedMembers: assignmentCounts.assigned,
+            unassignedMembers: assignmentCounts.not_assigned,
+            membersByRole: Object.entries(roleCounts).map(([role, count]) => ({ role, count })),
+            membersByTrade: Object.entries(tradeSpecialties).map(([trade, count]) => ({ trade, count })),
+            averageHourlyRate,
+            recentlyAdded,
         }
     }
 

@@ -43,6 +43,8 @@ import {
   Calculator,
   Cog,
   ShieldCheck,
+  BarChart3,
+  Clock,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -51,7 +53,7 @@ import { Suspense } from "react"
 import { useDashboard } from "@/hooks/dashboard/use-dashboard"
 
 // Import permissions system
-import { canViewMenuItem, hasPermission, getCurrentPermissions } from "@/lib/permissions"
+import { canViewMenuItem, hasPermission, getCurrentPermissions, isAdmin, isSuperAdmin, getCurrentRole } from "@/lib/permissions"
 
 // Navigation structure with permissions and submenus
 const navigation = [
@@ -59,8 +61,17 @@ const navigation = [
     name: "Dashboard",
     href: "/dashboard",
     icon: Home,
-    show: () => true, // Dashboard always visible
+    show: () => true, // Dashboard always visible (will redirect based on role)
   },
+  // ==============================================
+  // ADMIN-ONLY: Admin Dashboard Link
+  // ==============================================
+  // {
+  //   name: "Admin Overview",
+  //   href: "/dashboard/admin",
+  //   icon: BarChart3,
+  //   show: () => isAdmin() || isSuperAdmin(), // Only admins see this
+  // },
   {
     name: "Projects",
     href: "/dashboard/projects",
@@ -141,26 +152,46 @@ const navigation = [
       },
     ]
   },
+  // ==============================================
+  // ROLE-BASED: Time Tracking vs Payroll
+  // ==============================================
+  {
+    name: "Time Tracking",
+    href: "/dashboard/time-tracking",
+    icon: Clock,
+    // Show to non-admins (member, supervisor)
+    show: () => {
+      const role = getCurrentRole()
+      return role === 'member' || role === 'supervisor'
+    },
+  },
   {
     name: "Payroll",
     href: "/dashboard/payroll",
     icon: DollarSign,
-    show: () => hasPermission('financials', 'view'),
-    subItems: [
-      {
-        name: "View Payroll",
-        href: "/dashboard/payroll",
-        icon: DollarSign,
-        show: () => hasPermission('financials', 'view'),
-      },
-      {
-        name: "Calculate Pay",
-        href: "/dashboard/payroll/calculate",
-        icon: Calculator,
-        show: () => hasPermission('financials', 'edit'),
-      },
-    ]
+    show: () => isAdmin() || isSuperAdmin(), // Only admins see this
   },
+  // {
+  //   name: "Payroll",
+  //   href: "/dashboard/payroll",
+  //   icon: DollarSign,
+  //   // Show to admins only
+  //   show: () => isAdmin() || isSuperAdmin(),
+  //   subItems: [
+  //     {
+  //       name: "Review & Approve",
+  //       href: "/dashboard/payroll",
+  //       icon: DollarSign,
+  //       show: () => hasPermission('financials', 'view'),
+  //     },
+  //     {
+  //       name: "Calculate Pay",
+  //       href: "/dashboard/payroll/calculate",
+  //       icon: Calculator,
+  //       show: () => hasPermission('financials', 'edit'),
+  //     },
+  //   ]
+  // },
   {
     name: "AI Assistant",
     href: "/dashboard/ai",
@@ -168,7 +199,6 @@ const navigation = [
     show: () => true, // AI Assistant available to all
   },
 ]
-
 // Settings menu items (separate from main nav)
 // const settingsNavigation = [
 //   {
@@ -239,7 +269,7 @@ function SidebarNavigation({ isMobile = false, onItemClick }: { isMobile?: boole
                 <Button
                   variant="ghost"
                   className={cn(
-                    "w-full justify-between text-left font-medium",
+                    "w-full px-2 justify-between text-left font-medium",
                     isActive
                       ? "bg-orange-100 text-orange-900"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -494,14 +524,6 @@ export default function DashboardLayout({
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
                   </DropdownMenuItem>
-
-                  {/* Settings dropdown - only show if user has settings permissions */}
-                  {hasPermission('admin', 'companySettings') && (
-                    <DropdownMenuItem onClick={goToSettings} className="cursor-pointer">
-                      <Settings className="mr-2 h-4 w-4" />
-                      <span>Settings</span>
-                    </DropdownMenuItem>
-                  )}
 
                   <DropdownMenuSeparator />
 
