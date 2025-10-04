@@ -9,12 +9,12 @@ import React, { useState, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { 
-  DollarSign, 
-  Clock, 
-  Users, 
-  TrendingUp, 
-  Download, 
+import {
+  DollarSign,
+  Clock,
+  Users,
+  TrendingUp,
+  Download,
   Play,
   Check,
   X,
@@ -23,7 +23,8 @@ import {
   Calendar,
   AlertCircle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Loader
 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useTimeEntries } from '@/hooks/time-tracking'
@@ -32,18 +33,23 @@ import { TimeEntriesApi } from '@/lib/api/time-entries'
 import type { TimeEntrySummary } from '@/types/time-tracking'
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
+import { payrollReportsApi } from '@/lib/api/payroll'
+import { FileSpreadsheet } from "lucide-react"
+import { toast } from '@/hooks/use-toast'
+
 export default function PayrollPage() {
   // ==============================================
   // STATE & HOOKS
   // ==============================================
   const { timeEntries, isLoading, refreshTimeEntries } = useTimeEntries()
-  
+
   const [selectedEntry, setSelectedEntry] = useState<TimeEntrySummary | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved'>('all')
   const [isApproving, setIsApproving] = useState<string | null>(null)
   const [isRejecting, setIsRejecting] = useState<string | null>(null)
   const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set())
+  const [isExporting, setIsExporting] = useState(false)
 
   // ==============================================
   // FILTER & GROUP TIME ENTRIES BY EMPLOYEE
@@ -106,7 +112,7 @@ export default function PayrollPage() {
       employee.overtimeHours += entry.overtimeHours ?? 0
       employee.doubleTimeHours += entry.doubleTimeHours ?? 0
       employee.totalPay += entry.totalPay ?? 0
-      
+
       if (entry.status === 'pending' || entry.status === 'clocked_out') {
         employee.pendingCount++
       } else if (entry.status === 'approved') {
@@ -122,6 +128,45 @@ export default function PayrollPage() {
 
     return Array.from(grouped.values()).sort((a, b) => b.totalPay - a.totalPay)
   }, [filteredEntries])
+
+
+  // ==============================================
+  // QUICK EXPORT HANDLER
+  // ==============================================
+  const handleQuickExport = async () => {
+    setIsExporting(true)
+
+    try {
+      // Calculate date range for current period (this month)
+      const now = new Date()
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
+      const filters = {
+        startDate: startOfMonth.toISOString().split('T')[0],
+        endDate: endOfMonth.toISOString().split('T')[0],
+        status: filterStatus === 'all' ? undefined : filterStatus,
+        includeNotes: true,
+        includeDetailedEntries: true
+      }
+
+      await payrollReportsApi.exportPayrollCSV(filters, 'payroll-export-current-period')
+
+      toast({
+        title: "Export Successful",
+        description: "Payroll data has been exported to CSV.",
+      })
+    } catch (error) {
+      console.error('Export error:', error)
+      toast({
+        title: "Export Failed",
+        description: "Failed to export payroll data. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   // ==============================================
   // CALCULATE SUMMARY STATS
@@ -161,7 +206,7 @@ export default function PayrollPage() {
     if (!reason || reason.trim().length === 0) {
       return
     }
-    
+
     setIsRejecting(entryId)
     try {
       await TimeEntriesApi.rejectTimeEntry(entryId, reason)
@@ -201,8 +246,8 @@ export default function PayrollPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       year: 'numeric'
     })
@@ -237,9 +282,20 @@ export default function PayrollPage() {
           <p className="text-gray-600 mt-1">Review and approve employee timesheets</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Export
+          <Button
+            variant="outline"
+            onClick={handleQuickExport}
+            disabled={isExporting || timeEntries.length === 0}
+          >
+            {isExporting ? (
+              <>
+                <Loader /> Exporting...
+              </>
+            ) : (
+              <>
+                <FileSpreadsheet /> Export CSV
+              </>
+            )}
           </Button>
           <Button className="bg-orange-600 hover:bg-orange-700">
             <Play className="mr-2 h-4 w-4" />
@@ -377,10 +433,10 @@ export default function PayrollPage() {
             <div className="space-y-4">
               {employeePayrollData.map((employee) => {
                 const isExpanded = expandedEmployees.has(employee.userId)
-                
+
                 return (
                   <Card key={employee.userId} className="border-2">
-                    <CardHeader 
+                    <CardHeader
                       className="pb-3 cursor-pointer hover:bg-gray-50 transition-colors"
                       onClick={() => toggleEmployeeExpanded(employee.userId)}
                     >
@@ -499,8 +555,8 @@ export default function PayrollPage() {
                                           entry.status === 'approved'
                                             ? 'bg-green-100 text-green-800 border-green-300'
                                             : entry.status === 'rejected'
-                                            ? 'bg-red-100 text-red-800 border-red-300'
-                                            : 'bg-yellow-100 text-yellow-800 border-yellow-300'
+                                              ? 'bg-red-100 text-red-800 border-red-300'
+                                              : 'bg-yellow-100 text-yellow-800 border-yellow-300'
                                         }
                                       >
                                         {entry.status === 'clocked_out' ? 'Pending' : entry.status}
