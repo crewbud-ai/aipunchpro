@@ -34,7 +34,7 @@
 //     isLoading, 
 //     timeEntryStats
 //   } = useTimeEntries()
-  
+
 //   // ==============================================
 //   // LOCAL STATE
 //   // ==============================================
@@ -311,8 +311,8 @@
 import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { 
-  Clock, 
+import {
+  Clock,
   Download,
   TrendingUp,
   DollarSign,
@@ -324,18 +324,25 @@ import { isAdmin } from '@/lib/permissions'
 import Link from 'next/link'
 import { useTimeEntries } from '@/hooks/time-tracking'
 import { TimeEntriesTable } from '@/components/time-tracking'
+import { PersonalTimesheetExport } from '@/components/time-tracking'
+import { useProfile } from '@/hooks/dashboard/use-profile'
 
 export default function TimeTrackingPage() {
   // ==============================================
   // HOOKS
   // ==============================================
-  const { 
-    timeEntries, 
-    isLoading, 
+  const {
+    timeEntries,
+    isLoading,
     timeEntryStats
   } = useTimeEntries()
-  
-  const userIsAdmin = isAdmin()
+
+  const userIsAdmin = isAdmin();
+
+  // Get current user from profile hook
+  const { profile } = useProfile()
+  const userId = profile?.id
+
 
   // ==============================================
   // CALCULATE STATS WITH EARNINGS
@@ -394,13 +401,18 @@ export default function TimeTrackingPage() {
           <h1 className="text-3xl font-bold">Time Tracking</h1>
           <p className="text-gray-600 mt-1">View and manage your time entries</p>
         </div>
+
+        {/* Export buttons - ONLY FOR MEMBERS */}
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
+          {!userIsAdmin && userId && (
+            <PersonalTimesheetExport
+              userId={userId}
+              userName={`${profile?.firstName} ${profile?.lastName}`}
+            />
+          )}
+
           {userIsAdmin && (
-            <Link href="/dashboard/time-tracking/admin">
+            <Link href="/dashboard/payroll">
               <Button size="sm">
                 Admin View
               </Button>

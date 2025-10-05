@@ -1,5 +1,6 @@
 // ==============================================
 // app/api/reports/payroll/export/route.ts - CSV Export API Route
+// UPDATED: Allow members to export their own data
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -20,6 +21,8 @@ export async function POST(request: NextRequest) {
     const companyId = request.headers.get('x-company-id')
     const userRole = request.headers.get('x-user-role')
 
+    console.log(userRole, 'userRole')
+
     if (!userId || !companyId) {
       return NextResponse.json(
         {
@@ -28,18 +31,6 @@ export async function POST(request: NextRequest) {
           message: 'You must be logged in to export payroll reports.',
         },
         { status: 401 }
-      )
-    }
-
-    // Check if user has admin privileges
-    if (!['super_admin', 'admin'].includes(userRole || '')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Insufficient permissions',
-          message: 'Only administrators can export payroll reports.',
-        },
-        { status: 403 }
       )
     }
 
@@ -60,6 +51,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // UPDATED: Permission check - Allow members to export their own data
+    const isAdmin = ['super_admin', 'admin'].includes(userRole || '')
+    const requestedUserId = validation.data.userId
+    const isExportingOwnData = requestedUserId === userId
+
+    // If not admin, they can ONLY export their own data
+    if (!isAdmin) {
+      // Members must specify a userId
+      if (!requestedUserId) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Insufficient permissions',
+            message: 'You can only export your own timesheet data.',
+          },
+          { status: 403 }
+        )
+      }
+
+      // Members can only export their own data
+      if (!isExportingOwnData) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Insufficient permissions',
+            message: 'You can only export your own timesheet data.',
+          },
+          { status: 403 }
+        )
+      }
+    }
+
     // Create service instance
     const reportsService = new PayrollReportsDatabaseService(true, false, false)
 
@@ -68,7 +91,8 @@ export async function POST(request: NextRequest) {
       startDate: validation.data.startDate,
       endDate: validation.data.endDate,
       projectId: validation.data.projectId || undefined,
-      userId: validation.data.userId || undefined,
+      // SECURITY: Force userId for non-admins to prevent data leakage
+      userId: isAdmin ? (validation.data.userId || undefined) : userId,
       status: validation.data.status || 'all',
       includeNotes: validation.data.includeNotes ?? true,
       includeDetailedEntries: validation.data.includeDetailedEntries ?? true,
@@ -82,16 +106,16 @@ export async function POST(request: NextRequest) {
     )
 
     // Check if report has data
-    if (report.summary.totalEntries === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'No data',
-          message: 'No time entries found for the selected period.',
-        },
-        { status: 404 }
-      )
-    }
+    // if (report.summary.totalEntries === 0) {
+    //   return NextResponse.json(
+    //     {
+    //       success: true,
+    //       error: 'No data',
+    //       message: 'No time entries found for the selected period.',
+    //     },
+    //     { status: 200 }
+    //   )
+    // }
 
     // Generate CSV content
     const csvOptions = {

@@ -68,6 +68,7 @@ import { ProjectStatusManager } from "@/components/projects/ProjectStatusManager
 import { ProjectTeamMembers } from "./components/team-member/ProjectTeamMembers"
 import { ProjectTasks } from "./components/project-task/ProjectTasks"
 import { ProjectFiles } from "./components/blueprints/ProjectFiles"
+import { ProjectReports } from "./components/reports/ProjectReports"
 
 // ADDED: Import permission utilities
 import { hasPermission, canUseFeature, withPermission, withFeature } from "@/lib/permissions"
@@ -844,25 +845,11 @@ export default function ProjectPage() {
 
         {canViewReports && (
           <TabsContent value="reports">
-            <Card>
-              <CardHeader>
-                <CardTitle>Project Reports</CardTitle>
-                <CardDescription>Analytics and performance reports</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <FileText className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No reports generated</h3>
-                  <p className="text-gray-600 mb-4">Generate detailed reports on project progress and performance.</p>
-                  {hasPermission('reports', 'generate') && (
-                    <Button>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Generate Report
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <ProjectReports
+              projectId={projectId}
+              projectName={project.name}
+              projectStatus={project.status}
+            />
           </TabsContent>
         )}
       </Tabs>

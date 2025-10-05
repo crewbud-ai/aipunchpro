@@ -1,5 +1,5 @@
 // ==============================================
-// lib/database/services/reports/payroll-reports.ts - Payroll Reports Database Service
+// lib/database/services/payroll-reports.ts - FIXED VERSION
 // ==============================================
 
 import { createServerClient, createAdminClient } from '@/lib/supabase/server'
@@ -37,7 +37,7 @@ export class PayrollReportsDatabaseService {
   }
 
   // ==============================================
-  // 1. TIME BY PERSON (Employee Breakdown)
+  // 1. TIME BY PERSON (Employee Breakdown) - FIXED
   // ==============================================
   async getTimeByPerson(
     companyId: string,
@@ -45,6 +45,7 @@ export class PayrollReportsDatabaseService {
   ): Promise<PayrollReportByPerson[]> {
     this.log('Fetching time by person', { companyId, filters })
 
+    // FIXED: Correct foreign key names
     let query = this.supabaseClient
       .from('time_entries')
       .select(`
@@ -53,19 +54,19 @@ export class PayrollReportsDatabaseService {
         overtime_hours,
         double_time_hours,
         total_hours,
+        total_pay,
         regular_rate,
         overtime_rate,
         double_time_rate,
-        total_pay,
         project_id,
-        worker:users!time_entries_user_id_fkey (
+        worker:users!time_entries_user_id_users_id_fk (
           id,
           first_name,
           last_name,
           email,
           trade_specialty
         ),
-        project:projects!time_entries_project_id_fkey (
+        project:projects!time_entries_project_id_projects_id_fk (
           id,
           name
         )
@@ -217,7 +218,7 @@ export class PayrollReportsDatabaseService {
   }
 
   // ==============================================
-  // 2. TIME BY PROJECT (Project Breakdown)
+  // 2. TIME BY PROJECT (Project Breakdown) - FIXED
   // ==============================================
   async getTimeByProject(
     companyId: string,
@@ -225,6 +226,7 @@ export class PayrollReportsDatabaseService {
   ): Promise<PayrollReportByProject[]> {
     this.log('Fetching time by project', { companyId, filters })
 
+    // FIXED: Correct foreign key names
     let query = this.supabaseClient
       .from('time_entries')
       .select(`
@@ -235,13 +237,13 @@ export class PayrollReportsDatabaseService {
         double_time_hours,
         total_hours,
         total_pay,
-        project:projects!time_entries_project_id_fkey (
+        project:projects!time_entries_project_id_projects_id_fk (
           id,
           name,
           project_number,
           status
         ),
-        worker:users!time_entries_user_id_fkey (
+        worker:users!time_entries_user_id_users_id_fk (
           id,
           first_name,
           last_name
@@ -537,7 +539,7 @@ export class PayrollReportsDatabaseService {
   }
 
   // ==============================================
-  // 4. OVERTIME SUMMARY
+  // 4. OVERTIME SUMMARY - FIXED
   // ==============================================
   async getOvertimeSummary(
     companyId: string,
@@ -545,6 +547,7 @@ export class PayrollReportsDatabaseService {
   ): Promise<OvertimeSummary[]> {
     this.log('Fetching overtime summary', { companyId, filters })
 
+    // FIXED: Correct foreign key names
     let query = this.supabaseClient
       .from('time_entries')
       .select(`
@@ -556,20 +559,20 @@ export class PayrollReportsDatabaseService {
         double_time_rate,
         date,
         project_id,
-        worker:users!time_entries_user_id_fkey (
+        worker:users!time_entries_user_id_users_id_fk (
           id,
           first_name,
           last_name,
           email
         ),
-        project:projects!time_entries_project_id_fkey (
+        project:projects!time_entries_project_id_projects_id_fk (
           name
         )
       `)
       .eq('company_id', companyId)
       .gte('date', filters.startDate)
       .lte('date', filters.endDate)
-      .or('overtime_hours.gt.0,double_time_hours.gt.0') // Only entries with OT
+      .or('overtime_hours.gt.0,double_time_hours.gt.0')
 
     // Apply filters
     if (filters.projectId) {
@@ -678,11 +681,11 @@ export class PayrollReportsDatabaseService {
         daysWithOT: user.daysWithOT.size,
         projectsWithOT: Array.from(user.projects)
       }
-    }).sort((a, b) => b.totalOTHours - a.totalOTHours) // Sort by most OT
+    }).sort((a, b) => b.totalOTHours - a.totalOTHours)
   }
 
   // ==============================================
-  // 5. DETAILED ENTRIES (With Notes)
+  // 5. DETAILED ENTRIES - FIXED
   // ==============================================
   async getDetailedEntries(
     companyId: string,
@@ -690,6 +693,7 @@ export class PayrollReportsDatabaseService {
   ): Promise<DetailedPayrollEntry[]> {
     this.log('Fetching detailed entries', { companyId, filters })
 
+    // FIXED: Correct foreign key names
     let query = this.supabaseClient
       .from('time_entries')
       .select(`
@@ -714,16 +718,16 @@ export class PayrollReportsDatabaseService {
         status,
         approved_by,
         approved_at,
-        worker:users!time_entries_user_id_fkey (
+        worker:users!time_entries_user_id_users_id_fk (
           first_name,
           last_name,
           email
         ),
-        project:projects!time_entries_project_id_fkey (
+        project:projects!time_entries_project_id_projects_id_fk (
           name,
           project_number
         ),
-        schedule_project:schedule_projects!time_entries_schedule_project_id_fkey (
+        schedule_project:schedule_projects!time_entries_schedule_project_id_schedule_projects_id_fk (
           title
         )
       `)
@@ -808,7 +812,7 @@ export class PayrollReportsDatabaseService {
   }
 
   // ==============================================
-  // 6. TOTAL HOURS SUMMARY (Overall Statistics)
+  // 6. TOTAL HOURS SUMMARY
   // ==============================================
   async getTotalHoursSummary(
     companyId: string,
@@ -816,7 +820,6 @@ export class PayrollReportsDatabaseService {
   ): Promise<TotalHoursSummary> {
     this.log('Fetching total hours summary', { companyId, filters })
 
-    // Get all entries
     let query = this.supabaseClient
       .from('time_entries')
       .select(`
@@ -834,7 +837,6 @@ export class PayrollReportsDatabaseService {
       .gte('date', filters.startDate)
       .lte('date', filters.endDate)
 
-    // Apply filters
     if (filters.projectId) {
       query = query.eq('project_id', filters.projectId)
     }
@@ -862,7 +864,6 @@ export class PayrollReportsDatabaseService {
       return this.getEmptySummary(filters)
     }
 
-    // Calculate totals
     const uniqueWorkers = new Set<string>()
     const uniqueProjects = new Set<string>()
     let totalRegularHours = 0
@@ -889,16 +890,11 @@ export class PayrollReportsDatabaseService {
       totalDoubleTimeHours += doubleTimeHrs
       grandTotalHours += parseFloat(entry.total_hours || '0')
       grandTotalCost += totalPay
-
-      // For cost breakdown, we use total_pay
-      // In a more detailed system, you'd calculate each type separately
       totalRegularCost += totalPay
 
-      // Track unique workers and projects
       if (entry.user_id) uniqueWorkers.add(entry.user_id)
       if (entry.project_id) uniqueProjects.add(entry.project_id)
 
-      // Status breakdown
       if (entry.status === 'pending' || entry.status === 'clocked_out') {
         pendingEntries++
         pendingCost += totalPay
@@ -908,13 +904,11 @@ export class PayrollReportsDatabaseService {
       }
     }
 
-    // Calculate date range
     const start = new Date(filters.startDate)
     const end = new Date(filters.endDate)
     const diffTime = Math.abs(end.getTime() - start.getTime())
     const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1
 
-    // Calculate percentages
     const percentRegular = grandTotalHours > 0 
       ? (totalRegularHours / grandTotalHours) * 100 
       : 0
@@ -963,7 +957,7 @@ export class PayrollReportsDatabaseService {
   }
 
   // ==============================================
-  // 7. MAIN METHOD - GET COMPLETE PAYROLL REPORT
+  // 7. MAIN METHOD
   // ==============================================
   async getPayrollReport(
     companyId: string,
@@ -973,7 +967,6 @@ export class PayrollReportsDatabaseService {
     this.log('Generating complete payroll report', { companyId, userId, filters })
 
     try {
-      // Fetch all sections in parallel for better performance
       const [
         summary,
         byPerson,
@@ -1010,7 +1003,7 @@ export class PayrollReportsDatabaseService {
   }
 
   // ==============================================
-  // 8. QUICK STATS (For Dashboard)
+  // 8. PAYROLL STATS - FIXED
   // ==============================================
   async getPayrollStats(
     companyId: string,
@@ -1034,7 +1027,6 @@ export class PayrollReportsDatabaseService {
   }> {
     this.log('Fetching payroll stats', { companyId, filters })
 
-    // Get this week's date range
     const now = new Date()
     const dayOfWeek = now.getDay()
     const startOfWeek = new Date(now)
@@ -1042,7 +1034,6 @@ export class PayrollReportsDatabaseService {
     const startDate = startOfWeek.toISOString().split('T')[0]
     const endDate = now.toISOString().split('T')[0]
 
-    // This week query
     let weekQuery = this.supabaseClient
       .from('time_entries')
       .select('total_hours, total_pay')
@@ -1050,20 +1041,10 @@ export class PayrollReportsDatabaseService {
       .gte('date', startDate)
       .lte('date', endDate)
 
-    if (filters?.projectId) {
-      weekQuery = weekQuery.eq('project_id', filters.projectId)
-    }
+    if (filters?.projectId) weekQuery = weekQuery.eq('project_id', filters.projectId)
+    if (filters?.userId) weekQuery = weekQuery.eq('user_id', filters.userId)
 
-    if (filters?.userId) {
-      weekQuery = weekQuery.eq('user_id', filters.userId)
-    }
-
-    const { data: weekEntries, error: weekError } = await weekQuery
-
-    if (weekError) {
-      this.log('Error fetching week stats', weekError)
-      throw new Error(`Failed to fetch week stats: ${weekError.message}`)
-    }
+    const { data: weekEntries } = await weekQuery
 
     const thisWeekHours = weekEntries?.reduce((sum, e) => 
       sum + parseFloat(e.total_hours || '0'), 0
@@ -1073,43 +1054,33 @@ export class PayrollReportsDatabaseService {
       sum + parseFloat(e.total_pay || '0'), 0
     ) || 0
 
-    // Pending approvals
     let pendingQuery = this.supabaseClient
       .from('time_entries')
       .select('total_pay')
       .eq('company_id', companyId)
       .in('status', ['pending', 'clocked_out'])
 
-    if (filters?.projectId) {
-      pendingQuery = pendingQuery.eq('project_id', filters.projectId)
-    }
+    if (filters?.projectId) pendingQuery = pendingQuery.eq('project_id', filters.projectId)
+    if (filters?.userId) pendingQuery = pendingQuery.eq('user_id', filters.userId)
 
-    if (filters?.userId) {
-      pendingQuery = pendingQuery.eq('user_id', filters.userId)
-    }
-
-    const { data: pendingEntries, error: pendingError } = await pendingQuery
-
-    if (pendingError) {
-      this.log('Error fetching pending stats', pendingError)
-    }
+    const { data: pendingEntries } = await pendingQuery
 
     const pendingApprovalsCost = pendingEntries?.reduce((sum, e) => 
       sum + parseFloat(e.total_pay || '0'), 0
     ) || 0
 
-    // Top workers (last 30 days)
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0]
 
+    // FIXED: Correct foreign key name
     const { data: workerStats } = await this.supabaseClient
       .from('time_entries')
       .select(`
         user_id,
         total_hours,
         total_pay,
-        worker:users!time_entries_user_id_fkey (
+        worker:users!time_entries_user_id_users_id_fk (
           first_name,
           last_name
         )
@@ -1147,14 +1118,14 @@ export class PayrollReportsDatabaseService {
       .sort((a, b) => b.totalHours - a.totalHours)
       .slice(0, 5)
 
-    // Top projects (last 30 days)
+    // FIXED: Correct foreign key name
     const { data: projectStats } = await this.supabaseClient
       .from('time_entries')
       .select(`
         project_id,
         total_hours,
         total_pay,
-        project:projects!time_entries_project_id_fkey (
+        project:projects!time_entries_project_id_projects_id_fk (
           name
         )
       `)
