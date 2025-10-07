@@ -14,6 +14,7 @@ export * from './schedule-projects';
 export * from './punchlist-items';
 export * from './time-tracking';
 export * from './system';
+export * from './ai-chat'
 
 // Export all relations
 export * from './relations';
@@ -30,6 +31,7 @@ import { scheduleProjects } from './schedule-projects';
 import { punchlistItems } from './punchlist-items';
 import { timeEntries } from './time-tracking';
 import { auditLogs, notifications } from './system';
+import { aiConversations, aiMessages } from './ai-chat'
 
 // Schema object for Drizzle operations
 export const schema = {
@@ -37,30 +39,34 @@ export const schema = {
   companies,
   users,
   userSessions,
-  
+
   // Project management
   projects,
   projectMembers,
   tasks,
-  
+
   // File management
   projectFiles,
   taskAttachments,
-  
+
   // Scheduling (OLD - keeping for backward compatibility)
   scheduleEvents,
   scheduleAttendees,
-  
+
   // NEW Scheduling & Punchlist
   scheduleProjects,
   punchlistItems,
-  
+
   // Time tracking
   timeEntries,
-  
+
   // System tables
   auditLogs,
   notifications,
+
+  // AI Chat
+  aiConversations,
+  aiMessages,
 };
 
 // ==============================================

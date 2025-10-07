@@ -1,13 +1,23 @@
+// ==============================================
+// app/(dashboard)/dashboard/ai/page.tsx - AI Assistant Page
+// ==============================================
+
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Bot, Send, Lightbulb, FileText, Calculator, Clock } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Bot, Send, Lightbulb, FileText, Calculator, Clock, Loader2, AlertCircle } from "lucide-react"
+import { aiChatApi } from "@/lib/api/ai-chat"
+import type { ChatMessage } from "@/types/ai"
 
+// ==============================================
+// QUICK PROMPTS
+// ==============================================
 const quickPrompts = [
   "Calculate concrete needed for 50x30 foundation",
   "OSHA safety requirements for working at height",
@@ -17,54 +27,121 @@ const quickPrompts = [
   "Calculate labor hours for drywall installation",
 ]
 
-const chatHistory = [
-  {
-    id: 1,
-    type: "user",
-    message: "What's the standard spacing for electrical outlets in commercial buildings?",
-    timestamp: "10:30 AM",
-  },
-  {
-    id: 2,
-    type: "ai",
-    message:
-      "For commercial buildings, electrical outlets should typically be spaced no more than 12 feet apart along walls, with at least one outlet on each wall that's 3 feet or longer. Key requirements include:\n\n• Maximum 12-foot spacing between outlets\n• GFCI protection in wet locations\n• Dedicated circuits for high-power equipment\n• Emergency power outlets where required\n\nWould you like me to provide specific code references or help calculate outlet requirements for your project?",
-    timestamp: "10:31 AM",
-  },
-  {
-    id: 3,
-    type: "user",
-    message: "Yes, please calculate outlets needed for a 40x60 office space",
-    timestamp: "10:32 AM",
-  },
-  {
-    id: 4,
-    type: "ai",
-    message:
-      "For a 40x60 office space (2,400 sq ft), here's the outlet calculation:\n\n**Wall Outlets:**\n• Perimeter: 200 linear feet\n• Required outlets: ~17 outlets (12-foot spacing)\n• Recommended: 20-24 outlets for flexibility\n\n**Floor Outlets:**\n• Open office areas: 4-6 floor outlets\n• Conference areas: 2-4 additional outlets\n\n**Special Circuits:**\n• HVAC equipment: 2 dedicated circuits\n• IT/Server equipment: 2-4 dedicated circuits\n• Kitchen/break room: 4-6 GFCI outlets\n\n**Total Recommendation:** 30-40 outlets with 8-12 circuits\n\nWould you like me to break this down by room or provide wire gauge recommendations?",
-    timestamp: "10:33 AM",
-  },
-]
-
+// ==============================================
+// COMPONENT
+// ==============================================
 export default function AIAssistantPage() {
+  // ==============================================
+  // STATE
+  // ==============================================
   const [message, setMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([])
+  const [conversationId, setConversationId] = useState<string | undefined>(undefined)
+  const [error, setError] = useState<string | null>(null)
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const handleSendMessage = async () => {
-    if (!message.trim()) return
-
-    setIsLoading(true)
-    // Simulate AI response delay
-    setTimeout(() => {
-      setIsLoading(false)
-      setMessage("")
-    }, 2000)
+  // ==============================================
+  // AUTO SCROLL TO BOTTOM
+  // ==============================================
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
 
+  useEffect(() => {
+    scrollToBottom()
+  }, [chatHistory])
+
+  // ==============================================
+  // HANDLE SEND MESSAGE
+  // ==============================================
+  const handleSendMessage = async () => {
+    if (!message.trim() || isLoading) return
+
+    const userMessage = message.trim()
+    setMessage("")
+    setError(null)
+    setIsLoading(true)
+
+    // Add user message to chat immediately
+    const userChatMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: userMessage,
+      timestamp: new Date().toISOString(),
+    }
+
+    setChatHistory(prev => [...prev, userChatMessage])
+
+    try {
+      // Send to API
+      const response = await aiChatApi.sendMessage({
+        message: userMessage,
+        conversationId,
+        includeContext: true,
+      })
+
+      // Save conversation ID for follow-up messages
+      if (!conversationId && response.data.conversationId) {
+        setConversationId(response.data.conversationId)
+      }
+
+      // Add AI response to chat
+      const aiChatMessage: ChatMessage = {
+        id: response.data.messageId,
+        role: 'assistant',
+        content: response.data.response,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          tokensUsed: response.data.tokensUsed,
+        },
+      }
+
+      setChatHistory(prev => [...prev, aiChatMessage])
+    } catch (error) {
+      console.error('Send message error:', error)
+      setError('Failed to get AI response. Please try again.')
+      
+      // Remove user message on error
+      setChatHistory(prev => prev.filter(msg => msg.id !== userChatMessage.id))
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // ==============================================
+  // HANDLE QUICK PROMPT
+  // ==============================================
   const handleQuickPrompt = (prompt: string) => {
     setMessage(prompt)
   }
 
+  // ==============================================
+  // HANDLE KEY PRESS
+  // ==============================================
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
+  }
+
+  // ==============================================
+  // FORMAT TIMESTAMP
+  // ==============================================
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp)
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    })
+  }
+
+  // ==============================================
+  // RENDER
+  // ==============================================
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -101,31 +178,64 @@ export default function AIAssistantPage() {
 
             {/* Chat Messages */}
             <CardContent className="flex-1 overflow-y-auto space-y-4">
+              {/* Welcome Message */}
+              {chatHistory.length === 0 && (
+                <div className="flex justify-center items-center h-full">
+                  <div className="text-center max-w-md">
+                    <Bot className="h-16 w-16 mx-auto text-orange-600 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Welcome to CrewBud AI!</h3>
+                    <p className="text-gray-600 mb-4">
+                      I'm here to help with construction calculations, safety standards, 
+                      problem-solving, and project management questions.
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Try one of the quick prompts below or ask me anything!
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Chat Messages */}
               {chatHistory.map((chat) => (
-                <div key={chat.id} className={`flex ${chat.type === "user" ? "justify-end" : "justify-start"}`}>
+                <div key={chat.id} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div
                     className={`max-w-[80%] rounded-lg p-3 ${
-                      chat.type === "user" ? "bg-orange-600 text-white" : "bg-gray-100 text-gray-900"
+                      chat.role === "user" 
+                        ? "bg-orange-600 text-white" 
+                        : "bg-gray-100 text-gray-900"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap">{chat.message}</p>
-                    <p className={`text-xs mt-1 ${chat.type === "user" ? "text-orange-100" : "text-gray-500"}`}>
-                      {chat.timestamp}
+                    <p className="whitespace-pre-wrap">{chat.content}</p>
+                    <p className={`text-xs mt-1 ${
+                      chat.role === "user" ? "text-orange-100" : "text-gray-500"
+                    }`}>
+                      {formatTime(chat.timestamp)}
                     </p>
                   </div>
                 </div>
               ))}
 
+              {/* Loading State */}
               {isLoading && (
                 <div className="flex justify-start">
                   <div className="bg-gray-100 rounded-lg p-3">
                     <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600"></div>
+                      <Loader2 className="h-4 w-4 animate-spin text-orange-600" />
                       <span className="text-gray-600">AI is thinking...</span>
                     </div>
                   </div>
                 </div>
               )}
+
+              {/* Error State */}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <div ref={messagesEndRef} />
             </CardContent>
 
             {/* Message Input */}
@@ -134,16 +244,21 @@ export default function AIAssistantPage() {
                 <Input
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
                   placeholder="Ask about construction, safety, calculations, or project management..."
-                  onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
                   className="flex-1"
+                  disabled={isLoading}
                 />
                 <Button
                   onClick={handleSendMessage}
                   disabled={!message.trim() || isLoading}
                   className="bg-orange-600 hover:bg-orange-700"
                 >
-                  <Send className="h-4 w-4" />
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -168,6 +283,7 @@ export default function AIAssistantPage() {
                   variant="outline"
                   className="w-full text-left justify-start h-auto p-3"
                   onClick={() => handleQuickPrompt(prompt)}
+                  disabled={isLoading}
                 >
                   {prompt}
                 </Button>
@@ -215,26 +331,31 @@ export default function AIAssistantPage() {
             </CardContent>
           </Card>
 
-          {/* Usage Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Today's Usage</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm">Questions Asked</span>
-                <span className="font-medium">23</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Calculations Done</span>
-                <span className="font-medium">8</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm">Time Saved</span>
-                <span className="font-medium">2.5 hours</span>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Conversation Info */}
+          {conversationId && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Current Session</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm">Messages</span>
+                  <span className="font-medium">{chatHistory.length}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setChatHistory([])
+                    setConversationId(undefined)
+                    setError(null)
+                  }}
+                >
+                  Start New Conversation
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
