@@ -4,7 +4,7 @@
 
 export {
   createChatCompletion,
-  createStreamingChatCompletion,
+//   createStreamingChatCompletion,
   estimateTokens,
   validateOpenAIConfig,
   openai,

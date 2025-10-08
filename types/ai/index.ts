@@ -15,8 +15,12 @@ export type {
   ContextPermissions,
   ChatFormData,
   ChatFormErrors,
-  ChatState,
-  ChatHookState,
-  ConversationSummary,
+//   ChatState,
+//   ChatHookState,
+//   ConversationSummary,
   GetConversationsResponse,
+  AIChatState,
+  AIFunction,
+  FunctionCallResult,
+  ConversationSummary
 } from './chat'

@@ -1,11 +1,11 @@
 // ==============================================
-// types/ai/chat.ts - AI Chat Types
+// types/ai/chat.ts - AI Chat Types (UPDATED)
 // ==============================================
 
 // ==============================================
 // MESSAGE TYPES
 // ==============================================
-export type MessageRole = 'user' | 'assistant' | 'system'
+export type MessageRole = 'user' | 'assistant' | 'system' | 'function'
 
 export interface ChatMessage {
   id: string
@@ -16,8 +16,18 @@ export interface ChatMessage {
     tokensUsed?: number
     model?: string
     context?: string[]
+    functionCall?: {
+      name: string
+      arguments: string
+    }
+    functionResult?: any
   }
 }
+
+// ==============================================
+// STATE TYPES
+// ==============================================
+export type AIChatState = 'idle' | 'loading' | 'loaded' | 'error'
 
 // ==============================================
 // CONVERSATION TYPES
@@ -37,13 +47,24 @@ export interface ConversationWithMessages extends Conversation {
   messages: ChatMessage[]
 }
 
+// Summary for list views
+export interface ConversationSummary {
+  id: string
+  title: string
+  messageCount: number
+  lastMessage?: string
+  lastMessageAt?: string
+  createdAt?: string  // ✅ Made optional
+  updatedAt?: string  // ✅ Made optional
+}
+
 // ==============================================
 // API REQUEST TYPES
 // ==============================================
 export interface SendMessageRequest {
   message: string
-  conversationId?: string // Optional - creates new conversation if not provided
-  includeContext?: boolean // Whether to include project/user context
+  conversationId?: string
+  includeContext?: boolean
 }
 
 export interface SendMessageResponse {
@@ -54,6 +75,15 @@ export interface SendMessageResponse {
     messageId: string
     response: string
     tokensUsed: number
+  }
+}
+
+export interface GetConversationsResponse {
+  success: boolean
+  message: string
+  data: {
+    conversations: Conversation[]
+    total: number
   }
 }
 
@@ -102,6 +132,29 @@ export interface ContextPermissions {
 }
 
 // ==============================================
+// FUNCTION CALLING TYPES (For Admin)
+// ==============================================
+export interface AIFunction {
+  name: string
+  description: string
+  parameters: {
+    type: 'object'
+    properties: Record<string, {
+      type: string
+      description: string
+      enum?: string[]
+    }>
+    required?: string[]
+  }
+}
+
+export interface FunctionCallResult {
+  success: boolean
+  data?: any
+  error?: string
+}
+
+// ==============================================
 // FORM DATA
 // ==============================================
 export interface ChatFormData {
@@ -112,39 +165,4 @@ export interface ChatFormData {
 export interface ChatFormErrors {
   message?: string
   general?: string
-}
-
-// ==============================================
-// STATE TYPES
-// ==============================================
-export type ChatState = 'idle' | 'loading' | 'streaming' | 'error' | 'success'
-
-export interface ChatHookState {
-  state: ChatState
-  error: string | null
-  isLoading: boolean
-  isStreaming: boolean
-}
-
-// ==============================================
-// CONVERSATION LIST
-// ==============================================
-export interface ConversationSummary {
-  id: string
-  title: string
-  lastMessage: string
-  lastMessageAt: string
-  messageCount: number
-}
-
-// ==============================================
-// GET CONVERSATIONS RESPONSE
-// ==============================================
-export interface GetConversationsResponse {
-  success: boolean
-  message: string
-  data: {
-    conversations: ConversationSummary[]
-    total: number
-  }
 }

@@ -1,5 +1,5 @@
 // ==============================================
-// app/api/ai/chat/route.ts - AI Chat API Route
+// app/api/ai/chat/route.ts - AI Chat with API Function Calling
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -8,12 +8,15 @@ import { AIChatDatabaseService } from '@/lib/database/services/ai-chat'
 import { AIContextBuilder } from '@/lib/ai/context-builder'
 import { 
   createChatCompletion, 
-  validateOpenAIConfig 
+  validateOpenAIConfig,
+  type ChatCompletionMessage  // ✅ Import the type
 } from '@/lib/ai/openai-client'
 import { 
   generateCompleteSystemPrompt, 
   getAIContextPermissions 
 } from '@/lib/ai'
+import { convertToOpenAIFunctions } from '@/lib/ai/api-registry'
+import { APICaller } from '@/lib/ai/api-caller'
 import type { UserContext } from '@/types/ai'
 
 // ==============================================
@@ -29,6 +32,7 @@ export async function POST(request: NextRequest) {
     const userRole = request.headers.get('x-user-role')
     const firstName = request.headers.get('x-user-name')?.split(' ')[0] || 'User'
     const lastName = request.headers.get('x-user-name')?.split(' ')[1] || ''
+    const userName = `${firstName} ${lastName}`
 
     if (!userId || !companyId || !userRole) {
       return NextResponse.json(
@@ -40,6 +44,8 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
+
+    console.log('🔍 AI Chat Request from:', { userId, companyId, role: userRole, firstName })
 
     // ==============================================
     // 2. VALIDATE OPENAI CONFIGURATION
@@ -81,6 +87,7 @@ export async function POST(request: NextRequest) {
     // ==============================================
     const chatService = new AIChatDatabaseService(false)
     const contextBuilder = new AIContextBuilder(false)
+    const apiCaller = new APICaller(userId, companyId, userRole, userName)
 
     // ==============================================
     // 5. GET OR CREATE CONVERSATION
@@ -88,44 +95,25 @@ export async function POST(request: NextRequest) {
     let activeConversationId = conversationId
 
     if (!activeConversationId) {
-      // Create new conversation
       const title = chatService.generateTitleFromMessage(message)
       activeConversationId = await chatService.createConversation(
         userId,
         companyId,
         title
       )
-    } else {
-      // Verify conversation exists and belongs to user
-      const conversation = await chatService.getConversationById(
-        activeConversationId,
-        userId,
-        companyId
-      )
-
-      if (!conversation) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Conversation not found',
-            message: 'The conversation you are trying to access does not exist.',
-          },
-          { status: 404 }
-        )
-      }
     }
 
     // ==============================================
     // 6. SAVE USER MESSAGE
     // ==============================================
-    const userMessageId = await chatService.saveMessage(
+    await chatService.saveMessage(
       activeConversationId,
       'user',
       message
     )
 
     // ==============================================
-    // 7. BUILD CONTEXT (if enabled)
+    // 7. BUILD CONTEXT (Simple context for members)
     // ==============================================
     let contextString = ''
     
@@ -136,7 +124,7 @@ export async function POST(request: NextRequest) {
         role: userRole,
         firstName,
         lastName,
-        permissions: null, // We'll use role-based permissions
+        permissions: null,
       }
 
       const dbContext = await contextBuilder.buildDatabaseContext(userContext)
@@ -167,25 +155,83 @@ export async function POST(request: NextRequest) {
     // ==============================================
     const conversationMessages = await chatService.getConversationMessages(
       activeConversationId,
-      10 // Last 10 messages for context
+      10 // Last 10 messages
     )
 
-    // Build messages array for OpenAI
-    const messages = [
-      { role: 'system' as const, content: systemPrompt },
+    // ==============================================
+    // 10. PREPARE MESSAGES FOR AI (with function calling)
+    // ==============================================
+    const messages: ChatCompletionMessage[] = [
+      { role: 'system', content: systemPrompt },
       ...conversationMessages.slice(-10).map(msg => ({
         role: msg.role as 'user' | 'assistant',
         content: msg.content,
       })),
     ]
 
-    // ==============================================
-    // 10. GET AI RESPONSE
-    // ==============================================
-    const aiResponse = await createChatCompletion({ messages })
+    // Get available functions based on user role
+    const functions = convertToOpenAIFunctions(userRole)
+    
+    console.log(`📋 Available functions for ${userRole}:`, functions.map(f => f.name))
 
     // ==============================================
-    // 11. SAVE AI RESPONSE
+    // 11. AI RESPONSE LOOP (Handle function calls)
+    // ==============================================
+    let aiResponse
+    let functionCallCount = 0
+    const maxFunctionCalls = 5 // Prevent infinite loops
+
+    while (functionCallCount < maxFunctionCalls) {
+      // Call AI
+      aiResponse = await createChatCompletion({ 
+        messages,
+        functions: functions.length > 0 ? functions : undefined,
+      })
+
+      // If no function call, we're done
+      if (!aiResponse.functionCall) {
+        break
+      }
+
+      functionCallCount++
+      console.log(`🔧 Function call #${functionCallCount}:`, aiResponse.functionCall.name)
+
+      // Execute the function (call your existing API)
+      const functionResult = await apiCaller.call(
+        aiResponse.functionCall.name,
+        aiResponse.functionCall.arguments
+      )
+
+      console.log(`✅ Function result:`, {
+        success: functionResult.success,
+        hasData: !!functionResult.data,
+        error: functionResult.error
+      })
+
+      // Add function result to conversation
+      messages.push({
+        role: 'assistant',
+        content: null,
+        function_call: {
+          name: aiResponse.functionCall.name,
+          arguments: JSON.stringify(aiResponse.functionCall.arguments)
+        }
+      })
+
+      messages.push({
+        role: 'function',
+        name: aiResponse.functionCall.name,
+        content: APICaller.formatResultForAI(functionResult),
+      })
+      // Continue loop to get AI's final response
+    }
+
+    if (!aiResponse) {
+      throw new Error('No AI response generated')
+    }
+
+    // ==============================================
+    // 12. SAVE AI RESPONSE
     // ==============================================
     const assistantMessageId = await chatService.saveMessage(
       activeConversationId,
@@ -194,11 +240,12 @@ export async function POST(request: NextRequest) {
       {
         tokensUsed: aiResponse.tokensUsed,
         model: aiResponse.model,
+        functionCallsUsed: functionCallCount,
       }
     )
 
     // ==============================================
-    // 12. RETURN RESPONSE
+    // 13. RETURN RESPONSE
     // ==============================================
     return NextResponse.json(
       {
@@ -209,6 +256,7 @@ export async function POST(request: NextRequest) {
           messageId: assistantMessageId,
           response: aiResponse.content,
           tokensUsed: aiResponse.tokensUsed,
+          functionCallsUsed: functionCallCount,
         },
       },
       { status: 200 }
@@ -217,34 +265,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('AI Chat Error:', error)
 
-    // Handle specific error types
-    if (error instanceof Error) {
-      // OpenAI API errors
-      if (error.message.includes('OpenAI')) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'AI service error',
-            message: 'The AI assistant encountered an error. Please try again.',
-          },
-          { status: 503 }
-        )
-      }
-
-      // Database errors
-      if (error.message.includes('Failed to')) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Database error',
-            message: 'Failed to save your message. Please try again.',
-          },
-          { status: 500 }
-        )
-      }
-    }
-
-    // Generic error
     return NextResponse.json(
       {
         success: false,

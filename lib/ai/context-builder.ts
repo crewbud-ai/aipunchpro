@@ -65,7 +65,7 @@ export class AIContextBuilder {
 
       if (permissions.canAccessPayroll) {
         const payrollData = await this.getPayrollSummary(userContext.companyId)
-        // Store as any[] to match DatabaseContext type, but we'll use it correctly
+        // Store as any[] to match DatabaseContext type
         context.payrollData = payrollData ? [payrollData] : []
       }
 
@@ -78,7 +78,7 @@ export class AIContextBuilder {
   }
 
   // ==============================================
-  // GET USER'S PROJECTS
+  // GET USER'S PROJECTS - FIXED
   // ==============================================
   private async getUserProjects(userId: string, companyId: string) {
     const { data, error } = await this.supabaseClient
@@ -95,7 +95,7 @@ export class AIContextBuilder {
       `)
       .eq('user_id', userId)
       .eq('company_id', companyId)
-      .eq('is_active', true)
+      .eq('status', 'active')  // ✅ FIXED: Use 'status' column instead of 'is_active'
       .limit(10)
 
     if (error) {
@@ -131,41 +131,37 @@ export class AIContextBuilder {
   }
 
   // ==============================================
-  // GET USER'S PUNCHLIST ITEMS
+  // GET USER'S PUNCHLIST ITEMS - FIXED
   // ==============================================
   private async getUserPunchlistItems(userId: string, companyId: string) {
+    // Note: assigned_project_member_id was removed, items are now assigned via punchlist_item_assignments
+    // For now, just get items reported by this user
     const { data, error } = await this.supabaseClient
-      .from('punchlist_item_assignments')
-      .select(`
-        punchlist_item:punchlist_items (
-          id,
-          title,
-          status,
-          priority,
-          due_date,
-          project:projects(name)
-        )
-      `)
+      .from('punchlist_items')
+      .select('id, title, status, priority, due_date, project:projects(name)')
       .eq('company_id', companyId)
-      .limit(20)
+      .eq('reported_by', userId)
+      .neq('status', 'completed')
+      .order('priority', { ascending: false })
+      .limit(10)
 
     if (error) {
       this.log('Error fetching punchlist items', error)
       return []
     }
 
-    return data?.map(pa => pa.punchlist_item).filter(Boolean) || []
+    return data || []
   }
 
   // ==============================================
-  // GET COMPANY PROJECTS (Admin only)
+  // GET COMPANY PROJECTS (Admin Only) - FIXED
   // ==============================================
   private async getCompanyProjects(companyId: string) {
     const { data, error } = await this.supabaseClient
       .from('projects')
-      .select('id, name, status, budget, start_date, end_date')
+      .select('id, name, status, start_date, end_date, budget, progress')
       .eq('company_id', companyId)
-      .eq('is_active', true)
+      .in('status', ['not_started', 'in_progress', 'on_track', 'ahead_of_schedule', 'behind_schedule'])  // ✅ FIXED: Filter by active statuses instead of is_active
       .order('created_at', { ascending: false })
       .limit(20)
 
@@ -178,12 +174,12 @@ export class AIContextBuilder {
   }
 
   // ==============================================
-  // GET TEAM MEMBERS (Admin/Supervisor only)
+  // GET TEAM MEMBERS (Admin Only)
   // ==============================================
   private async getTeamMembers(companyId: string) {
     const { data, error } = await this.supabaseClient
       .from('users')
-      .select('id, first_name, last_name, role, trade_specialty')
+      .select('id, first_name, last_name, email, role, trade')
       .eq('company_id', companyId)
       .eq('is_active', true)
       .order('first_name', { ascending: true })
@@ -219,7 +215,7 @@ export class AIContextBuilder {
       return null
     }
 
-    // Calculate summary with proper type assertions
+    // Calculate summary
     const totalHours = data.reduce((sum, entry) => {
       const hours = String(entry.total_hours || '0')
       return sum + parseFloat(hours)
@@ -279,11 +275,20 @@ export class AIContextBuilder {
 
     // Company Data (Admin only)
     if (context.companyProjects && context.companyProjects.length > 0) {
-      lines.push(`**Company Projects:** ${context.companyProjects.length} active projects`)
+      lines.push(`**Company Projects (${context.companyProjects.length} active):**`)
+      context.companyProjects.forEach((project: any) => {
+        lines.push(`- ${project.name} (${project.status}, Progress: ${project.progress}%)`)
+      })
       lines.push('')
     }
 
-    // Payroll data (stored as array with one element)
+    // Team Members (Admin only)
+    if (context.teamMembers && context.teamMembers.length > 0) {
+      lines.push(`**Team Members:** ${context.teamMembers.length} active members`)
+      lines.push('')
+    }
+
+    // Payroll data (Admin only)
     if (context.payrollData && context.payrollData.length > 0) {
       const payrollData = context.payrollData[0] as PayrollSummary
       lines.push('**Company Payroll Summary (This Week):**')

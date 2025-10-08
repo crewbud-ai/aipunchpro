@@ -1,5 +1,5 @@
 // ==============================================
-// app/(dashboard)/dashboard/ai/page.tsx - AI Assistant Page
+// app/(dashboard)/dashboard/ai/page.tsx - AI Assistant with Hooks
 // ==============================================
 
 "use client"
@@ -11,20 +11,21 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Bot, Send, Lightbulb, FileText, Calculator, Clock, Loader2, AlertCircle } from "lucide-react"
-import { aiChatApi } from "@/lib/api/ai-chat"
-import type { ChatMessage } from "@/types/ai"
+import { Bot, Send, Lightbulb, FileText, Calculator, Clock, Loader2, AlertCircle, Sparkles } from "lucide-react"
+
+// Import hooks (following project pattern)
+import { useAIChat } from "@/hooks/ai"
 
 // ==============================================
 // QUICK PROMPTS
 // ==============================================
 const quickPrompts = [
-  "Calculate concrete needed for 50x30 foundation",
-  "OSHA safety requirements for working at height",
-  "How to fix electrical outlet not working",
-  "Best practices for winter concrete pouring",
-  "Generate daily safety briefing checklist",
-  "Calculate labor hours for drywall installation",
+  "List all active projects we're working on",
+  "Show me my team members and their roles",
+  "Calculate total hours worked this week",
+  "What's our payroll summary for this week?",
+  "Show me pending punchlist items",
+  "Generate a safety briefing checklist",
 ]
 
 // ==============================================
@@ -32,14 +33,26 @@ const quickPrompts = [
 // ==============================================
 export default function AIAssistantPage() {
   // ==============================================
-  // STATE
+  // HOOKS (following project pattern)
+  // ==============================================
+  const {
+    messages,
+    conversationId,
+    isLoading,
+    hasError,
+    error,
+    isEmpty,
+    hasMessages,
+    messageCount,
+    sendMessage,
+    startNewConversation,
+    clearError,
+  } = useAIChat()
+
+  // ==============================================
+  // LOCAL STATE
   // ==============================================
   const [message, setMessage] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([])
-  const [conversationId, setConversationId] = useState<string | undefined>(undefined)
-  const [error, setError] = useState<string | null>(null)
-  
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // ==============================================
@@ -51,7 +64,7 @@ export default function AIAssistantPage() {
 
   useEffect(() => {
     scrollToBottom()
-  }, [chatHistory])
+  }, [messages])
 
   // ==============================================
   // HANDLE SEND MESSAGE
@@ -59,55 +72,8 @@ export default function AIAssistantPage() {
   const handleSendMessage = async () => {
     if (!message.trim() || isLoading) return
 
-    const userMessage = message.trim()
+    await sendMessage(message)
     setMessage("")
-    setError(null)
-    setIsLoading(true)
-
-    // Add user message to chat immediately
-    const userChatMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: userMessage,
-      timestamp: new Date().toISOString(),
-    }
-
-    setChatHistory(prev => [...prev, userChatMessage])
-
-    try {
-      // Send to API
-      const response = await aiChatApi.sendMessage({
-        message: userMessage,
-        conversationId,
-        includeContext: true,
-      })
-
-      // Save conversation ID for follow-up messages
-      if (!conversationId && response.data.conversationId) {
-        setConversationId(response.data.conversationId)
-      }
-
-      // Add AI response to chat
-      const aiChatMessage: ChatMessage = {
-        id: response.data.messageId,
-        role: 'assistant',
-        content: response.data.response,
-        timestamp: new Date().toISOString(),
-        metadata: {
-          tokensUsed: response.data.tokensUsed,
-        },
-      }
-
-      setChatHistory(prev => [...prev, aiChatMessage])
-    } catch (error) {
-      console.error('Send message error:', error)
-      setError('Failed to get AI response. Please try again.')
-      
-      // Remove user message on error
-      setChatHistory(prev => prev.filter(msg => msg.id !== userChatMessage.id))
-    } finally {
-      setIsLoading(false)
-    }
   }
 
   // ==============================================
@@ -147,12 +113,17 @@ export default function AIAssistantPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">AI Assistant</h1>
-          <p className="text-gray-600">Get instant answers to construction questions and automate routine tasks</p>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <Sparkles className="h-8 w-8 text-orange-600" />
+            AI Assistant
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Get instant answers about your projects, team, and company data
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+            <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
             Online
           </Badge>
         </div>
@@ -161,8 +132,8 @@ export default function AIAssistantPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Chat Interface */}
         <div className="lg:col-span-2">
-          <Card className="h-[600px] flex flex-col">
-            <CardHeader>
+          <Card className="h-[calc(100vh-250px)] flex flex-col">
+            <CardHeader className="border-b">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
                   <AvatarFallback className="bg-orange-100 text-orange-600">
@@ -170,47 +141,84 @@ export default function AIAssistantPage() {
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <CardTitle>CrewBud AI Assistant</CardTitle>
-                  <CardDescription>Specialized in construction and skilled trades</CardDescription>
+                  <CardTitle>CrewBud AI</CardTitle>
+                  <CardDescription>
+                    Your intelligent construction assistant
+                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
 
             {/* Chat Messages */}
-            <CardContent className="flex-1 overflow-y-auto space-y-4">
+            <CardContent className="flex-1 overflow-y-auto p-6 space-y-4">
               {/* Welcome Message */}
-              {chatHistory.length === 0 && (
+              {isEmpty && (
                 <div className="flex justify-center items-center h-full">
                   <div className="text-center max-w-md">
-                    <Bot className="h-16 w-16 mx-auto text-orange-600 mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Welcome to CrewBud AI!</h3>
+                    <div className="bg-orange-100 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                      <Bot className="h-10 w-10 text-orange-600" />
+                    </div>
+                    <h3 className="text-xl font-semibold mb-2">
+                      Welcome to CrewBud AI!
+                    </h3>
                     <p className="text-gray-600 mb-4">
-                      I'm here to help with construction calculations, safety standards, 
-                      problem-solving, and project management questions.
+                      I can help you with:
                     </p>
-                    <p className="text-sm text-gray-500">
-                      Try one of the quick prompts below or ask me anything!
+                    <div className="grid grid-cols-2 gap-2 text-sm text-left">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-orange-600" />
+                        <span>Project information</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calculator className="h-4 w-4 text-orange-600" />
+                        <span>Calculations</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-orange-600" />
+                        <span>Time tracking</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Lightbulb className="h-4 w-4 text-orange-600" />
+                        <span>Safety standards</span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-4">
+                      Try a quick prompt below or ask me anything!
                     </p>
                   </div>
                 </div>
               )}
 
               {/* Chat Messages */}
-              {chatHistory.map((chat) => (
-                <div key={chat.id} className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}>
+              {messages.map((chat) => (
+                <div 
+                  key={chat.id} 
+                  className={`flex ${chat.role === "user" ? "justify-end" : "justify-start"}`}
+                >
                   <div
-                    className={`max-w-[80%] rounded-lg p-3 ${
+                    className={`max-w-[85%] rounded-lg p-4 ${
                       chat.role === "user" 
                         ? "bg-orange-600 text-white" 
                         : "bg-gray-100 text-gray-900"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap">{chat.content}</p>
-                    <p className={`text-xs mt-1 ${
-                      chat.role === "user" ? "text-orange-100" : "text-gray-500"
-                    }`}>
-                      {formatTime(chat.timestamp)}
-                    </p>
+                    <div className="prose prose-sm max-w-none">
+                      <p className="whitespace-pre-wrap m-0">{chat.content}</p>
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <p className={`text-xs ${
+                        chat.role === "user" ? "text-orange-100" : "text-gray-500"
+                      }`}>
+                        {formatTime(chat.timestamp)}
+                      </p>
+                      {chat.metadata?.tokensUsed && (
+                        <p className={`text-xs ${
+                          chat.role === "user" ? "text-orange-200" : "text-gray-400"
+                        }`}>
+                          {chat.metadata.tokensUsed} tokens
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -218,20 +226,33 @@ export default function AIAssistantPage() {
               {/* Loading State */}
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-gray-100 rounded-lg p-3">
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-orange-600" />
-                      <span className="text-gray-600">AI is thinking...</span>
+                  <div className="bg-gray-100 rounded-lg p-4 max-w-[85%]">
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="h-5 w-5 animate-spin text-orange-600" />
+                      <div className="space-y-2">
+                        <div className="h-2 w-32 bg-gray-200 rounded animate-pulse"></div>
+                        <div className="h-2 w-24 bg-gray-200 rounded animate-pulse"></div>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Error State */}
-              {error && (
-                <Alert variant="destructive">
+              {hasError && error && (
+                <Alert variant="destructive" className="max-w-[85%]">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>{error}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearError}
+                      className="ml-2"
+                    >
+                      Dismiss
+                    </Button>
+                  </AlertDescription>
                 </Alert>
               )}
 
@@ -239,20 +260,36 @@ export default function AIAssistantPage() {
             </CardContent>
 
             {/* Message Input */}
-            <div className="p-4 border-t">
+            <div className="p-4 border-t bg-gray-50">
+              {hasMessages && (
+                <div className="text-xs text-gray-500 mb-2 flex items-center justify-between">
+                  <span>{messageCount} messages in this conversation</span>
+                  {conversationId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={startNewConversation}
+                      className="h-6 text-xs"
+                    >
+                      New Conversation
+                    </Button>
+                  )}
+                </div>
+              )}
               <div className="flex gap-2">
                 <Input
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Ask about construction, safety, calculations, or project management..."
-                  className="flex-1"
+                  placeholder="Ask about projects, team, hours, safety, or anything..."
+                  className="flex-1 bg-white"
                   disabled={isLoading}
                 />
                 <Button
                   onClick={handleSendMessage}
                   disabled={!message.trim() || isLoading}
                   className="bg-orange-600 hover:bg-orange-700"
+                  size="icon"
                 >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -266,96 +303,102 @@ export default function AIAssistantPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Quick Prompts */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lightbulb className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Lightbulb className="h-5 w-5 text-orange-600" />
                 Quick Prompts
               </CardTitle>
-              <CardDescription>Common questions to get you started</CardDescription>
+              <CardDescription className="text-xs">
+                Click to use these common queries
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {quickPrompts.map((prompt, index) => (
                 <Button
                   key={index}
                   variant="outline"
-                  className="w-full text-left justify-start h-auto p-3"
+                  className="w-full justify-start text-left h-auto p-3 hover:bg-orange-50 hover:border-orange-200"
                   onClick={() => handleQuickPrompt(prompt)}
                   disabled={isLoading}
                 >
-                  {prompt}
+                  <span className="text-sm line-clamp-2">{prompt}</span>
                 </Button>
               ))}
             </CardContent>
           </Card>
 
-          {/* AI Capabilities */}
+          {/* Capabilities */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="h-5 w-5" />
-                AI Capabilities
-              </CardTitle>
+              <CardTitle className="text-base">What I Can Help With</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-start gap-3">
-                <Calculator className="h-5 w-5 text-orange-600 mt-0.5" />
-                <div>
-                  <p className="font-medium">Construction Calculations</p>
-                  <p className="text-sm text-gray-600">Material quantities, labor hours, costs</p>
+                <div className="bg-orange-100 rounded-lg p-2">
+                  <FileText className="h-4 w-4 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">Project Data</p>
+                  <p className="text-xs text-gray-600">
+                    View projects, status, budgets, and timelines
+                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <FileText className="h-5 w-5 text-orange-600 mt-0.5" />
-                <div>
-                  <p className="font-medium">Code & Standards</p>
-                  <p className="text-sm text-gray-600">Building codes, OSHA requirements, best practices</p>
+                <div className="bg-orange-100 rounded-lg p-2">
+                  <Calculator className="h-4 w-4 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">Calculations</p>
+                  <p className="text-xs text-gray-600">
+                    Materials, labor hours, and cost estimates
+                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <Lightbulb className="h-5 w-5 text-orange-600 mt-0.5" />
-                <div>
-                  <p className="font-medium">Problem Solving</p>
-                  <p className="text-sm text-gray-600">Troubleshooting, repair guidance, solutions</p>
+                <div className="bg-orange-100 rounded-lg p-2">
+                  <Clock className="h-4 w-4 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">Time Tracking</p>
+                  <p className="text-xs text-gray-600">
+                    Hours worked, payroll, and attendance
+                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <Clock className="h-5 w-5 text-orange-600 mt-0.5" />
-                <div>
-                  <p className="font-medium">Project Planning</p>
-                  <p className="text-sm text-gray-600">Scheduling, resource allocation, timelines</p>
+                <div className="bg-orange-100 rounded-lg p-2">
+                  <Lightbulb className="h-4 w-4 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-sm">Safety & Compliance</p>
+                  <p className="text-xs text-gray-600">
+                    OSHA requirements and best practices
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Conversation Info */}
-          {conversationId && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Current Session</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm">Messages</span>
-                  <span className="font-medium">{chatHistory.length}</span>
+          {/* Pro Tip */}
+          <Card className="bg-gradient-to-br from-orange-50 to-amber-50 border-orange-200">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <Sparkles className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-sm text-gray-900 mb-1">
+                    Pro Tip
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    I can access your company's real data! Ask about specific projects, team members, or time entries for accurate information.
+                  </p>
                 </div>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setChatHistory([])
-                    setConversationId(undefined)
-                    setError(null)
-                  }}
-                >
-                  Start New Conversation
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
