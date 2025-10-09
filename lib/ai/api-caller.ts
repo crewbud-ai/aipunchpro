@@ -1,5 +1,5 @@
 // ==============================================
-// lib/ai/api-caller.ts - Call Your Existing APIs
+// lib/ai/api-caller.ts - Call Your Existing APIs (FIXED)
 // ==============================================
 
 import { getAPIEndpoint, canAccessAPI } from './api-registry'
@@ -15,18 +15,21 @@ export class APICaller {
   private companyId: string
   private userRole: string
   private userName: string
+  private sessionToken: string  // ✅ NEW: Store session token
 
   constructor(
     userId: string,
     companyId: string,
     userRole: string,
-    userName: string
+    userName: string,
+    sessionToken: string  // ✅ NEW: Accept session token
   ) {
     this.baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     this.userId = userId
     this.companyId = companyId
     this.userRole = userRole
     this.userName = userName
+    this.sessionToken = sessionToken  // ✅ NEW: Store it
   }
 
   // ==============================================
@@ -57,12 +60,14 @@ export class APICaller {
       // Build URL with query parameters
       const url = this.buildURL(api, args)
 
-      // Make request
+      // ✅ FIXED: Make request WITH authentication
       const response = await fetch(url, {
         method: api.method,
         headers: {
           'Content-Type': 'application/json',
-          // Pass authentication headers (your APIs already check these)
+          // ✅ CRITICAL: Pass the session token as a cookie
+          'Cookie': `sessionToken=${this.sessionToken}`,
+          // Also pass as headers for redundancy (your APIs check both)
           'x-user-id': this.userId,
           'x-company-id': this.companyId,
           'x-user-role': this.userRole,

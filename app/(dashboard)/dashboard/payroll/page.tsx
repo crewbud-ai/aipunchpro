@@ -297,10 +297,10 @@ export default function PayrollPage() {
               </>
             )}
           </Button>
-          <Button className="bg-orange-600 hover:bg-orange-700">
+          {/* <Button className="bg-orange-600 hover:bg-orange-700">
             <Play className="mr-2 h-4 w-4" />
             Process Payroll
-          </Button>
+          </Button> */}
         </div>
       </div>
 

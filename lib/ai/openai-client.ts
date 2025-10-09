@@ -15,7 +15,7 @@ const openai = new OpenAI({
 // CONFIGURATION
 // ==============================================
 export const AI_CONFIG = {
-  model: process.env.OPENAI_MODEL || 'gpt-4o',
+  model: process.env.OPENAI_MODEL || 'gpt-4',
   temperature: 0.7,
   maxTokens: 2000,
 }

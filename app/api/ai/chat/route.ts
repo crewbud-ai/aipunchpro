@@ -1,40 +1,69 @@
 // ==============================================
-// app/api/ai/chat/route.ts - AI Chat with API Function Calling
+// app/api/ai/chat/route.ts - Simple Construction AI (MVP)
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
 import { validateSendMessage } from '@/lib/validations/ai/chat'
 import { AIChatDatabaseService } from '@/lib/database/services/ai-chat'
-import { AIContextBuilder } from '@/lib/ai/context-builder'
 import { 
   createChatCompletion, 
   validateOpenAIConfig,
-  type ChatCompletionMessage  // ✅ Import the type
+  type ChatCompletionMessage
 } from '@/lib/ai/openai-client'
-import { 
-  generateCompleteSystemPrompt, 
-  getAIContextPermissions 
-} from '@/lib/ai'
-import { convertToOpenAIFunctions } from '@/lib/ai/api-registry'
-import { APICaller } from '@/lib/ai/api-caller'
 import type { UserContext } from '@/types/ai'
 
 // ==============================================
-// POST /api/ai/chat - Send Message to AI
+// SIMPLE CONSTRUCTION AI PROMPT
+// ==============================================
+const SIMPLE_CONSTRUCTION_PROMPT = `You are CrewBud AI, a helpful construction industry assistant.
+
+**Your Role:**
+- Help with construction questions, calculations, and best practices
+- Provide guidance on project management and scheduling
+- Answer questions about building codes, safety standards, and OSHA compliance
+- Help with material estimates and labor calculations
+- Offer practical construction advice and problem-solving
+
+**Communication Style:**
+- Professional yet friendly and conversational
+- Clear, practical explanations
+- Use construction industry terminology appropriately
+- Be specific and actionable in your advice
+- Show empathy for construction challenges
+
+**Important:**
+- You provide general construction knowledge and guidance
+- For company-specific data (like "how many projects do we have"), politely explain: "I can help with construction knowledge and advice, but I don't have access to your company's specific data. You can find that information in your dashboard."
+- Always prioritize safety in recommendations
+- Be honest when you don't know something
+- Suggest when expert consultation is needed
+
+**Example Topics You Can Help With:**
+- Construction calculations (materials, labor hours, costs)
+- Safety protocols and OSHA guidelines
+- Building codes and regulations
+- Project management best practices
+- Equipment usage and maintenance
+- Trade-specific questions (carpentry, electrical, plumbing, etc.)
+- Construction scheduling and planning
+- Problem-solving common construction issues
+
+Keep responses concise, practical, and helpful!`
+
+// ==============================================
+// POST /api/ai/chat - Simple Construction AI
 // ==============================================
 export async function POST(request: NextRequest) {
   try {
     // ==============================================
-    // 1. AUTHENTICATION & USER CONTEXT
+    // 1. AUTHENTICATION
     // ==============================================
     const userId = request.headers.get('x-user-id')
     const companyId = request.headers.get('x-company-id')
     const userRole = request.headers.get('x-user-role')
     const firstName = request.headers.get('x-user-name')?.split(' ')[0] || 'User'
-    const lastName = request.headers.get('x-user-name')?.split(' ')[1] || ''
-    const userName = `${firstName} ${lastName}`
 
-    if (!userId || !companyId || !userRole) {
+    if (!userId || !companyId) {
       return NextResponse.json(
         {
           success: false,
@@ -45,26 +74,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('🔍 AI Chat Request from:', { userId, companyId, role: userRole, firstName })
+    console.log('💬 Simple AI Chat Request from:', { userId, firstName, role: userRole })
 
     // ==============================================
-    // 2. VALIDATE OPENAI CONFIGURATION
+    // 2. VALIDATE OPENAI
     // ==============================================
     const configValidation = validateOpenAIConfig()
     if (!configValidation.valid) {
-      console.error('OpenAI config error:', configValidation.error)
       return NextResponse.json(
         {
           success: false,
           error: 'AI service unavailable',
-          message: 'The AI assistant is temporarily unavailable. Please try again later.',
+          message: 'The AI assistant is temporarily unavailable.',
         },
         { status: 503 }
       )
     }
 
     // ==============================================
-    // 3. PARSE & VALIDATE REQUEST
+    // 3. VALIDATE REQUEST
     // ==============================================
     const body = await request.json()
     const validation = validateSendMessage(body)
@@ -80,14 +108,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { message, conversationId, includeContext } = validation.data
+    const { message, conversationId } = validation.data
 
     // ==============================================
-    // 4. INITIALIZE SERVICES
+    // 4. INITIALIZE SERVICE
     // ==============================================
     const chatService = new AIChatDatabaseService(false)
-    const contextBuilder = new AIContextBuilder(false)
-    const apiCaller = new APICaller(userId, companyId, userRole, userName)
 
     // ==============================================
     // 5. GET OR CREATE CONVERSATION
@@ -113,125 +139,48 @@ export async function POST(request: NextRequest) {
     )
 
     // ==============================================
-    // 7. BUILD CONTEXT (Simple context for members)
-    // ==============================================
-    let contextString = ''
-    
-    if (includeContext) {
-      const userContext: UserContext = {
-        userId,
-        companyId,
-        role: userRole,
-        firstName,
-        lastName,
-        permissions: null,
-      }
-
-      const dbContext = await contextBuilder.buildDatabaseContext(userContext)
-      contextString = contextBuilder.formatContextAsString(dbContext, userContext)
-    }
-
-    // ==============================================
-    // 8. BUILD SYSTEM PROMPT
-    // ==============================================
-    const userContext: UserContext = {
-      userId,
-      companyId,
-      role: userRole,
-      firstName,
-      lastName,
-      permissions: null,
-    }
-
-    const permissions = getAIContextPermissions(userRole)
-    const systemPrompt = generateCompleteSystemPrompt(
-      userContext,
-      permissions,
-      contextString || undefined
-    )
-
-    // ==============================================
-    // 9. GET CONVERSATION HISTORY
+    // 7. GET CONVERSATION HISTORY (Last 5 messages)
     // ==============================================
     const conversationMessages = await chatService.getConversationMessages(
       activeConversationId,
-      10 // Last 10 messages
+      5  // Keep it short to save tokens
     )
 
     // ==============================================
-    // 10. PREPARE MESSAGES FOR AI (with function calling)
+    // 8. BUILD MESSAGES
     // ==============================================
     const messages: ChatCompletionMessage[] = [
-      { role: 'system', content: systemPrompt },
-      ...conversationMessages.slice(-10).map(msg => ({
+      { 
+        role: 'system', 
+        content: SIMPLE_CONSTRUCTION_PROMPT 
+      },
+      ...conversationMessages.slice(-5).map(msg => ({
         role: msg.role as 'user' | 'assistant',
         content: msg.content,
       })),
     ]
 
-    // Get available functions based on user role
-    const functions = convertToOpenAIFunctions(userRole)
-    
-    console.log(`📋 Available functions for ${userRole}:`, functions.map(f => f.name))
+    console.log('📤 Sending to OpenAI:', { 
+      messageCount: messages.length,
+      systemPromptLength: SIMPLE_CONSTRUCTION_PROMPT.length 
+    })
 
     // ==============================================
-    // 11. AI RESPONSE LOOP (Handle function calls)
+    // 9. CALL AI (Single, simple call)
     // ==============================================
-    let aiResponse
-    let functionCallCount = 0
-    const maxFunctionCalls = 5 // Prevent infinite loops
+    const aiResponse = await createChatCompletion({ 
+      messages,
+      temperature: 0.7,
+      maxTokens: 800,  // Shorter responses = lower cost
+    })
 
-    while (functionCallCount < maxFunctionCalls) {
-      // Call AI
-      aiResponse = await createChatCompletion({ 
-        messages,
-        functions: functions.length > 0 ? functions : undefined,
-      })
-
-      // If no function call, we're done
-      if (!aiResponse.functionCall) {
-        break
-      }
-
-      functionCallCount++
-      console.log(`🔧 Function call #${functionCallCount}:`, aiResponse.functionCall.name)
-
-      // Execute the function (call your existing API)
-      const functionResult = await apiCaller.call(
-        aiResponse.functionCall.name,
-        aiResponse.functionCall.arguments
-      )
-
-      console.log(`✅ Function result:`, {
-        success: functionResult.success,
-        hasData: !!functionResult.data,
-        error: functionResult.error
-      })
-
-      // Add function result to conversation
-      messages.push({
-        role: 'assistant',
-        content: null,
-        function_call: {
-          name: aiResponse.functionCall.name,
-          arguments: JSON.stringify(aiResponse.functionCall.arguments)
-        }
-      })
-
-      messages.push({
-        role: 'function',
-        name: aiResponse.functionCall.name,
-        content: APICaller.formatResultForAI(functionResult),
-      })
-      // Continue loop to get AI's final response
-    }
-
-    if (!aiResponse) {
-      throw new Error('No AI response generated')
-    }
+    console.log('✅ AI Response received:', { 
+      tokensUsed: aiResponse.tokensUsed,
+      model: aiResponse.model 
+    })
 
     // ==============================================
-    // 12. SAVE AI RESPONSE
+    // 10. SAVE AI RESPONSE
     // ==============================================
     const assistantMessageId = await chatService.saveMessage(
       activeConversationId,
@@ -240,12 +189,11 @@ export async function POST(request: NextRequest) {
       {
         tokensUsed: aiResponse.tokensUsed,
         model: aiResponse.model,
-        functionCallsUsed: functionCallCount,
       }
     )
 
     // ==============================================
-    // 13. RETURN RESPONSE
+    // 11. RETURN RESPONSE
     // ==============================================
     return NextResponse.json(
       {
@@ -256,7 +204,6 @@ export async function POST(request: NextRequest) {
           messageId: assistantMessageId,
           response: aiResponse.content,
           tokensUsed: aiResponse.tokensUsed,
-          functionCallsUsed: functionCallCount,
         },
       },
       { status: 200 }
@@ -269,7 +216,7 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         error: 'Internal server error',
-        message: 'An unexpected error occurred. Please try again later.',
+        message: 'An unexpected error occurred. Please try again.',
       },
       { status: 500 }
     )
@@ -277,7 +224,7 @@ export async function POST(request: NextRequest) {
 }
 
 // ==============================================
-// OPTIONS /api/ai/chat - CORS
+// OPTIONS - CORS
 // ==============================================
 export async function OPTIONS(request: NextRequest) {
   return NextResponse.json(

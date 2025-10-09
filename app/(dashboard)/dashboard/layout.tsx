@@ -483,7 +483,7 @@ export default function DashboardLayout({
 
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="relative flex flex-1">
-              <Search className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-400 pl-3" />
+              <Search className="pointer-events-none absolute inset-y-0 left-0 h-full w-7 text-gray-400 pl-3" />
               <input
                 className="block h-full w-full border-0 py-0 pl-10 pr-0 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
                 placeholder="Search projects, tasks, team members..."
@@ -491,9 +491,9 @@ export default function DashboardLayout({
               />
             </div>
             <div className="flex items-center gap-x-4 lg:gap-x-6">
-              <Button variant="ghost" size="icon">
+              {/* <Button variant="ghost" size="icon">
                 <Bell className="h-6 w-6" />
-              </Button>
+              </Button> */}
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
