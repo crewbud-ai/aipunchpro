@@ -313,20 +313,6 @@ export class AuthDatabaseService {
     return { success: true, error: null, user }
   }
 
-  async setUserPassword(userId: string, password: string) {
-    const passwordHash = await this.hashPassword(password)
-
-    const { error } = await this.supabaseClient
-      .from('users')
-      .update({
-        password_hash: passwordHash,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', userId)
-
-    if (error) throw error
-  }
-
   async verifyPassword(password: string, hash: string): Promise<boolean> {
     try {
       return await bcrypt.compare(password, hash)
@@ -944,6 +930,119 @@ export class AuthDatabaseService {
       return true
     } catch (error) {
       console.error('Invalidate user sessions error:', error)
+      throw error
+    }
+  }
+
+  // ==============================================
+  // PASSWORD CHANGE REQUIREMENT METHODS (NEW)
+  // ==============================================
+
+  async getUserPasswordChangeStatus(userId: string): Promise<boolean> {
+    try {
+      const { data, error } = await this.supabaseClient
+        .from('users')
+        .select('requires_password_change')
+        .eq('id', userId)
+        .single()
+
+      if (error && error.code !== 'PGRST116') {
+        throw error
+      }
+
+      return data?.requires_password_change || false
+    } catch (error) {
+      console.error('Get password change status error:', error)
+      return false
+    }
+  }
+
+
+  async setRequiresPasswordChange(userId: string, required: boolean = true) {
+    try {
+      console.log(userId, 'userIduserIduserId')
+      const { error } = await this.supabaseClient
+        .from('users')
+        .update({
+          requires_password_change: required,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId)
+
+      if (error) throw error
+      return true
+    } catch (error) {
+      console.error('Set requires password change error:', error)
+      throw error
+    }
+  }
+
+
+  async clearRequiresPasswordChange(userId: string) {
+    try {
+      const { error } = await this.supabaseClient
+        .from('users')
+        .update({
+          requires_password_change: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId)
+
+      if (error) throw error
+      return true
+    } catch (error) {
+      console.error('Clear requires password change error:', error)
+      throw error
+    }
+  }
+
+
+  async getUserWithPasswordChangeStatus(userId: string) {
+    try {
+      const { data, error } = await this.supabaseClient
+        .from('users')
+        .select(`
+          id,
+          email,
+          first_name,
+          last_name,
+          role,
+          requires_password_change,
+          company_id
+        `)
+        .eq('id', userId)
+        .single()
+
+      if (error && error.code !== 'PGRST116') {
+        throw error
+      }
+
+      return data
+    } catch (error) {
+      console.error('Get user with password change status error:', error)
+      return null
+    }
+  }
+
+
+  async setUserPassword(userId: string, password: string) {
+    try {
+      const passwordHash = await this.hashPassword(password)
+
+      // Update both password and clear the requirement flag
+      const { error } = await this.supabaseClient
+        .from('users')
+        .update({
+          password_hash: passwordHash,
+          requires_password_change: false, // ← Clear the flag when password is changed
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId)
+
+      if (error) throw error
+      return true
+    } catch (error) {
+      console.error('Set user password error:', error)
       throw error
     }
   }

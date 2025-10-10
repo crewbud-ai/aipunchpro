@@ -5,9 +5,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AuthDatabaseService } from '@/lib/database/services'
 import { authEmailService } from '@/lib/email/index'
-import { 
-  validateChangePassword, 
-  formatProfileErrors 
+import {
+  validateChangePassword,
+  formatProfileErrors
 } from '@/lib/validations/dashboard/profile'
 
 // ==============================================
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   try {
     // Get user ID from middleware (set in headers)
     const userId = request.headers.get('x-user-id')
-    
+
     if (!userId) {
       return NextResponse.json(
         {
@@ -31,21 +31,61 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    
-    // Validate input
-    const validation = validateChangePassword(body)
-    if (!validation.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid request data',
-          details: formatProfileErrors(validation.error),
-        },
-        { status: 400 }
-      )
+
+    // 🆕 CHECK IF THIS IS FIRST-TIME PASSWORD CHANGE (no currentPassword provided)
+    const isFirstTimeChange = !body.currentPassword
+
+    // Validate input - different validation for first-time vs normal change
+    let validation
+    if (isFirstTimeChange) {
+      // First-time change: only need new password and confirm
+      validation = {
+        success: true,
+        data: {
+          newPassword: body.newPassword,
+          confirmPassword: body.confirmPassword,
+        }
+      }
+
+      // Basic validation
+      if (!body.newPassword || !body.confirmPassword) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Validation failed',
+            message: 'New password and confirmation are required.',
+          },
+          { status: 400 }
+        )
+      }
+
+      if (body.newPassword !== body.confirmPassword) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Validation failed',
+            message: 'Passwords do not match.',
+          },
+          { status: 400 }
+        )
+      }
+    } else {
+      // Normal password change: need current password
+      validation = validateChangePassword(body)
+      if (!validation.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Invalid request data',
+            details: formatProfileErrors(validation.error),
+          },
+          { status: 400 }
+        )
+      }
     }
 
-    const { currentPassword, newPassword } = validation.data
+    const { newPassword } = validation.data
+    const currentPassword = body.currentPassword
 
     // Create service instance
     const authDatabaseService = new AuthDatabaseService(true, false)
@@ -54,7 +94,7 @@ export async function POST(request: NextRequest) {
     const user = await authDatabaseService.getUserForLogin(
       request.headers.get('x-user-email') || ''
     )
-    
+
     if (!user) {
       return NextResponse.json(
         {
@@ -93,48 +133,89 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify current password
-    const isCurrentPasswordValid = await authDatabaseService.verifyPassword(
-      currentPassword, 
-      user.password_hash
-    )
-    
-    if (!isCurrentPasswordValid) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid current password',
-          message: 'The current password you entered is incorrect.',
-        },
-        { status: 400 }
+    // HANDLE FIRST-TIME PASSWORD CHANGE
+    if (isFirstTimeChange) {
+      // Verify this user actually requires password change
+      const requiresChange = await authDatabaseService.getUserPasswordChangeStatus(userId)
+
+      if (!requiresChange) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Invalid request',
+            message: 'This endpoint is only for first-time password changes.',
+          },
+          { status: 400 }
+        )
+      }
+
+      // Check if new password is different from temporary password
+      const isSameAsTemporary = await authDatabaseService.verifyPassword(
+        newPassword,
+        user.password_hash
       )
+
+      if (isSameAsTemporary) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Same password',
+            message: 'New password must be different from your temporary password.',
+          },
+          { status: 400 }
+        )
+      }
+    } else {
+      // NORMAL PASSWORD CHANGE: Verify current password
+      const isCurrentPasswordValid = await authDatabaseService.verifyPassword(
+        currentPassword,
+        user.password_hash
+      )
+
+      if (!isCurrentPasswordValid) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Invalid current password',
+            message: 'The current password you entered is incorrect.',
+          },
+          { status: 400 }
+        )
+      }
+
+      // Check if new password is different from current password
+      const isSamePassword = await authDatabaseService.verifyPassword(
+        newPassword,
+        user.password_hash
+      )
+
+      if (isSamePassword) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Same password',
+            message: 'New password must be different from your current password.',
+          },
+          { status: 400 }
+        )
+      }
     }
 
-    // Check if new password is different from current password
-    const isSamePassword = await authDatabaseService.verifyPassword(
-      newPassword, 
-      user.password_hash
-    )
-    
-    if (isSamePassword) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Same password',
-          message: 'New password must be different from your current password.',
-        },
-        { status: 400 }
-      )
-    }
-
-    // Set the new password
+    // Set the new password (this also clears requires_password_change flag - Phase 2!)
     await authDatabaseService.setUserPassword(userId, newPassword)
 
-    // PROFESSIONAL APPROACH: Invalidate ALL sessions for maximum security
-    // User will need to log in again with new password (industry standard)
-    await authDatabaseService.invalidateAllUserSessions(userId)
+    // DIFFERENT SESSION HANDLING FOR FIRST-TIME CHANGE
+    if (isFirstTimeChange) {
+      // First-time change: Keep current session, just refresh
+      // User stays logged in after changing password
+      console.log(`✅ First-time password changed for user ${userId}, keeping session active`)
+    } else {
+      // Normal change: Invalidate ALL sessions for maximum security
+      await authDatabaseService.invalidateAllUserSessions(userId)
+      console.log(`✅ Password changed for user ${userId}, all sessions invalidated`)
+    }
 
-    // Send password change notification email using existing method
+    // Send password change notification email
     const emailResult = await authEmailService.sendPasswordResetSuccessEmail({
       email: user.email,
       firstName: user.first_name,
@@ -145,24 +226,23 @@ export async function POST(request: NextRequest) {
       console.error('Failed to send password change notification email:', emailResult.error)
     }
 
-    // Return success response with professional messaging
+    // Return success response with different messages for first-time vs normal
     return NextResponse.json(
       {
         success: true,
-        message: 'Password changed successfully',
+        message: isFirstTimeChange
+          ? 'Password changed successfully'
+          : 'Password changed successfully',
         data: {
           passwordChanged: true,
           changedAt: new Date().toISOString(),
-          sessionsInvalidated: true,
+          sessionsInvalidated: !isFirstTimeChange, // Only invalidate for normal changes
         },
         notifications: {
-          message: '🔐 Password changed successfully! For security, you have been logged out of all devices. Please log in again with your new password.',
+          message: isFirstTimeChange
+            ? 'Password changed successfully! You can now access all features.'
+            : 'Password changed successfully! For security, you have been logged out of all devices. Please log in again with your new password.',
         },
-        security: {
-          all_sessions_invalidated: true,
-          action_required: 'reauthentication',
-          reason: 'Password change security protocol'
-        }
       },
       { status: 200 }
     )
@@ -170,26 +250,11 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Change password error:', error)
 
-    // Handle specific database errors
-    if (error instanceof Error) {
-      if (error.message.includes('Invalid input syntax')) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Invalid request',
-            message: 'The request contains invalid data.',
-          },
-          { status: 400 }
-        )
-      }
-    }
-
-    // Generic error response
     return NextResponse.json(
       {
         success: false,
         error: 'Internal server error',
-        message: 'Something went wrong while changing your password. Please try again.',
+        message: 'Something went wrong while changing your password.',
       },
       { status: 500 }
     )

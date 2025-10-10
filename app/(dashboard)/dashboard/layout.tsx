@@ -113,26 +113,6 @@ const navigation = [
     ]
   },
   {
-    name: "Team",
-    href: "/dashboard/team",
-    icon: Users,
-    show: () => hasPermission('team', 'view'),
-    subItems: [
-      {
-        name: "Add Member",
-        href: "/dashboard/team/new",
-        icon: UserPlus,
-        show: () => hasPermission('team', 'add'),
-      },
-      {
-        name: "Team Members",
-        href: "/dashboard/team",
-        icon: Users,
-        show: () => hasPermission('team', 'view'),
-      },
-    ]
-  },
-  {
     name: "Punchlist",
     href: "/dashboard/punchlist",
     icon: ClipboardList,
@@ -149,6 +129,26 @@ const navigation = [
         href: "/dashboard/punchlist",
         icon: ClipboardList,
         show: () => hasPermission('punchlist', 'view'),
+      },
+    ]
+  },
+  {
+    name: "Team",
+    href: "/dashboard/team",
+    icon: Users,
+    show: () => hasPermission('team', 'view'),
+    subItems: [
+      {
+        name: "Add Member",
+        href: "/dashboard/team/new",
+        icon: UserPlus,
+        show: () => hasPermission('team', 'add'),
+      },
+      {
+        name: "Team Members",
+        href: "/dashboard/team",
+        icon: Users,
+        show: () => hasPermission('team', 'view'),
       },
     ]
   },

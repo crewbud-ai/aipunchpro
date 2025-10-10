@@ -304,22 +304,28 @@ export class ScheduleProjectDatabaseService {
 
         // Filter by assigned user (check if user ID is in assignedProjectMemberIds)
         if (options.assignedToUserId) {
-            // First get project_member IDs for this user
-            const { data: userProjectMembers } = await this.supabaseClient
-                .from('project_members')
-                .select('id')
-                .eq('user_id', options.assignedToUserId)
-                .eq('company_id', companyId)
-                .eq('status', 'active')
 
-            if (userProjectMembers && userProjectMembers.length > 0) {
-                const projectMemberIds = userProjectMembers.map(pm => pm.id)
-                // Use overlaps operator to check if any of the user's project_member IDs are in the array
-                query = query.overlaps('assigned_project_member_ids', projectMemberIds)
-            } else {
-                // User has no active project assignments, return empty results
-                return { data: [], totalCount: 0 }
-            }
+            query = query.contains('assigned_project_member_ids', [options.assignedToUserId]);
+
+            // First get project_member IDs for this user
+            // const { data: userProjectMembers } = await this.supabaseClient
+            //     .from('project_members')
+            //     .select('id')
+            //     .eq('user_id', options.assignedToUserId)
+            //     .eq('company_id', companyId)
+            //     // .eq('status', 'active')
+
+            // console.log(userProjectMembers, 'userProjectMembers')
+
+            // if (userProjectMembers && userProjectMembers.length > 0) {
+            //     const projectMemberIds = userProjectMembers.map(pm => pm.id)
+            //     // Use overlaps operator to check if any of the user's project_member IDs are in the array
+            //     query = query.overlaps('assigned_project_member_ids', projectMemberIds)
+            //     console.log(query, 'query')
+            // } else {
+            //     // User has no active project assignments, return empty results
+            //     return { data: [], totalCount: 0 }
+            // }
         }
 
         // Apply sorting

@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
     // Parse request body
     const body = await request.json();
 
-    console.log(body, 'body')
+    // console.log(body, 'body')
 
     // Validate input data
     const validation = validateCreateTeamMember(body)
@@ -250,7 +250,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate temporary password
-    const temporaryPassword = generateSecurePassword()
+    const temporaryPassword = generateSecurePassword();
+    console.log(temporaryPassword, 'temporaryPassword')
 
     let newUser: any
     let projectAssignment: any = null
@@ -277,6 +278,8 @@ export async function POST(request: NextRequest) {
           message: 'The specified project could not be found.',
         }, { status: 404 })
       }
+
+      console.log(temporaryPassword, 'temporaryPassword')
 
       // Create team member with project assignment
       const result = await teamService.createTeamMemberWithProjectAssignment({
@@ -330,6 +333,18 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // ==========================================
+    // SET PASSWORD CHANGE REQUIREMENT FLAG
+    // ==========================================
+    try {
+      await authService.setRequiresPasswordChange(newUser.id, true)
+      console.log(`✅ Set requires_password_change flag for user ${newUser.id}`)
+    } catch (flagError) {
+      // Log error but don't fail the entire request
+      console.error('Failed to set password change requirement:', flagError)
+      // User was created successfully, flag can be set manually if needed
+    }
+
     // ==============================================
     // SEND WELCOME EMAIL
     // ==============================================
@@ -355,10 +370,19 @@ export async function POST(request: NextRequest) {
     // Calculate assignment status
     const assignmentStatus = calculateTeamMemberStatus(newUser.is_active, projectAssignment ? 1 : 0)
 
-    const statusSuggestion = await checkProjectStartSuggestion(
-      projectAssignment.id,
-      companyId
-    )
+    // 🔧 FIX: Only check project start suggestion if there IS a project assignment
+    let statusSuggestion = null
+    if (projectAssignment && projectAssignment.id) {
+      try {
+        statusSuggestion = await checkProjectStartSuggestion(
+          projectAssignment.id,
+          companyId
+        )
+      } catch (suggestionError) {
+        console.error('Failed to check project start suggestion:', suggestionError)
+        // Don't fail the entire request if suggestion check fails
+      }
+    }
 
     // Build response data
     const responseData: any = {
@@ -382,8 +406,12 @@ export async function POST(request: NextRequest) {
         updatedAt: newUser.updated_at,
       },
       assignmentStatus,
-      activeProjectCount: projectAssignment ? 1 : 0, 
-      statusSuggestion: statusSuggestion
+      activeProjectCount: projectAssignment ? 1 : 0,
+    }
+
+    // Only add statusSuggestion if it exists
+    if (statusSuggestion) {
+      responseData.statusSuggestion = statusSuggestion
     }
 
     // Add project assignment details if created
@@ -468,29 +496,29 @@ async function checkProjectStartSuggestion(
 ) {
   const projectService = new ProjectDatabaseService(true, false)
   const teamService = new TeamMemberDatabaseService(true, false)
-  
+
   // Get project details
   const project = await projectService.getProjectByIdEnhanced(projectId, companyId)
   if (!project) return null
-  
+
   // Only suggest for not_started projects
   if (project.status !== 'not_started') return null
-  
+
   // Get team members for this project using the correct service
   const projectMembers = await teamService.getProjectTeamMembers(projectId, companyId)
   const hasTeamMembers = projectMembers && projectMembers.length > 0
-  
+
   // Check if start date condition is met
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  
+
   let isStartDateReached = true
   if (project.start_date) {
     const startDate = new Date(project.start_date)
     startDate.setHours(0, 0, 0, 0)
     isStartDateReached = startDate <= today
   }
-  
+
   if (hasTeamMembers && isStartDateReached) {
     return {
       shouldSuggest: true,
@@ -501,7 +529,7 @@ async function checkProjectStartSuggestion(
       teamCount: projectMembers.length
     }
   } else if (hasTeamMembers && !isStartDateReached) {
-    const startDateStr = project.start_date 
+    const startDateStr = project.start_date
       ? new Date(project.start_date).toLocaleDateString()
       : 'Not set'
     return {
@@ -511,7 +539,7 @@ async function checkProjectStartSuggestion(
       reason: 'Start date not yet reached'
     }
   }
-  
+
   return null
 }
 

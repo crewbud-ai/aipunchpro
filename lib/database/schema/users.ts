@@ -133,6 +133,7 @@ export const users = pgTable('users', {
   
   // Status & Activity
   isActive: boolean('is_active').default(true),
+  requiresPasswordChange: boolean('requires_password_change').default(false),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
   timezone: varchar('timezone', { length: 50 }).default('UTC'),
   
@@ -144,7 +145,8 @@ export const users = pgTable('users', {
   emailIdx: index('idx_users_email').on(table.email),
   roleIdx: index('idx_users_role').on(table.role),
   activeIdx: index('idx_users_active').on(table.isActive),
-  tradeSpecialtyIdx: index('idx_users_trade_specialty').on(table.tradeSpecialty), // NEW
+  tradeSpecialtyIdx: index('idx_users_trade_specialty').on(table.tradeSpecialty),
+  requiresPasswordChangeIdx: index('idx_users_requires_password_change').on(table.requiresPasswordChange),
 }));
 
 // ==============================================
@@ -261,7 +263,7 @@ export const DEFAULT_PERMISSIONS: Record<string, UserPermissions> = {
     financials: { view: false, edit: false, viewReports: false },
     files: { upload: false, delete: false, view: true, downloadAll: false },
     schedule: { create: false, edit: false, view: true },
-    punchlist: { create: true, edit: false, complete: true, view: true },
+    punchlist: { create: false, edit: false, complete: true, view: true },
     reports: { generate: false, view: false, export: false },
     admin: { manageUsers: false, systemSettings: false, companySettings: false }
   }

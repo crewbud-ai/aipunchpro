@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       startDate: url.searchParams.get('startDate'),
       endDate: url.searchParams.get('endDate'),
       projectId: url.searchParams.get('projectId'),
-      userId: url.searchParams.get('userId'),
+      userId: url.searchParams.get('userId') || userId,
       status: url.searchParams.get('status'),
       includeNotes: url.searchParams.get('includeNotes'),
       includeDetailedEntries: url.searchParams.get('includeDetailedEntries'),

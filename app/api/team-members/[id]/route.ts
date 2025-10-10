@@ -660,6 +660,18 @@ export async function POST(
       temporaryPassword,
     })
 
+
+    // ==========================================
+    // SET PASSWORD CHANGE REQUIREMENT FLAG
+    // ==========================================
+    try {
+      await authService.setRequiresPasswordChange(teamMemberId, true)
+      console.log(`✅ Set requires_password_change flag for reactivated user ${teamMemberId}`)
+    } catch (flagError) {
+      // Log error but don't fail the entire request
+      console.error('Failed to set password change requirement on reactivation:', flagError)
+    }
+
     // ==============================================
     // SEND REACTIVATION EMAIL
     // ==============================================

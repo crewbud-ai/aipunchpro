@@ -5,6 +5,11 @@
 import { toast } from '@/hooks/use-toast'
 import { type UserPermissions } from '@/lib/database/schema/users'
 
+import type {
+    ChangePasswordFirstLoginRequest,
+    ChangePasswordFirstLoginResponse
+} from '@/types/auth/change-password'
+
 // ==============================================
 // API CLIENT CONFIGURATION
 // ==============================================
@@ -795,6 +800,61 @@ export const authApi = {
         }
     },
 
+    // Change Password - First Login (No current password required)
+    async changePasswordFirstLogin(data: ChangePasswordFirstLoginRequest): Promise<ChangePasswordFirstLoginResponse> {
+        try {
+            // This uses the same endpoint but WITHOUT current password
+            // The API will detect it's a first-time change based on requires_password_change flag
+            const response = await apiCall<ChangePasswordFirstLoginResponse>('/api/user/change-password', {
+                method: 'POST',
+                body: JSON.stringify({
+                    newPassword: data.newPassword,
+                    confirmPassword: data.confirmPassword,
+                    // No currentPassword needed for first-time change
+                }),
+            })
+
+            // Show success toast
+            if (response.success) {
+                toast({
+                    title: '✅ Password Changed',
+                    description: response.notifications?.message || 'Your password has been updated successfully.',
+                })
+            }
+
+            return response
+        } catch (error) {
+            if (error instanceof ApiError) {
+                // Handle specific error cases
+                if (error.message.includes('same password')) {
+                    toast({
+                        title: 'Same Password',
+                        description: 'Your new password must be different from the temporary password.',
+                        variant: 'destructive',
+                    })
+                } else if (error.message.includes('validation') || error.message.includes('requirements')) {
+                    toast({
+                        title: 'Invalid Password',
+                        description: 'Password must meet all security requirements.',
+                        variant: 'destructive',
+                    })
+                } else {
+                    toast({
+                        title: 'Password Change Failed',
+                        description: error.message,
+                        variant: 'destructive',
+                    })
+                }
+            } else {
+                toast({
+                    title: 'Password Change Failed',
+                    description: 'Something went wrong. Please try again.',
+                    variant: 'destructive',
+                })
+            }
+            throw error
+        }
+    },
 
 }
 

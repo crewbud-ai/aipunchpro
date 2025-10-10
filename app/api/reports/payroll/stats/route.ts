@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url)
     const queryParams = {
       projectId: url.searchParams.get('projectId'),
-      userId: url.searchParams.get('userId'),
+      userId: url.searchParams.get('userId') || userId,
     }
 
     // Validate query parameters

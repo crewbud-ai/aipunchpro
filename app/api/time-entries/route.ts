@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     // Parse query parameters
     const url = new URL(request.url)
     const queryParams = {
-      userId: url.searchParams.get('userId'),
+      userId: url.searchParams.get('userId') || userId,
       projectId: url.searchParams.get('projectId'),
       scheduleProjectId: url.searchParams.get('scheduleProjectId'),
       status: url.searchParams.get('status'),

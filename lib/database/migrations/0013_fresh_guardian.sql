@@ -1,0 +1,2 @@
+ALTER TABLE "users" ADD COLUMN "requires_password_change" boolean DEFAULT false;--> statement-breakpoint
+CREATE INDEX "idx_users_requires_password_change" ON "users" USING btree ("requires_password_change");

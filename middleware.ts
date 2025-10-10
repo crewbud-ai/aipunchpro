@@ -171,7 +171,7 @@
 // }
 
 // ==============================================
-// middleware.ts - COMPLETE VERSION with Status Coordination + All Previous Functionality
+// COMPLETE VERSION with Status Coordination + All Previous Functionality
 // ==============================================
 
 import { NextResponse } from 'next/server'
@@ -259,6 +259,7 @@ const publicRoutes = [
   '/auth/verify-email',
   '/auth/forgot-password',
   '/auth/reset-password',
+  '/auth/change-password',
   '/contact',
   '/about',
   '/api/auth', // All auth API routes are public
@@ -320,7 +321,7 @@ export async function middleware(request: NextRequest) {
           : NextResponse.next()
 
         response.cookies.delete('sessionToken')
-        response.cookies.delete('userInfo') // ← RESTORED from previous version
+        response.cookies.delete('userInfo')
         return response
       }
 
@@ -341,20 +342,41 @@ export async function middleware(request: NextRequest) {
       const { user } = sessionValidation.data
       const userRole = user?.role
 
+      // ==========================================
+      // 🔧 CHECK IF USER NEEDS TO CHANGE PASSWORD (FIXED)
+      // ==========================================
+      const requiresPasswordChange = user.requires_password_change || false
+
+      // If user needs to change password and is NOT already on change-password page/API
+      if (requiresPasswordChange &&
+        pathname !== '/auth/change-password' &&
+        pathname !== '/api/user/change-password' &&
+        pathname !== '/api/auth/logout') {
+
+        console.log(`Redirecting user ${user.id} to change password (requires_password_change = true)`)
+        return NextResponse.redirect(new URL('/auth/change-password', request.url))
+      }
+
+      // If user is on change-password page but doesn't need to change password
+      if (!requiresPasswordChange && pathname === '/auth/change-password') {
+        console.log(`User ${user.id} already changed password, redirecting to dashboard`)
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+
       // ==============================================
       // NEW: ROLE-BASED ROUTE PROTECTION
       // ==============================================
 
       // Check if route is admin-only
       const isAdminRoute = adminOnlyRoutes.some(route => matchesPattern(pathname, route))
-      
+
       // Check if route is member-only
       const isMemberRoute = memberOnlyRoutes.some(route => matchesPattern(pathname, route))
 
       // PROTECTION: Admin-only routes
       if (isAdminRoute && userRole) {
         const isAdmin = userRole === 'super_admin' || userRole === 'admin'
-        
+
         if (!isAdmin) {
           // Non-admins trying to access admin routes → Redirect to member dashboard
           console.log(`Non-admin (${userRole}) blocked from: ${pathname}`)
@@ -365,7 +387,7 @@ export async function middleware(request: NextRequest) {
       // PROTECTION: Member-only routes (admins should use admin dashboard)
       if (isMemberRoute && userRole) {
         const isAdmin = userRole === 'super_admin' || userRole === 'admin'
-        
+
         if (isAdmin) {
           // Admins trying to access member routes → Redirect to admin dashboard
           console.log(`Admin blocked from member route: ${pathname}`)
@@ -397,6 +419,9 @@ export async function middleware(request: NextRequest) {
           requestHeaders.set('x-user-email', user.email)
         }
 
+        // ADD PASSWORD CHANGE STATUS TO HEADERS
+        requestHeaders.set('x-requires-password-change', requiresPasswordChange ? 'true' : 'false')
+
         // NEW: Add user permissions for coordinated operations
         if (user.permissions) {
           let permissionsString = user.permissions
@@ -412,8 +437,11 @@ export async function middleware(request: NextRequest) {
         }
       }
 
-      // RESTORED: Redirect authenticated users away from auth pages (from previous version)
-      if (pathname.startsWith('/auth/') && !pathname.includes('logout')) {
+      // 🔧 FIX: Redirect authenticated users away from auth pages 
+      // EXCEPT change-password (they need access to that!) and logout
+      if (pathname.startsWith('/auth/') &&
+        pathname !== '/auth/change-password' &&
+        !pathname.includes('logout')) {
         return NextResponse.redirect(new URL('/dashboard', request.url))
       }
 
@@ -424,6 +452,7 @@ export async function middleware(request: NextRequest) {
         },
       })
 
+      
     } catch (error) {
       console.error('Middleware session validation error:', error)
 

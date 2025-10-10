@@ -21,6 +21,8 @@ export async function GET(request: NextRequest) {
         // Get user info from middleware
         const userId = request.headers.get('x-user-id')
         const companyId = request.headers.get('x-company-id')
+        const userRole = request.headers.get('x-user-role')
+        console.log(userRole, 'userRole')
 
         if (!userId || !companyId) {
             return NextResponse.json(
@@ -33,22 +35,42 @@ export async function GET(request: NextRequest) {
             )
         }
 
+        // Get Scheduled Project for this Single User
+        let queryParams = {} as any;
+
+        const assignedToUsers: string[] = [userId];
+        console.log(assignedToUsers, 'assignedToUsers');
+
         // Parse query parameters
-        const url = new URL(request.url)
-        const queryParams = {
+        const url = new URL(request.url);
+
+        // Base query params shared for all roles
+        const baseQuery = {
             projectId: url.searchParams.get('projectId') || undefined,
             status: url.searchParams.get('status') || undefined,
             priority: url.searchParams.get('priority') || undefined,
             tradeRequired: url.searchParams.get('tradeRequired') || undefined,
-            assignedToUserId: url.searchParams.get('assignedToUserId') || undefined,
             startDateFrom: url.searchParams.get('startDateFrom') || undefined,
             startDateTo: url.searchParams.get('startDateTo') || undefined,
             search: url.searchParams.get('search') || undefined,
-            limit: url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit')!) : 20,
-            offset: url.searchParams.get('offset') ? parseInt(url.searchParams.get('offset')!) : 0,
+            limit: url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit') as string, 10) : 20,
+            offset: url.searchParams.get('offset') ? parseInt(url.searchParams.get('offset') as string, 10) : 0,
             sortBy: url.searchParams.get('sortBy') || 'startDate',
             sortOrder: url.searchParams.get('sortOrder') || 'asc',
+        };
+
+        // Role-based filtering
+        if (userRole === 'member') {
+            queryParams = {
+                ...baseQuery,
+                assignedToUserId: url.searchParams.get('assignedToUserId') || userId,
+            };
+        } else {
+            queryParams = baseQuery;
         }
+
+        console.log(queryParams, 'queryParams');
+
 
         // Validate query parameters
         const validation = validateGetScheduleProjects(queryParams)
