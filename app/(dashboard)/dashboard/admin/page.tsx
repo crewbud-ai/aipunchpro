@@ -59,12 +59,12 @@ export default function AdminDashboardPage() {
   // ==============================================
   // USE CUSTOM DASHBOARD HOOK
   // ==============================================
-  const { 
-    stats, 
-    isLoading, 
-    hasError, 
+  const {
+    stats,
+    isLoading,
+    hasError,
     error,
-    refreshDashboard 
+    refreshDashboard
   } = useAdminDashboard()
 
   // ==============================================
@@ -78,9 +78,9 @@ export default function AdminDashboardPage() {
           <AlertDescription>
             {error || 'Failed to load dashboard data. Please try again.'}
           </AlertDescription>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={refreshDashboard}
             className="mt-3"
           >
@@ -118,36 +118,48 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <p className="text-gray-600 mt-1">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        {/* Title Section - Mobile Optimized */}
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold truncate">
+            Admin Dashboard
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
             Complete overview of your construction operations
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-            <Activity className="h-3 w-3 mr-1" />
-            Live Updates
+
+        {/* Action Section - Mobile Optimized */}
+        <div className="flex items-center gap-2 sm:flex-shrink-0">
+          {/* Live Updates Badge - Responsive */}
+          <Badge
+            variant="outline"
+            className="bg-green-50 text-green-700 border-green-300 text-xs sm:text-sm whitespace-nowrap"
+          >
+            <Activity className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-1" />
+            <span className="hidden xs:inline">Live Updates</span>
+            <span className="xs:hidden">Live</span>
           </Badge>
-          <Button 
-            variant="outline" 
+
+          {/* Refresh Button - Responsive */}
+          <Button
+            variant="outline"
             size="sm"
             onClick={refreshDashboard}
+            className="h-9 sm:h-10"
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            <RefreshCw className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
         </div>
       </div>
 
       {/* Critical Alerts */}
       {(stats.time.pendingApprovals > 0 || stats.projects.delayed > 0) && (
-        <div className={`grid gap-4 ${
-          stats.time.pendingApprovals > 0 && stats.projects.delayed > 0 
-            ? 'md:grid-cols-2' 
+        <div className={`grid gap-4 ${stats.time.pendingApprovals > 0 && stats.projects.delayed > 0
+            ? 'md:grid-cols-2'
             : 'md:grid-cols-1'
-        }`}>
+          }`}>
           {stats.time.pendingApprovals > 0 && (
             <Alert className="border-yellow-200 bg-yellow-50">
               <AlertCircle className="h-4 w-4 text-yellow-600" />
@@ -380,18 +392,18 @@ export default function AdminDashboardPage() {
               <div>
                 <p className="text-sm text-gray-600 mb-1">Total Spent</p>
                 <p className="text-2xl font-bold text-orange-600">
-                  ${(stats.budget.spent + stats.payroll.approved).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                  ${(stats.budget.spent + stats.payroll.approved).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                   <span>Materials: ${stats.budget.spent.toLocaleString()}</span>
                   <span>•</span>
-                  <span>Labor: ${stats.payroll.approved.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                  <span>Labor: ${stats.payroll.approved.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
               <div>
                 <p className="text-sm text-gray-600 mb-1">Remaining</p>
                 <p className="text-2xl font-bold text-green-600">
-                  ${stats.budget.remaining.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                  ${stats.budget.remaining.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 {stats.payroll.pending > 0 && (
                   <p className="text-xs text-yellow-600 mt-1">
@@ -407,16 +419,16 @@ export default function AdminDashboardPage() {
                   {stats.budget.utilizationPercent.toFixed(2)}%
                 </span>
               </div>
-              <Progress 
-                value={stats.budget.utilizationPercent} 
+              <Progress
+                value={stats.budget.utilizationPercent}
                 className="h-3"
               />
               <p className="text-xs text-gray-500 mt-2">
-                {stats.budget.utilizationPercent > 80 
+                {stats.budget.utilizationPercent > 80
                   ? '⚠️ High budget utilization - Monitor spending closely'
                   : stats.budget.utilizationPercent > 60
-                  ? '✓ Budget on track'
-                  : '✓ Budget healthy'}
+                    ? '✓ Budget on track'
+                    : '✓ Budget healthy'}
               </p>
             </div>
           </CardContent>
@@ -537,7 +549,7 @@ export default function AdminDashboardPage() {
               </div>
             )}
             <Link href="/dashboard/payroll">
-              <Button 
+              <Button
                 variant={stats.time.pendingApprovals > 0 ? "default" : "outline"}
                 className={`w-full mt-2 ${stats.time.pendingApprovals > 0 ? 'bg-yellow-600 hover:bg-yellow-700' : ''}`}
               >

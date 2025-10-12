@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
           sessionsInvalidated: true, // All previous sessions are now invalid
         },
         notifications: {
-          message: '🎉 Your password has been reset successfully! All previous sessions have been logged out for security.',
+          message: 'Your password has been reset successfully! All previous sessions have been logged out for security.',
           confirmationEmailSent: emailResult.success
             ? 'A confirmation email has been sent to your inbox.'
             : 'Password reset successful, but we had trouble sending the confirmation email.',

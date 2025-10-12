@@ -174,64 +174,55 @@
 // COMPLETE VERSION with Status Coordination + All Previous Functionality
 // ==============================================
 
+// ==============================================
+// middleware.ts - Clean & Optimized Authentication Middleware
+// ==============================================
+
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { AuthDatabaseService } from '@/lib/database/services'
 
-// Protected routes that require authentication - UPDATED with new coordinated routes
+// ==============================================
+// ROUTE CONFIGURATION
+// ==============================================
+
+// Protected routes that require authentication
 const protectedRoutes = [
-  // Dashboard routes
   '/dashboard',
   '/profile',
   '/settings',
-
-  // API routes that require authentication
   '/api/user',
   '/api/company',
-
-  // Original API routes
   '/api/projects',
   '/api/team-members',
   '/api/schedule-projects',
   '/api/punchlist-items',
   '/api/protected',
   '/api/time-entries',
-
-  // Additional API endpoints
   '/api/files',
   '/api/reports',
   '/api/notifications',
   '/api/stats',
-
-  // NEW: Coordinated status management routes
   '/api/projects/*/status-coordinated',
   '/api/schedule-projects/*/status-coordinated',
   '/api/team-members/*/deactivate-coordinated',
   '/api/team-members/*/reactivate-coordinated',
   '/api/team-members/reassign-work',
   '/api/team-members/*/replacement-suggestions',
-
-  // NEW: Status validation and analysis routes
   '/api/projects/*/validate-status-change',
   '/api/schedule-projects/*/validate-dependencies',
   '/api/schedule-projects/*/completion-readiness',
   '/api/projects/*/status-summary',
-
-  // NEW: Bulk operations routes
   '/api/projects/bulk-status-update',
   '/api/schedule-projects/bulk-status-update',
   '/api/team-members/bulk-deactivate',
   '/api/team-members/bulk-role-change',
-
-  // NEW: Cross-module coordination routes
   '/api/coordination/status-sync',
   '/api/coordination/validate-consistency',
   '/api/coordination/impact-analysis',
 ]
 
-// ==============================================
-// ADMIN-ONLY ROUTES (New Feature)
-// ==============================================
+// Admin-only routes
 const adminOnlyRoutes = [
   '/dashboard/admin',
   '/dashboard/payroll',
@@ -243,9 +234,7 @@ const adminOnlyRoutes = [
   '/api/time-entries/*/reject',
 ]
 
-// ==============================================
-// MEMBER-ONLY ROUTES (Admins redirected away)
-// ==============================================
+// Member-only routes (admins redirected away)
 const memberOnlyRoutes = [
   '/dashboard/member',
   '/dashboard/time-tracking',
@@ -262,14 +251,25 @@ const publicRoutes = [
   '/auth/change-password',
   '/contact',
   '/about',
-  '/api/auth', // All auth API routes are public
-  '/api/health', // Health check endpoint (if exists)
-  '/api/status', // Status endpoint (if exists)
+  '/api/auth',
+  '/api/health',
+  '/api/status',
+]
+
+// Routes that bypass authentication check
+const bypassRoutes = [
+  '/_next',
+  '/static',
+  '/api/auth/',
 ]
 
 // ==============================================
-// HELPER: Check if path matches pattern (supports wildcards)
+// HELPER FUNCTIONS
 // ==============================================
+
+/**
+ * Check if path matches pattern (supports wildcards)
+ */
 function matchesPattern(pathname: string, pattern: string): boolean {
   if (pattern.includes('*')) {
     const regexPattern = pattern.replace(/\*/g, '[^/]+')
@@ -279,218 +279,250 @@ function matchesPattern(pathname: string, pattern: string): boolean {
   return pathname.startsWith(pattern)
 }
 
+/**
+ * Check if route should bypass middleware
+ */
+function shouldBypass(pathname: string): boolean {
+  return (
+    bypassRoutes.some(route => pathname.startsWith(route)) ||
+    pathname.includes('.')
+  )
+}
+
+/**
+ * Check if user is admin
+ */
+function isAdmin(role: string): boolean {
+  return role === 'super_admin' || role === 'admin'
+}
+
+/**
+ * Validate session with timeout protection
+ */
+async function validateSessionWithTimeout(
+  authService: AuthDatabaseService,
+  sessionToken: string,
+  timeoutMs: number = 3000
+): Promise<{ success: boolean; error: string | null; data: any }> {
+  return Promise.race([
+    authService.validateSession(sessionToken),
+    new Promise<{ success: false; error: string; data: null }>((resolve) =>
+      setTimeout(
+        () => resolve({ success: false, error: 'TIMEOUT', data: null }),
+        timeoutMs
+      )
+    ),
+  ])
+}
+
+/**
+ * Clear session cookies
+ */
+function clearSessionCookies(response: NextResponse): NextResponse {
+  response.cookies.delete('sessionToken')
+  response.cookies.delete('userInfo')
+  return response
+}
+
+/**
+ * Redirect to login with redirect parameter
+ */
+function redirectToLogin(request: NextRequest, pathname: string): NextResponse {
+  const loginUrl = new URL('/auth/login', request.url)
+  loginUrl.searchParams.set('redirect', pathname)
+  return NextResponse.redirect(loginUrl)
+}
+
+// ==============================================
+// MAIN MIDDLEWARE
+// ==============================================
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Skip middleware for static files and specific API routes
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/static') ||
-    pathname.includes('.') ||
-    pathname.startsWith('/api/auth/') // Skip auth API routes
-  ) {
+  // Skip middleware for static files and auth routes
+  if (shouldBypass(pathname)) {
     return NextResponse.next()
   }
 
-  // Get session token from HTTP-only cookie
+  // Get session token
   const sessionToken = request.cookies.get('sessionToken')?.value
 
-  // Check if route requires authentication - UPDATED to handle wildcard patterns
+  // Check route types
   const isProtectedRoute = protectedRoutes.some(route => matchesPattern(pathname, route))
   const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route))
+  const isAdminRoute = adminOnlyRoutes.some(route => matchesPattern(pathname, route))
+  const isMemberRoute = memberOnlyRoutes.some(route => matchesPattern(pathname, route))
 
-  // If it's a protected route and no token, redirect to login
+  // If protected route and no token, redirect to login
   if (isProtectedRoute && !sessionToken) {
-    const loginUrl = new URL('/auth/login', request.url)
-    loginUrl.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(loginUrl)
+    return redirectToLogin(request, pathname)
   }
 
-  // If user has token, validate session against database
-  if (sessionToken) {
-    try {
-      const authService = new AuthDatabaseService(true, false)
-      const sessionValidation = await authService.validateSession(sessionToken)
+  // If no token, allow public routes
+  if (!sessionToken) {
+    return NextResponse.next()
+  }
 
-      if (!sessionValidation.success) {
-        console.log('Invalid session:', sessionValidation.error)
+  // ==============================================
+  // SESSION VALIDATION
+  // ==============================================
 
-        // Invalid session - clear cookies (including userInfo from previous version)
-        const response = isProtectedRoute
-          ? NextResponse.redirect(new URL('/auth/login', request.url))
-          : NextResponse.next()
+  try {
+    const authService = new AuthDatabaseService(true, false)
+    const sessionValidation = await validateSessionWithTimeout(authService, sessionToken, 3000)
 
-        response.cookies.delete('sessionToken')
-        response.cookies.delete('userInfo')
-        return response
-      }
-
-      // FIX: Add type guard to ensure data exists before accessing user
-      if (!sessionValidation.data) {
-        console.log('Session validation missing data')
-
-        const response = isProtectedRoute
-          ? NextResponse.redirect(new URL('/auth/login', request.url))
-          : NextResponse.next()
-
-        response.cookies.delete('sessionToken')
-        response.cookies.delete('userInfo')
-        return response
-      }
-
-      // NOW we can safely access sessionValidation.data
-      const { user } = sessionValidation.data
-      const userRole = user?.role
-
-      // ==========================================
-      // 🔧 CHECK IF USER NEEDS TO CHANGE PASSWORD (FIXED)
-      // ==========================================
-      const requiresPasswordChange = user.requires_password_change || false
-
-      // If user needs to change password and is NOT already on change-password page/API
-      if (requiresPasswordChange &&
-        pathname !== '/auth/change-password' &&
-        pathname !== '/api/user/change-password' &&
-        pathname !== '/api/auth/logout') {
-
-        console.log(`Redirecting user ${user.id} to change password (requires_password_change = true)`)
-        return NextResponse.redirect(new URL('/auth/change-password', request.url))
-      }
-
-      // If user is on change-password page but doesn't need to change password
-      if (!requiresPasswordChange && pathname === '/auth/change-password') {
-        console.log(`User ${user.id} already changed password, redirecting to dashboard`)
-        return NextResponse.redirect(new URL('/dashboard', request.url))
-      }
-
-      // ==============================================
-      // NEW: ROLE-BASED ROUTE PROTECTION
-      // ==============================================
-
-      // Check if route is admin-only
-      const isAdminRoute = adminOnlyRoutes.some(route => matchesPattern(pathname, route))
-
-      // Check if route is member-only
-      const isMemberRoute = memberOnlyRoutes.some(route => matchesPattern(pathname, route))
-
-      // PROTECTION: Admin-only routes
-      if (isAdminRoute && userRole) {
-        const isAdmin = userRole === 'super_admin' || userRole === 'admin'
-
-        if (!isAdmin) {
-          // Non-admins trying to access admin routes → Redirect to member dashboard
-          console.log(`Non-admin (${userRole}) blocked from: ${pathname}`)
-          return NextResponse.redirect(new URL('/dashboard/member', request.url))
-        }
-      }
-
-      // PROTECTION: Member-only routes (admins should use admin dashboard)
-      if (isMemberRoute && userRole) {
-        const isAdmin = userRole === 'super_admin' || userRole === 'admin'
-
-        if (isAdmin) {
-          // Admins trying to access member routes → Redirect to admin dashboard
-          console.log(`Admin blocked from member route: ${pathname}`)
-          return NextResponse.redirect(new URL('/dashboard/admin', request.url))
-        }
-      }
-
-      // Clone the request headers
-      const requestHeaders = new Headers(request.headers)
-
-      // Add session info to headers
-      requestHeaders.set('x-user-id', sessionValidation.data.userId || user?.id)
-      requestHeaders.set('x-session-id', sessionValidation.data.sessionId)
-
-      // Add user information to headers for API consumption
-      if (user) {
-        // RESTORED: Company ID handling from previous version
-        if (user.company_id) {
-          requestHeaders.set('x-company-id', user.company_id)
-        } else if (user.company?.id) {
-          requestHeaders.set('x-company-id', user.company.id)
-        }
-
-        if (user.role) {
-          requestHeaders.set('x-user-role', user.role)
-        }
-
-        if (user.email) {
-          requestHeaders.set('x-user-email', user.email)
-        }
-
-        // ADD PASSWORD CHANGE STATUS TO HEADERS
-        requestHeaders.set('x-requires-password-change', requiresPasswordChange ? 'true' : 'false')
-
-        // NEW: Add user permissions for coordinated operations
-        if (user.permissions) {
-          let permissionsString = user.permissions
-          if (typeof permissionsString === 'object') {
-            permissionsString = JSON.stringify(permissionsString)
-          }
-          requestHeaders.set('x-user-permissions', permissionsString)
-        }
-
-        // NEW: Add user name for audit trails in coordinated operations
-        if (user.first_name && user.last_name) {
-          requestHeaders.set('x-user-name', `${user.first_name} ${user.last_name}`)
-        }
-      }
-
-      // 🔧 FIX: Redirect authenticated users away from auth pages 
-      // EXCEPT change-password (they need access to that!) and logout
-      if (pathname.startsWith('/auth/') &&
-        pathname !== '/auth/change-password' &&
-        !pathname.includes('logout')) {
-        return NextResponse.redirect(new URL('/dashboard', request.url))
-      }
-
-      // Return response with updated headers
-      return NextResponse.next({
-        request: {
-          headers: requestHeaders,
-        },
-      })
-
-      
-    } catch (error) {
-      console.error('Middleware session validation error:', error)
-
-      // On validation error, clear cookies and redirect to login if protected
-      const response = isProtectedRoute
-        ? NextResponse.redirect(new URL('/auth/login', request.url))
-        : NextResponse.next()
-
-      response.cookies.delete('sessionToken')
-      response.cookies.delete('userInfo') // ← RESTORED from previous version
+    // Handle timeout
+    if (sessionValidation.error === 'TIMEOUT') {
+      console.error('Session validation timeout - allowing request to proceed')
+      const response = NextResponse.next()
+      response.headers.set('X-Session-Warning', 'validation-timeout')
       return response
     }
-  }
 
-  // No token but accessing public route - allow through
-  return NextResponse.next()
+    // Handle invalid session
+    if (!sessionValidation.success || !sessionValidation.data) {
+      console.log('Invalid session:', sessionValidation.error)
+
+      if (isProtectedRoute) {
+        const response = redirectToLogin(request, pathname)
+        return clearSessionCookies(response)
+      }
+
+      const response = NextResponse.next()
+      return clearSessionCookies(response)
+    }
+
+    // Extract user data
+    const { user } = sessionValidation.data
+    const userRole = user?.role
+    const requiresPasswordChange = user?.requires_password_change || false
+
+    // ==============================================
+    // PASSWORD CHANGE ENFORCEMENT
+    // ==============================================
+
+    if (
+      requiresPasswordChange &&
+      pathname !== '/auth/change-password' &&
+      pathname !== '/api/user/change-password' &&
+      pathname !== '/api/auth/logout'
+    ) {
+      console.log(`Redirecting user ${user.id} to change password`)
+      return NextResponse.redirect(new URL('/auth/change-password', request.url))
+    }
+
+    if (!requiresPasswordChange && pathname === '/auth/change-password') {
+      console.log(`User ${user.id} already changed password, redirecting to dashboard`)
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+
+    // ==============================================
+    // ROLE-BASED ACCESS CONTROL
+    // ==============================================
+
+    // Block non-admins from admin routes
+    if (isAdminRoute && userRole && !isAdmin(userRole)) {
+      console.log(`Non-admin (${userRole}) blocked from: ${pathname}`)
+      return NextResponse.redirect(new URL('/dashboard/member', request.url))
+    }
+
+    // Redirect admins away from member routes
+    if (isMemberRoute && userRole && isAdmin(userRole)) {
+      console.log(`Admin blocked from member route: ${pathname}`)
+      return NextResponse.redirect(new URL('/dashboard/admin', request.url))
+    }
+
+    // ==============================================
+    // REDIRECT AUTHENTICATED USERS FROM AUTH PAGES
+    // ==============================================
+
+    if (
+      pathname.startsWith('/auth/') &&
+      pathname !== '/auth/change-password' &&
+      !pathname.includes('logout')
+    ) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+
+    // ==============================================
+    // ADD USER CONTEXT TO HEADERS
+    // ==============================================
+
+    const requestHeaders = new Headers(request.headers)
+
+    // Session info
+    requestHeaders.set('x-user-id', sessionValidation.data.userId || user?.id)
+    requestHeaders.set('x-session-id', sessionValidation.data.sessionId)
+
+    // User info
+    if (user) {
+      // Company ID
+      const companyId = user.company_id || user.company?.id
+      if (companyId) {
+        requestHeaders.set('x-company-id', companyId)
+      }
+
+      // Basic user data
+      if (user.role) requestHeaders.set('x-user-role', user.role)
+      if (user.email) requestHeaders.set('x-user-email', user.email)
+      
+      // Full name for audit trails
+      if (user.first_name && user.last_name) {
+        requestHeaders.set('x-user-name', `${user.first_name} ${user.last_name}`)
+      }
+
+      // Password change status
+      requestHeaders.set('x-requires-password-change', requiresPasswordChange ? 'true' : 'false')
+
+      // Permissions (for coordinated operations)
+      if (user.permissions) {
+        const permissionsString = typeof user.permissions === 'object'
+          ? JSON.stringify(user.permissions)
+          : user.permissions
+        requestHeaders.set('x-user-permissions', permissionsString)
+      }
+    }
+
+    // Return response with updated headers
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    })
+
+  } catch (error) {
+    console.error('Session validation error:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      pathname,
+    })
+
+    // On error, redirect to login if protected route
+    if (isProtectedRoute) {
+      const response = redirectToLogin(request, pathname)
+      return clearSessionCookies(response)
+    }
+
+    return NextResponse.next()
+  }
 }
 
+// ==============================================
+// MIDDLEWARE CONFIG
+// ==============================================
+
 export const config = {
-  /*
-   * Match all request paths except for the ones starting with:
-   * - api/auth (authentication routes)
-   * - _next/static (static files)
-   * - _next/image (image optimization files)
-   * - favicon.ico (favicon file)
-   * - public folder files
-   */
   matcher: [
     '/((?!api/auth|_next/static|_next/image|favicon.ico|public).*)',
   ],
 }
 
 // ==============================================
-// MIDDLEWARE UTILITIES FOR COORDINATED OPERATIONS
+// UTILITY FUNCTIONS FOR API ROUTES
 // ==============================================
 
 /**
- * Extract coordination context from request headers
+ * Get coordination context from request headers
  */
 export function getCoordinationContext(request: NextRequest) {
   return {
@@ -508,6 +540,20 @@ export function getCoordinationContext(request: NextRequest) {
         return null
       }
     })(),
+  }
+}
+
+/**
+ * Get user context from request headers
+ */
+export function getUserContext(request: NextRequest) {
+  return {
+    userId: request.headers.get('x-user-id'),
+    companyId: request.headers.get('x-company-id'),
+    userRole: request.headers.get('x-user-role'),
+    userEmail: request.headers.get('x-user-email'),
+    userName: request.headers.get('x-user-name'),
+    sessionId: request.headers.get('x-session-id'),
   }
 }
 
@@ -533,6 +579,17 @@ export function hasCoordinationPermission(
 }
 
 /**
+ * Check if user has required role
+ */
+export function hasRequiredRole(
+  request: NextRequest,
+  requiredRoles: string[]
+): boolean {
+  const userRole = request.headers.get('x-user-role')
+  return userRole ? requiredRoles.includes(userRole) : false
+}
+
+/**
  * Create audit trail entry for coordinated operations
  */
 export function createCoordinationAuditEntry(
@@ -555,35 +612,6 @@ export function createCoordinationAuditEntry(
     sessionId: context.sessionId,
     timestamp: new Date().toISOString(),
     details: details || {},
-    source: 'coordination_middleware'
-  }
-}
-
-// ==============================================
-// HELPER FUNCTIONS FOR COMMON MIDDLEWARE OPERATIONS
-// ==============================================
-
-/**
- * Check if user has required role for an operation
- */
-export function hasRequiredRole(
-  request: NextRequest,
-  requiredRoles: string[]
-): boolean {
-  const userRole = request.headers.get('x-user-role')
-  return userRole ? requiredRoles.includes(userRole) : false
-}
-
-/**
- * Get user context from request headers
- */
-export function getUserContext(request: NextRequest) {
-  return {
-    userId: request.headers.get('x-user-id'),
-    companyId: request.headers.get('x-company-id'),
-    userRole: request.headers.get('x-user-role'),
-    userEmail: request.headers.get('x-user-email'),
-    userName: request.headers.get('x-user-name'),
-    sessionId: request.headers.get('x-session-id'),
+    source: 'coordination_middleware',
   }
 }

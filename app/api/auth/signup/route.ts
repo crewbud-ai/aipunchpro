@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     const { company, user } = validation.data
 
-    // 🔧 FIX: Create service instance within request context
+    // Create service instance within request context
     const authDatabaseService = new AuthDatabaseService(true, false) // server-side, not admin
 
     // Check if company slug already exists

@@ -80,12 +80,6 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        console.log('🔍 DEBUG: Project Member Validation', {
-            projectId: validation.data.projectId,
-            assignedMembers: validation.data.assignedMembers,
-            companyId
-        })
-
         // UPDATED: Verify assigned project members if provided
         let validatedAssignments: Array<{
             projectMemberId: string
@@ -94,32 +88,11 @@ export async function POST(request: NextRequest) {
 
         if (validation.data.assignedMembers && validation.data.assignedMembers.length > 0) {
             try {
-                console.log('🔍 DEBUG: Starting project member validation', {
-                    projectId: validation.data.projectId,
-                    companyId,
-                    assignedMembers: validation.data.assignedMembers
-                })
 
                 const projectMembers = await punchlistService.getProjectMembersForProject(validation.data.projectId, companyId)
 
-                console.log('🔍 DEBUG: Retrieved project members', {
-                    count: projectMembers.length,
-                    members: projectMembers.map(pm => ({
-                        projectMemberId: pm.id,
-                        userId: pm.userId ,
-                        userName: `${pm.user?.firstName || 'Unknown'} ${pm.user?.lastName || 'User'}`,
-                        isActive: pm.isActive !== undefined ? pm.isActive : pm.status === 'active',
-                        status: pm.status || 'unknown'
-                    }))
-                })
-
-                // ✅ NEW: Convert assignments from userId to projectMemberId
+                // Convert assignments from userId to projectMemberId
                 for (const assignment of validation.data.assignedMembers) {
-                    console.log('🔍 DEBUG: Processing assignment', {
-                        submittedId: assignment.projectMemberId,
-                        role: assignment.role,
-                        lookingFor: 'userId or projectMemberId match'
-                    })
 
                     // Try to find by projectMemberId first, then by userId
                     let matchingMember = projectMembers.find(pm => pm.id === assignment.projectMemberId)
@@ -127,29 +100,11 @@ export async function POST(request: NextRequest) {
                     if (!matchingMember) {
                         // If not found by projectMemberId, try to find by userId
                         matchingMember = projectMembers.find(pm =>
-                            (pm.userId ) === assignment.projectMemberId
+                            (pm.userId) === assignment.projectMemberId
                         )
-
-                        if (matchingMember) {
-                            console.log('🔄 CONVERTING: Found member by userId, converting to projectMemberId', {
-                                submittedUserId: assignment.projectMemberId,
-                                foundProjectMemberId: matchingMember.id,
-                                memberName: `${matchingMember.user?.firstName} ${matchingMember.user?.lastName}`
-                            })
-                        }
                     }
 
                     if (!matchingMember) {
-                        console.error('🚨 VALIDATION FAILED', {
-                            submittedId: assignment.projectMemberId,
-                            availableProjectMembers: projectMembers.map(pm => ({
-                                projectMemberId: pm.id,
-                                userId: pm.userId ,
-                                name: `${pm.user?.firstName} ${pm.user?.lastName}`
-                            })),
-                            projectId: validation.data.projectId,
-                            companyId
-                        })
 
                         return NextResponse.json({
                             success: false,
@@ -159,7 +114,7 @@ export async function POST(request: NextRequest) {
                                 submittedId: assignment.projectMemberId,
                                 availableMembers: projectMembers.map(pm => ({
                                     projectMemberId: pm.id,
-                                    userId: pm.userId ,
+                                    userId: pm.userId,
                                     name: `${pm.user?.firstName || 'Unknown'} ${pm.user?.lastName || 'User'}`,
                                     status: pm.status,
                                     isActive: pm.isActive
@@ -178,13 +133,7 @@ export async function POST(request: NextRequest) {
                     })
                 }
 
-                console.log('✅ All assignments validated and converted successfully', {
-                    originalAssignments: validation.data.assignedMembers,
-                    convertedAssignments: validatedAssignments
-                })
-
             } catch (memberError) {
-                console.error('🚨 Error fetching project members:', memberError)
                 return NextResponse.json({
                     success: false,
                     error: 'Database error',
@@ -274,22 +223,22 @@ export function transformObjectKeys<T = any>(obj: any): T {
     if (obj === null || obj === undefined) {
         return obj
     }
-    
+
     if (Array.isArray(obj)) {
         return obj.map(item => transformObjectKeys(item)) as T
     }
-    
+
     if (typeof obj === 'object' && obj.constructor === Object) {
         const transformed: any = {}
-        
+
         for (const [key, value] of Object.entries(obj)) {
             const camelKey = toCamelCase(key)
             transformed[camelKey] = transformObjectKeys(value)
         }
-        
+
         return transformed as T
     }
-    
+
     return obj
 }
 
@@ -306,13 +255,13 @@ export function transformPunchlistItem(rawPunchlistItem: any) {
         // Ensure these arrays exist
         photos: transformed.photos || [],
         attachments: transformed.attachments || [],
-        
+
         // Handle nested objects
         project: transformed.project ? transformObjectKeys(transformed.project) : null,
         reporter: transformed.reporter ? transformObjectKeys(transformed.reporter) : null,
         inspector: transformed.inspector ? transformObjectKeys(transformed.inspector) : null,
         relatedScheduleProject: transformed.relatedScheduleProject ? transformObjectKeys(transformed.relatedScheduleProject) : null,
-        
+
         // ✅ FIXED: Transform assignedMembers array (no duplicate)
         assignedMembers: (transformed.assignedMembers || []).map((member: any) => ({
             ...transformObjectKeys(member),
@@ -329,6 +278,7 @@ export async function GET(request: NextRequest) {
         // Get user info from middleware
         const userId = request.headers.get('x-user-id')
         const companyId = request.headers.get('x-company-id')
+        const userRole = request.headers.get('x-user-role')
 
         if (!userId || !companyId) {
             return NextResponse.json(
@@ -341,28 +291,50 @@ export async function GET(request: NextRequest) {
             )
         }
 
-        // Parse query parameters with proper typing
-        const searchParams = request.nextUrl.searchParams
-        const filters = {
-            projectId: searchParams.get('projectId') || undefined,
-            relatedScheduleProjectId: searchParams.get('relatedScheduleProjectId') || undefined,
-            status: searchParams.get('status') as 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'rejected' | 'on_hold' | undefined,
-            priority: searchParams.get('priority') as 'low' | 'medium' | 'high' | 'critical' | undefined,
-            issueType: searchParams.get('issueType') as 'defect' | 'incomplete' | 'change_request' | 'safety' | 'quality' | 'rework' | undefined,
-            tradeCategory: searchParams.get('tradeCategory') as 'general' | 'electrical' | 'plumbing' | 'hvac' | 'framing' | 'drywall' | 'flooring' | 'painting' | 'roofing' | 'concrete' | 'masonry' | 'landscaping' | 'cleanup' | undefined,
-            assignedToUserId: searchParams.get('assignedToUserId') || undefined,
-            reportedBy: searchParams.get('reportedBy') || undefined,
-            dueDateFrom: searchParams.get('dueDateFrom') || undefined,
-            dueDateTo: searchParams.get('dueDateTo') || undefined,
-            requiresInspection: searchParams.get('requiresInspection') === 'true' ? true :
-                searchParams.get('requiresInspection') === 'false' ? false : undefined,
-            isOverdue: searchParams.get('isOverdue') === 'true' ? true :
-                searchParams.get('isOverdue') === 'false' ? false : undefined,
-            search: searchParams.get('search') || undefined,
-            limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20,
-            offset: searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : 0,
-            sortBy: searchParams.get('sortBy') as 'title' | 'status' | 'priority' | 'issueType' | 'dueDate' | 'createdAt' || 'createdAt',
-            sortOrder: searchParams.get('sortOrder') as 'asc' | 'desc' || 'desc',
+        // Parse query parameters
+        const url = new URL(request.url)
+
+        // Base query params shared for all roles
+        const baseFilters = {
+            projectId: url.searchParams.get('projectId') || undefined,
+            relatedScheduleProjectId: url.searchParams.get('relatedScheduleProjectId') || undefined,
+            status: url.searchParams.get('status') as 'open' | 'assigned' | 'in_progress' | 'pending_review' | 'completed' | 'rejected' | 'on_hold' | undefined,
+            priority: url.searchParams.get('priority') as 'low' | 'medium' | 'high' | 'critical' | undefined,
+            issueType: url.searchParams.get('issueType') as 'defect' | 'incomplete' | 'change_request' | 'safety' | 'quality' | 'rework' | undefined,
+            tradeCategory: url.searchParams.get('tradeCategory') as 'general' | 'electrical' | 'plumbing' | 'hvac' | 'framing' | 'drywall' | 'flooring' | 'painting' | 'roofing' | 'concrete' | 'masonry' | 'landscaping' | 'cleanup' | undefined,
+            reportedBy: url.searchParams.get('reportedBy') || undefined,
+            dueDateFrom: url.searchParams.get('dueDateFrom') || undefined,
+            dueDateTo: url.searchParams.get('dueDateTo') || undefined,
+            requiresInspection: url.searchParams.get('requiresInspection') === 'true' ? true :
+                url.searchParams.get('requiresInspection') === 'false' ? false : undefined,
+            isOverdue: url.searchParams.get('isOverdue') === 'true' ? true :
+                url.searchParams.get('isOverdue') === 'false' ? false : undefined,
+            hasPhotos: url.searchParams.get('hasPhotos') === 'true' ? true :
+                url.searchParams.get('hasPhotos') === 'false' ? false : undefined,
+            search: url.searchParams.get('search') || undefined,
+            limit: url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit') as string, 10) : 20,
+            offset: url.searchParams.get('offset') ? parseInt(url.searchParams.get('offset') as string, 10) : 0,
+            sortBy: url.searchParams.get('sortBy') || 'createdAt',
+            sortOrder: url.searchParams.get('sortOrder') || 'desc',
+        }
+
+        // Role-based filtering
+        let filters: any = {}
+
+        if (userRole === 'member') {
+            // For members, only show punchlist items assigned to them
+            // Unless they explicitly request to see someone else's items (e.g., admin viewing a member's tasks)
+            filters = {
+                ...baseFilters,
+                assignedToUserId: url.searchParams.get('assignedToUserId') || userId,
+            }
+
+        } else {
+            // For admin/superadmin, show all items or filter by specific assignee if requested
+            filters = {
+                ...baseFilters,
+                assignedToUserId: url.searchParams.get('assignedToUserId') || undefined,
+            }
         }
 
         // Create service instance
@@ -371,7 +343,7 @@ export async function GET(request: NextRequest) {
 
         const { data: punchlistItems, totalCount } = await punchlistService.getPunchlistItems(companyId, filters)
 
-        // ✅ TRANSFORM: Convert all items to camelCase
+        // Convert all items to camelCase
         const transformedItems = punchlistItems.map(item => transformPunchlistItem(item))
 
         return NextResponse.json(

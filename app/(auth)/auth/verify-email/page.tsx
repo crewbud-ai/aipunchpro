@@ -85,17 +85,17 @@ function VerifyEmailForm() {
   }
 
   return (
-    <div className="w-full max-w-md space-y-8">
-      {/* Header */}
+    <div className="w-full max-w-md space-y-6 sm:space-y-8">
+      {/* Header - Mobile Optimized */}
       <div className="text-center">
-        <Link href="/" className="flex items-center justify-center mb-6">
-          <Building2 className="h-8 w-8 text-orange-600" />
-          <span className="ml-2 text-2xl font-bold text-gray-900">CrewBudAI</span>
+        <Link href="/" className="flex items-center justify-center mb-4 sm:mb-6">
+          <Building2 className="h-7 w-7 sm:h-8 sm:w-8 text-orange-600" />
+          <span className="ml-2 text-xl sm:text-2xl font-bold text-gray-900">CrewBudAI</span>
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
           Email Verification
         </h1>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm sm:text-base text-gray-600">
           {state === 'ready' 
             ? "Complete your account setup by verifying your email"
             : "Verifying your email address to activate your account"
@@ -106,8 +106,8 @@ function VerifyEmailForm() {
       {/* Content */}
       {renderContent()}
 
-      {/* Footer */}
-      <div className="text-center">
+      {/* Footer - Mobile Optimized */}
+      <div className="text-center px-4">
         <p className="text-sm text-gray-600">
           Need help?{" "}
           <Link href="/contact" className="font-medium text-orange-600 hover:text-orange-500">
@@ -119,35 +119,38 @@ function VerifyEmailForm() {
   )
 }
 
-// Loading fallback component
+// Loading fallback component - Mobile Optimized
 function VerifyEmailLoading() {
   return (
-    <div className="w-full max-w-md space-y-8">
+    <div className="w-full max-w-md space-y-6 sm:space-y-8">
       <div className="text-center">
-        <Link href="/" className="flex items-center justify-center mb-6">
-          <Building2 className="h-8 w-8 text-orange-600" />
-          <span className="ml-2 text-2xl font-bold text-gray-900">CrewBudAI</span>
+        <Link href="/" className="flex items-center justify-center mb-4 sm:mb-6">
+          <Building2 className="h-7 w-7 sm:h-8 sm:w-8 text-orange-600" />
+          <span className="ml-2 text-xl sm:text-2xl font-bold text-gray-900">CrewBudAI</span>
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
           Email Verification
         </h1>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm sm:text-base text-gray-600">
           Loading...
         </p>
       </div>
-      <Card className="w-full">
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-orange-600" />
+      <Card className="w-full shadow-sm">
+        <CardContent className="flex items-center justify-center py-12">
+          <div className="text-center space-y-3">
+            <Loader2 className="h-8 w-8 animate-spin text-orange-600 mx-auto" />
+            <p className="text-sm text-gray-600">Please wait...</p>
+          </div>
         </CardContent>
       </Card>
     </div>
   )
 }
 
-// Main page component with Suspense wrapper
+// Main page component with Suspense wrapper - Mobile Optimized
 export default function VerifyEmailPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
       <Suspense fallback={<VerifyEmailLoading />}>
         <VerifyEmailForm />
       </Suspense>

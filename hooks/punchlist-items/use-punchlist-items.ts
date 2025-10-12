@@ -132,7 +132,7 @@ export const usePunchlistItems = (initialFilters: Partial<PunchlistItemFilters> 
   // ==============================================
   // COMPUTED PROPERTIES
   // ==============================================
-  const isEmpty = state.punchlistItems.length === 0 && state.state === 'loaded'
+  const isEmpty = state.punchlistItems.length === 0 && state.state === 'empty'
   const hasPunchlistItems = state.punchlistItems.length > 0
   const isLoading = state.state === 'loading'
   const isLoaded = state.state === 'loaded' || state.state === 'empty'

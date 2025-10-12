@@ -316,11 +316,11 @@ export function DashboardContent({ user }: DashboardContentProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">
+      <div className="flex-1 min-w-0">
+        <h1 className="text-2xl sm:text-3xl font-bold truncate">
           Welcome back, {user.firstName}!
         </h1>
-        <p className="text-gray-500 mt-1">
+        <p className="text-sm sm:text-base text-gray-600 mt-1">
           Here's what's happening with your projects today.
         </p>
       </div>
@@ -381,7 +381,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
           <EarningsSummaryCards />
 
           {/* ⭐ NEW: Row 3: Time Entries Table */}
-          <TimeEntriesTable 
+          <TimeEntriesTable
             timeEntries={timeEntries}
             isLoading={isLoading}
             title="Recent Time Entries"

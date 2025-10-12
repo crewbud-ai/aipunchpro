@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json(responseData, { status: 200 })
 
-    // 🍪 SET HTTP-ONLY COOKIES (Enhanced Security)
+    // SET HTTP-ONLY COOKIES (Enhanced Security)
     const cookieOptions = {
       httpOnly: true,           // Cannot be accessed via JavaScript (XSS protection)
       secure: process.env.NODE_ENV === 'production', // HTTPS only in production

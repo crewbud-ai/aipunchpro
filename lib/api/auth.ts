@@ -477,7 +477,7 @@ export const authApi = {
             })
 
             toast({
-                title: '✅ Email Verified!',
+                title: 'Email Verified!',
                 description: 'Your email has been verified successfully.',
             })
 
@@ -504,7 +504,7 @@ export const authApi = {
 
             // Show success toast
             toast({
-                title: '📧 Reset Email Sent',
+                title: 'Reset Email Sent',
                 description: response.notifications?.message || 'Please check your email for password reset instructions.',
             })
 
@@ -553,7 +553,7 @@ export const authApi = {
             // Show success toast for valid token
             if (response.success) {
                 toast({
-                    title: '✅ Valid Reset Link',
+                    title: 'Valid Reset Link',
                     description: 'You can now set your new password.',
                 })
             }
@@ -610,7 +610,7 @@ export const authApi = {
 
             // Show success toast
             toast({
-                title: '🎉 Password Reset!',
+                title: 'Password Reset!',
                 description: response.notifications?.message || 'Your password has been successfully updated.',
             })
 
@@ -663,7 +663,7 @@ export const authApi = {
             })
 
             toast({
-                title: '📧 Verification Email Sent',
+                title: 'Verification Email Sent',
                 description: 'Please check your email for the verification link.',
             })
 
@@ -717,7 +717,7 @@ export const authApi = {
 
             // Show success toast
             toast({
-                title: '✅ Profile Updated',
+                title: 'Profile Updated',
                 description: response.notifications?.message || 'Your profile has been updated successfully.',
             })
 
@@ -762,7 +762,7 @@ export const authApi = {
 
             // Show success toast
             toast({
-                title: '🔐 Password Changed',
+                title: 'Password Changed',
                 description: response.notifications?.message || 'Your password has been changed successfully.',
             })
 
@@ -817,7 +817,7 @@ export const authApi = {
             // Show success toast
             if (response.success) {
                 toast({
-                    title: '✅ Password Changed',
+                    title: 'Password Changed',
                     description: response.notifications?.message || 'Your password has been updated successfully.',
                 })
             }

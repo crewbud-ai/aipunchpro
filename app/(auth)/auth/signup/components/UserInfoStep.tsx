@@ -1,8 +1,10 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PhoneInputComponent } from "@/components/ui/phone-input"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, AlertCircle, Loader2 } from "lucide-react"
 import { type SignupFormData } from "@/types/auth/signup"
 
 interface UserInfoStepProps {
@@ -32,126 +34,193 @@ export const UserInfoStep = ({
 }: UserInfoStepProps) => {
   return (
     <>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="firstName">First Name *</Label>
+      {/* Name Fields - Mobile Optimized with Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="firstName" className="text-sm sm:text-base">
+            First Name <span className="text-red-500">*</span>
+          </Label>
           <Input
             id="firstName"
             value={formData.firstName}
             onChange={(e) => onInputChange("firstName", e.target.value)}
-            className={errors.firstName ? "border-red-500" : ""}
+            placeholder="John"
+            className={`h-11 sm:h-12 text-base ${errors.firstName ? "border-red-500" : ""}`}
           />
           {errors.firstName && (
-            <p className="text-sm text-red-600 mt-1">{errors.firstName}</p>
+            <p className="text-sm text-red-600 flex items-center mt-1">
+              <AlertCircle className="h-3 w-3 mr-1 flex-shrink-0" />
+              <span className="break-words">{errors.firstName}</span>
+            </p>
           )}
         </div>
-        <div>
-          <Label htmlFor="lastName">Last Name *</Label>
+        <div className="space-y-2">
+          <Label htmlFor="lastName" className="text-sm sm:text-base">
+            Last Name <span className="text-red-500">*</span>
+          </Label>
           <Input
             id="lastName"
             value={formData.lastName}
             onChange={(e) => onInputChange("lastName", e.target.value)}
-            className={errors.lastName ? "border-red-500" : ""}
+            placeholder="Doe"
+            className={`h-11 sm:h-12 text-base ${errors.lastName ? "border-red-500" : ""}`}
           />
           {errors.lastName && (
-            <p className="text-sm text-red-600 mt-1">{errors.lastName}</p>
+            <p className="text-sm text-red-600 flex items-center mt-1">
+              <AlertCircle className="h-3 w-3 mr-1 flex-shrink-0" />
+              <span className="break-words">{errors.lastName}</span>
+            </p>
           )}
         </div>
       </div>
       
-      <div>
-        <Label htmlFor="email">Work Email *</Label>
+      {/* Email Field - Mobile Optimized */}
+      <div className="space-y-2">
+        <Label htmlFor="email" className="text-sm sm:text-base">
+          Work Email <span className="text-red-500">*</span>
+        </Label>
         <Input
           id="email"
           type="email"
           value={formData.email}
           onChange={(e) => onInputChange("email", e.target.value)}
-          className={errors.email ? "border-red-500" : ""}
+          placeholder="john@company.com"
+          className={`h-11 sm:h-12 text-base ${errors.email ? "border-red-500" : ""}`}
         />
         {errors.email && (
-          <p className="text-sm text-red-600 mt-1">{errors.email}</p>
+          <p className="text-sm text-red-600 flex items-center mt-1">
+            <AlertCircle className="h-3 w-3 mr-1 flex-shrink-0" />
+            <span className="break-words">{errors.email}</span>
+          </p>
         )}
       </div>
       
-      <div>
-        <Label htmlFor="password">Password *</Label>
+      {/* Password Field - Mobile Optimized */}
+      <div className="space-y-2">
+        <Label htmlFor="password" className="text-sm sm:text-base">
+          Password <span className="text-red-500">*</span>
+        </Label>
         <div className="relative">
           <Input
             id="password"
             type={showPassword ? "text" : "password"}
             value={formData.password}
             onChange={(e) => onInputChange("password", e.target.value)}
-            className={errors.password ? "border-red-500 pr-10" : "pr-10"}
+            placeholder="Create a strong password"
+            className={`pr-10 h-11 sm:h-12 text-base ${errors.password ? "border-red-500" : ""}`}
           />
           <button
             type="button"
-            className="absolute inset-y-0 right-0 pr-3 flex items-center"
+            className="absolute inset-y-0 right-0 pr-3 flex items-center p-1"
             onClick={onTogglePassword}
+            aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? (
-              <EyeOff className="h-4 w-4 text-gray-400" />
+              <EyeOff className="h-5 w-5 text-gray-400" />
             ) : (
-              <Eye className="h-4 w-4 text-gray-400" />
+              <Eye className="h-5 w-5 text-gray-400" />
             )}
           </button>
         </div>
         {errors.password && (
-          <p className="text-sm text-red-600 mt-1">{errors.password}</p>
+          <p className="text-sm text-red-600 flex items-center mt-1">
+            <AlertCircle className="h-3 w-3 mr-1 flex-shrink-0" />
+            <span className="break-words">{errors.password}</span>
+          </p>
         )}
       </div>
       
-      <div>
-        <Label htmlFor="confirmPassword">Confirm Password *</Label>
+      {/* Confirm Password Field - Mobile Optimized */}
+      <div className="space-y-2">
+        <Label htmlFor="confirmPassword" className="text-sm sm:text-base">
+          Confirm Password <span className="text-red-500">*</span>
+        </Label>
         <div className="relative">
           <Input
             id="confirmPassword"
             type={showConfirmPassword ? "text" : "password"}
             value={formData.confirmPassword}
             onChange={(e) => onInputChange("confirmPassword", e.target.value)}
-            className={errors.confirmPassword ? "border-red-500 pr-10" : "pr-10"}
+            placeholder="Re-enter your password"
+            className={`pr-10 h-11 sm:h-12 text-base ${errors.confirmPassword ? "border-red-500" : ""}`}
           />
           <button
             type="button"
-            className="absolute inset-y-0 right-0 pr-3 flex items-center"
+            className="absolute inset-y-0 right-0 pr-3 flex items-center p-1"
             onClick={onToggleConfirmPassword}
+            aria-label={showConfirmPassword ? "Hide password" : "Show password"}
           >
             {showConfirmPassword ? (
-              <EyeOff className="h-4 w-4 text-gray-400" />
+              <EyeOff className="h-5 w-5 text-gray-400" />
             ) : (
-              <Eye className="h-4 w-4 text-gray-400" />
+              <Eye className="h-5 w-5 text-gray-400" />
             )}
           </button>
         </div>
         {errors.confirmPassword && (
-          <p className="text-sm text-red-600 mt-1">{errors.confirmPassword}</p>
+          <p className="text-sm text-red-600 flex items-center mt-1">
+            <AlertCircle className="h-3 w-3 mr-1 flex-shrink-0" />
+            <span className="break-words">{errors.confirmPassword}</span>
+          </p>
         )}
       </div>
+
+      {/* Password Requirements - Mobile Optimized */}
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4">
+        <h4 className="text-sm font-medium text-gray-800 mb-2">Password must contain:</h4>
+        <ul className="text-xs sm:text-sm text-gray-600 space-y-1 list-disc list-inside">
+          <li>At least 8 characters</li>
+          <li>One uppercase & one lowercase letter</li>
+          <li>At least one number</li>
+          <li>At least one special character</li>
+        </ul>
+      </div>
       
-      <div>
-        <Label htmlFor="phone">Phone Number</Label>
+      {/* Phone Field - Mobile Optimized */}
+      <div className="space-y-2">
+        <Label htmlFor="phone" className="text-sm sm:text-base">
+          Phone Number (Optional)
+        </Label>
         <PhoneInputComponent
           value={formData.phone}
           onChange={(value) => onInputChange("phone", value || "")}
           placeholder="(555) 123-4567"
           error={!!errors.phone}
-          className={errors.phone ? "border-red-500" : ""}
+          className={`h-11 sm:h-12 text-base ${errors.phone ? "border-red-500" : ""}`}
         />
         {errors.phone && (
-          <p className="text-sm text-red-600 mt-1">{errors.phone}</p>
+          <p className="text-sm text-red-600 flex items-center mt-1">
+            <AlertCircle className="h-3 w-3 mr-1 flex-shrink-0" />
+            <span className="break-words">{errors.phone}</span>
+          </p>
         )}
       </div>
       
-      <div className="flex gap-2">
-        <Button type="button" variant="outline" className="flex-1" onClick={onBack}>
+      {/* Action Buttons - Mobile Optimized */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-2 pt-2">
+        <Button 
+          type="button" 
+          variant="outline" 
+          className="w-full sm:flex-1 h-11 sm:h-12 text-base order-2 sm:order-1" 
+          onClick={onBack}
+          disabled={isLoading}
+        >
           Back
         </Button>
         <Button 
           type="button" 
-          className="flex-1 bg-orange-600 hover:bg-orange-700" 
+          className="w-full sm:flex-1 bg-orange-600 hover:bg-orange-700 h-11 sm:h-12 text-base order-1 sm:order-2" 
           disabled={isLoading}
           onClick={onSubmit}
         >
-          {isLoading ? "Creating Account..." : "Create Account"}
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Creating Account...
+            </>
+          ) : (
+            "Create Account"
+          )}
         </Button>
       </div>
     </>

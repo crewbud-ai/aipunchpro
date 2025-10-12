@@ -165,60 +165,6 @@ export default function AddTeamMemberPage() {
           </div>
         </div>
 
-        {/* Success Message */}
-        {isSuccess && (
-          <div className="mb-6">
-            <Card className="border-green-200 bg-green-50">
-              <CardContent className="pt-6">
-                <div className="flex items-center space-x-2 text-green-800">
-                  <span className="font-medium">✅ Team member added successfully!</span>
-                  <span className="text-sm">Redirecting to team member details...</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Error Message */}
-        {isError && errors.general && (
-          <div className="mb-6">
-            <Card className="border-red-200 bg-red-50">
-              <CardContent className="pt-6">
-                <div className="text-red-800">
-                  <span className="font-medium">❌ Error:</span> {errors.general}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Debug: Show validation issues */}
-        {(hasErrors || hasManualErrors) && (
-          <div className="mb-6">
-            <Card className="border-yellow-200 bg-yellow-50">
-              <CardContent className="pt-6">
-                <div className="text-yellow-800">
-                  <span className="font-medium">⚠️ Form Validation Issues:</span>
-                  <ul className="mt-2 text-sm">
-                    {manualValidation.hasEmergencyContactIssue && (
-                      <li>• Emergency contact name and phone must both be filled or both be empty</li>
-                    )}
-                    {manualValidation.hasOvertimeIssue && (
-                      <li>• Hourly rate is required when overtime rate is provided</li>
-                    )}
-                    {manualValidation.hasProjectAssignmentIssue && (
-                      <li>• Project selection is required when "Assign to project" is checked</li>
-                    )}
-                    {hasErrors && Object.keys(errors).length === 0 && (
-                      <li>• Unknown validation error from hook</li>
-                    )}
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
         {/* Main Form Card */}
         <Card>
           <CardHeader>

@@ -20,21 +20,21 @@ export const ErrorState = ({
   onGoToLogin 
 }: ErrorStateProps) => {
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-          <AlertCircle className="h-6 w-6 text-red-600" />
+    <Card className="w-full max-w-md mx-auto shadow-sm">
+      <CardHeader className="text-center px-4 sm:px-6">
+        <div className="mx-auto flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-red-100">
+          <AlertCircle className="h-7 w-7 sm:h-8 sm:w-8 text-red-600" />
         </div>
-        <CardTitle className="text-2xl">Verification Failed</CardTitle>
-        <CardDescription>
+        <CardTitle className="text-xl sm:text-2xl">Verification Failed</CardTitle>
+        <CardDescription className="text-sm sm:text-base break-words">
           {message}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 px-4 sm:px-6 pb-6">
         {canResend && (
           <Button 
             variant="outline" 
-            className="w-full"
+            className="w-full h-11 sm:h-12 text-base"
             onClick={onResendEmail}
             disabled={isResending}
           >
@@ -52,17 +52,17 @@ export const ErrorState = ({
           </Button>
         )}
         
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-2">
           <Button 
             variant="outline" 
-            className="flex-1"
+            className="w-full sm:flex-1 h-11 sm:h-12 text-base"
             onClick={onGoToLogin}
           >
             Login
           </Button>
           <Button 
             variant="outline" 
-            className="flex-1"
+            className="w-full sm:flex-1 h-11 sm:h-12 text-base"
             onClick={onGoHome}
           >
             <Home className="mr-2 h-4 w-4" />
