@@ -106,7 +106,7 @@ export const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
   // ==============================================
   const handleClose = useCallback(() => {
     if (isUploading) return // Don't close while uploading
-    
+
     setPendingFile(null)
     setLocalError(null)
     setSuccess(false)
@@ -138,7 +138,7 @@ export const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
     if (!files || files.length === 0) return
 
     const file = files[0] // Only take the first file
-    
+
     setLocalError(null)
     setSuccess(false)
 
@@ -208,7 +208,7 @@ export const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
       if (uploadedFile) {
         setSuccess(true)
         onSuccess?.(uploadedFile)
-        
+
         // Auto-close after success
         setTimeout(() => {
           handleClose()
@@ -224,22 +224,22 @@ export const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
   // ==============================================
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md w-[95vw] max-w-[95vw] sm:w-full sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Upload Blueprint</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-base sm:text-lg">Upload Blueprint</DialogTitle>
+          <DialogDescription className="text-sm">
             Upload a PDF blueprint for {projectName}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {/* File Drop Zone */}
           {!pendingFile && (
             <Card
               className={cn(
                 "border-2 border-dashed transition-colors cursor-pointer",
-                dragActive 
-                  ? "border-blue-500 bg-blue-50" 
+                dragActive
+                  ? "border-blue-500 bg-blue-50"
                   : "border-gray-300 hover:border-gray-400"
               )}
               onDrop={handleDrop}
@@ -247,12 +247,12 @@ export const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
               onDragLeave={handleDragLeave}
               onClick={() => fileInputRef.current?.click()}
             >
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <CloudUpload className="h-12 w-12 text-gray-400 mb-4" />
-                <p className="text-lg font-medium text-gray-900 mb-2">
+              <CardContent className="flex flex-col items-center justify-center py-8 sm:py-12 text-center px-4">
+                <CloudUpload className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mb-3 sm:mb-4" />
+                <p className="text-base sm:text-lg font-medium text-gray-900 mb-1 sm:mb-2">
                   Drop your PDF here, or click to browse
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-xs sm:text-sm text-gray-600">
                   Only PDF files up to {formatFileSize(MAX_FILE_SIZE)} are allowed
                 </p>
               </CardContent>
@@ -271,14 +271,14 @@ export const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
           {/* Selected File */}
           {pendingFile && (
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3 mb-4">
-                  <FileIcon className="h-8 w-8 text-red-600" />
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+                  <FileIcon className="h-6 w-6 sm:h-8 sm:w-8 text-red-600 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate w-64">
+                    <p className="font-medium text-sm sm:text-base text-gray-900 truncate">
                       {pendingFile.file.name}
                     </p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-xs sm:text-sm text-gray-600">
                       {formatFileSize(pendingFile.file.size)}
                     </p>
                   </div>
@@ -287,26 +287,28 @@ export const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
                     size="sm"
                     onClick={removePendingFile}
                     disabled={isUploading}
+                    className="flex-shrink-0 h-8 w-8 p-0"
                   >
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
 
                 {/* File Details Form */}
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   <div>
-                    <Label htmlFor="version">Version</Label>
+                    <Label htmlFor="version" className="text-sm">Version</Label>
                     <Input
                       id="version"
                       value={pendingFile.version}
                       onChange={(e) => updateFileData({ version: e.target.value })}
                       placeholder="e.g., 1.0, Rev A"
                       disabled={isUploading}
+                      className="text-sm"
                     />
                   </div>
-                  
+
                   <div>
-                    <Label htmlFor="description">Description (Optional)</Label>
+                    <Label htmlFor="description" className="text-sm">Description (Optional)</Label>
                     <Textarea
                       id="description"
                       value={pendingFile.description}
@@ -314,6 +316,7 @@ export const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
                       placeholder="Brief description of this blueprint..."
                       rows={3}
                       disabled={isUploading}
+                      className="text-sm"
                     />
                   </div>
                 </div>
@@ -324,17 +327,17 @@ export const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
           {/* Upload Progress */}
           {isUploading && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
                 <span>Uploading...</span>
                 <span>{uploadProgress}%</span>
               </div>
-              <Progress value={uploadProgress} className="w-full" />
+              <Progress value={uploadProgress} className="w-full h-2" />
             </div>
           )}
 
           {/* Success Message */}
           {success && (
-            <Alert>
+            <Alert className="text-sm">
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>
                 Blueprint uploaded successfully! The dialog will close shortly.
@@ -344,7 +347,7 @@ export const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
 
           {/* Error Message */}
           {hasError && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="text-sm">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
                 {currentError}
@@ -353,17 +356,11 @@ export const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
           )}
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={isUploading}
-          >
-            Cancel
-          </Button>
+        <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
           <Button
             onClick={handleUpload}
             disabled={!pendingFile || isUploading || success}
+            className="w-full sm:w-auto text-sm bg-orange-600 hover:bg-orange-700"
           >
             {isUploading ? (
               <>
@@ -378,9 +375,18 @@ export const FileUploadDialog: React.FC<FileUploadDialogProps> = ({
             ) : (
               <>
                 <Upload className="h-4 w-4 mr-2" />
-                Upload Blueprint
+                <span className="hidden sm:inline">Upload Blueprint</span>
+                <span className="sm:hidden">Upload</span>
               </>
             )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            disabled={isUploading}
+            className="w-full sm:w-auto text-sm"
+          >
+            Cancel
           </Button>
         </DialogFooter>
       </DialogContent>

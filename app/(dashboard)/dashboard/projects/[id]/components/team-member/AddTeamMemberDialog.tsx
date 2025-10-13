@@ -82,8 +82,8 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
         console.log(result, 'result')
         if (isSuccess && result && onMemberAdded) {
             // Check if there's a status suggestion in the result
-            const statusSuggestion = result?.data?.statusSuggestion 
-            
+            const statusSuggestion = result?.data?.statusSuggestion
+
             setTimeout(() => {
                 // Pass the status suggestion to parent if it exists
                 if (statusSuggestion?.shouldSuggest) {
@@ -161,7 +161,7 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
             cleanedData.projectId = formData.projectId
             cleanedData.hourlyRate = formData.projectHourlyRate
             cleanedData.overtimeRate = formData.projectOvertimeRate
-            cleanedData.assignmentNotes = formData.projectNotes 
+            cleanedData.assignmentNotes = formData.projectNotes
         }
 
         // Remove undefined values
@@ -228,24 +228,24 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
     // ==============================================
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] max-w-[95vw] sm:w-full sm:max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <UserPlus className="h-5 w-5" />
+                    <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+                        <UserPlus className="h-4 w-4 sm:h-5 sm:w-5" />
                         Add New Team Member
                     </DialogTitle>
-                    <DialogDescription>
+                    <DialogDescription className="text-sm">
                         Create a new team member and assign them to <strong>{projectName}</strong>
                     </DialogDescription>
                 </DialogHeader>
 
                 {/* Validation Issues Warning */}
                 {hasManualErrors && (
-                    <Alert variant="destructive">
-                        <AlertCircle className="h-4 w-4" />
+                    <Alert variant="destructive" className="text-sm">
+                        <AlertCircle className="h-4 w-4 flex-shrink-0" />
                         <AlertDescription>
                             <span className="font-medium">⚠️ Form Validation Issues:</span>
-                            <ul className="mt-2 text-sm">
+                            <ul className="mt-2 text-sm space-y-1">
                                 {manualValidation.hasEmergencyContactIssue && (
                                     <li>• Emergency contact name and phone must both be filled or both be empty</li>
                                 )}
@@ -257,20 +257,20 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
                     </Alert>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                     {/* Basic Information */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-medium">Basic Information</h3>
+                    <div className="space-y-3 sm:space-y-4">
+                        <h3 className="text-base sm:text-lg font-medium">Basic Information</h3>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                             <div>
-                                <Label htmlFor="firstName">First Name *</Label>
+                                <Label htmlFor="firstName" className="text-sm">First Name *</Label>
                                 <Input
                                     id="firstName"
                                     value={formData.firstName}
                                     onChange={(e) => handleInputChange('firstName', e.target.value)}
                                     placeholder="John"
-                                    className={errors.firstName ? 'border-red-500' : ''}
+                                    className={`text-sm ${errors.firstName ? 'border-red-500' : ''}`}
                                     required
                                 />
                                 {errors.firstName && (
@@ -279,13 +279,13 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
                             </div>
 
                             <div>
-                                <Label htmlFor="lastName">Last Name *</Label>
+                                <Label htmlFor="lastName" className="text-sm">Last Name *</Label>
                                 <Input
                                     id="lastName"
                                     value={formData.lastName}
                                     onChange={(e) => handleInputChange('lastName', e.target.value)}
                                     placeholder="Doe"
-                                    className={errors.lastName ? 'border-red-500' : ''}
+                                    className={`text-sm ${errors.lastName ? 'border-red-500' : ''}`}
                                     required
                                 />
                                 {errors.lastName && (
@@ -295,14 +295,14 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
                         </div>
 
                         <div>
-                            <Label htmlFor="email">Email Address *</Label>
+                            <Label htmlFor="email" className="text-sm">Email Address *</Label>
                             <Input
                                 id="email"
                                 type="email"
                                 value={formData.email}
                                 onChange={(e) => handleInputChange('email', e.target.value)}
                                 placeholder="john.doe@example.com"
-                                className={errors.email ? 'border-red-500' : ''}
+                                className={`text-sm ${errors.email ? 'border-red-500' : ''}`}
                                 required
                             />
                             {errors.email && (
@@ -311,12 +311,12 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
                         </div>
 
                         <div>
-                            <Label htmlFor="phone">Phone Number</Label>
+                            <Label htmlFor="phone" className="text-sm">Phone Number</Label>
                             <PhoneInputComponent
                                 value={formData.phone || ''}
                                 onChange={(value) => handleInputChange('phone', value)}
                                 placeholder="Enter phone number"
-                                className={errors.phone ? 'border-red-500' : ''}
+                                className={`text-sm ${errors.phone ? 'border-red-500' : ''}`}
                             />
                             {errors.phone && (
                                 <p className="text-sm text-red-600 mt-1">{errors.phone}</p>
@@ -325,17 +325,17 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
                     </div>
 
                     {/* Role & Specialty */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-medium">Role & Specialty</h3>
+                    <div className="space-y-3 sm:space-y-4">
+                        <h3 className="text-base sm:text-lg font-medium">Role & Specialty</h3>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                             <div>
-                                <Label htmlFor="role">Role</Label>
+                                <Label htmlFor="role" className="text-sm">Role</Label>
                                 <Select
                                     value="member"
                                     disabled={true}
                                 >
-                                    <SelectTrigger className="bg-gray-50">
+                                    <SelectTrigger className="bg-gray-50 text-sm">
                                         <SelectValue placeholder="Member" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -348,12 +348,12 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
                             </div>
 
                             <div>
-                                <Label htmlFor="tradeSpecialty">Trade Specialty</Label>
+                                <Label htmlFor="tradeSpecialty" className="text-sm">Trade Specialty</Label>
                                 <Select
                                     value={formData.tradeSpecialty}
                                     onValueChange={(value) => handleInputChange('tradeSpecialty', value)}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className="text-sm">
                                         <SelectValue placeholder="Select trade" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -368,23 +368,24 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
                         </div>
 
                         <div>
-                            <Label htmlFor="jobTitle">Job Title</Label>
+                            <Label htmlFor="jobTitle" className="text-sm">Job Title</Label>
                             <Input
                                 id="jobTitle"
                                 value={formData.jobTitle || ''}
                                 onChange={(e) => handleInputChange('jobTitle', e.target.value)}
                                 placeholder="Site Supervisor, Lead Electrician, etc."
+                                className="text-sm"
                             />
                         </div>
                     </div>
 
                     {/* Project Assignment Details */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-medium">Project Assignment</h3>
+                    <div className="space-y-3 sm:space-y-4">
+                        <h3 className="text-base sm:text-lg font-medium">Project Assignment</h3>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                             <div>
-                                <Label htmlFor="projectHourlyRate">Project Hourly Rate</Label>
+                                <Label htmlFor="projectHourlyRate" className="text-sm">Project Hourly Rate</Label>
                                 <Input
                                     id="projectHourlyRate"
                                     type="number"
@@ -393,11 +394,12 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
                                     value={formData.projectHourlyRate || ''}
                                     onChange={(e) => handleInputChange('projectHourlyRate', parseFloat(e.target.value) || undefined)}
                                     placeholder="25.00"
+                                    className="text-sm"
                                 />
                             </div>
 
                             <div>
-                                <Label htmlFor="projectOvertimeRate">Overtime Rate</Label>
+                                <Label htmlFor="projectOvertimeRate" className="text-sm">Overtime Rate</Label>
                                 <Input
                                     id="projectOvertimeRate"
                                     type="number"
@@ -406,36 +408,38 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
                                     value={formData.projectOvertimeRate || ''}
                                     onChange={(e) => handleInputChange('projectOvertimeRate', parseFloat(e.target.value) || undefined)}
                                     placeholder="37.50"
+                                    className="text-sm"
                                 />
                                 <p className="text-xs text-gray-500 mt-1">Auto-calculated as 1.5x hourly rate (can be overridden)</p>
                             </div>
                         </div>
 
                         <div>
-                            <Label htmlFor="projectNotes">Assignment Notes</Label>
+                            <Label htmlFor="projectNotes" className="text-sm">Assignment Notes</Label>
                             <Textarea
                                 id="projectNotes"
                                 value={formData.projectNotes || ''}
                                 onChange={(e) => handleInputChange('projectNotes', e.target.value)}
                                 placeholder="Special instructions or notes for this project assignment..."
                                 rows={3}
+                                className="text-sm"
                             />
                         </div>
                     </div>
 
                     {/* Emergency Contact */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-medium">Emergency Contact</h3>
+                    <div className="space-y-3 sm:space-y-4">
+                        <h3 className="text-base sm:text-lg font-medium">Emergency Contact</h3>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                             <div>
-                                <Label htmlFor="emergencyContactName">Contact Name</Label>
+                                <Label htmlFor="emergencyContactName" className="text-sm">Contact Name</Label>
                                 <Input
                                     id="emergencyContactName"
                                     value={formData.emergencyContactName || ''}
                                     onChange={(e) => handleInputChange('emergencyContactName', e.target.value)}
                                     placeholder="Jane Doe"
-                                    className={manualValidation.hasEmergencyContactIssue ? 'border-red-500' : ''}
+                                    className={`text-sm ${manualValidation.hasEmergencyContactIssue ? 'border-red-500' : ''}`}
                                 />
                                 {manualValidation.hasEmergencyContactIssue && formData.emergencyContactName?.trim() && !formData.emergencyContactPhone?.trim() && (
                                     <p className="text-sm text-red-600 mt-1">Emergency contact phone is required when name is provided</p>
@@ -443,12 +447,12 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
                             </div>
 
                             <div>
-                                <Label htmlFor="emergencyContactPhone">Contact Phone</Label>
+                                <Label htmlFor="emergencyContactPhone" className="text-sm">Contact Phone</Label>
                                 <PhoneInputComponent
                                     value={formData.emergencyContactPhone || ''}
                                     onChange={(value) => handleInputChange('emergencyContactPhone', value)}
                                     placeholder="Emergency contact phone"
-                                    className={manualValidation.hasEmergencyContactIssue ? 'border-red-500' : ''}
+                                    className={`text-sm ${manualValidation.hasEmergencyContactIssue ? 'border-red-500' : ''}`}
                                 />
                                 {manualValidation.hasEmergencyContactIssue && !formData.emergencyContactName?.trim() && formData.emergencyContactPhone?.trim() && (
                                     <p className="text-sm text-red-600 mt-1">Emergency contact name is required when phone is provided</p>
@@ -458,20 +462,22 @@ export const AddTeamMemberDialog: React.FC<AddTeamMemberDialogProps> = ({
                     </div>
                 </form>
 
-                <DialogFooter>
+                <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+                    <Button
+                        onClick={handleSubmit}
+                        disabled={!canActuallySubmit || isLoading || isSuccess}
+                        className="w-full sm:w-auto text-sm bg-orange-600 hover:bg-orange-700"
+                    >
+                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isSuccess ? 'Created!' : 'Create Team Member'}
+                    </Button>
                     <Button
                         variant="outline"
                         onClick={handleClose}
                         disabled={isLoading}
+                        className="w-full sm:w-auto text-sm"
                     >
                         Cancel
-                    </Button>
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={!canActuallySubmit || isLoading || isSuccess}
-                    >
-                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {isSuccess ? 'Created!' : 'Create Team Member'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

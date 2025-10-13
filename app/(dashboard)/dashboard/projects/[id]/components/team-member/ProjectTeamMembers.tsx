@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
-import { 
-  Users, 
-  Plus, 
-  UserPlus, 
-  Mail, 
-  Phone, 
+import {
+  Users,
+  Plus,
+  UserPlus,
+  Mail,
+  Phone,
   Clock,
   DollarSign,
   AlertCircle,
@@ -35,7 +35,7 @@ export const ProjectTeamMembers: React.FC<ProjectTeamMembersProps> = ({
   projectId,
   projectName,
   projectStatus,
-  onMemberAdded  
+  onMemberAdded
 }) => {
   // ==============================================
   // HOOKS
@@ -58,18 +58,18 @@ export const ProjectTeamMembers: React.FC<ProjectTeamMembersProps> = ({
   // ==============================================
   // COMPUTED VALUES
   // ==============================================
-  
+
   // Filter team members assigned to this project
   const projectTeamMembers = useMemo(() => {
-    return teamMembers.filter(member => 
+    return teamMembers.filter(member =>
       member.currentProjects?.some(project => project.id === projectId)
     )
   }, [teamMembers, projectId])
 
   // Get unassigned active team members for assignment
   const availableMembers = useMemo(() => {
-    return teamMembers.filter(member => 
-      member.isActive && 
+    return teamMembers.filter(member =>
+      member.isActive &&
       !member.currentProjects?.some(project => project.id === projectId)
     )
   }, [teamMembers, projectId])
@@ -127,22 +127,22 @@ export const ProjectTeamMembers: React.FC<ProjectTeamMembersProps> = ({
   if (isLoading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Users className="h-4 w-4 sm:h-5 sm:w-5" />
             Team Members
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+          <div className="space-y-3 sm:space-y-4">
             {[1, 2, 3].map(i => (
-              <div key={i} className="flex items-center gap-3 p-3 border rounded-lg">
-                <Skeleton className="h-10 w-10 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-24" />
+              <div key={i} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 border rounded-lg">
+                <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-full flex-shrink-0" />
+                <div className="flex-1 space-y-2 min-w-0">
+                  <Skeleton className="h-3 sm:h-4 w-24 sm:w-32" />
+                  <Skeleton className="h-2 sm:h-3 w-16 sm:w-24" />
                 </div>
-                <Skeleton className="h-6 w-16" />
+                <Skeleton className="h-5 w-12 sm:h-6 sm:w-16 flex-shrink-0" />
               </div>
             ))}
           </div>
@@ -157,14 +157,14 @@ export const ProjectTeamMembers: React.FC<ProjectTeamMembersProps> = ({
   if (hasError) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Users className="h-4 w-4 sm:h-5 sm:w-5" />
             Team Members
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+          <Alert variant="destructive" className="text-sm">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               {error || 'Failed to load team members'}
@@ -181,57 +181,61 @@ export const ProjectTeamMembers: React.FC<ProjectTeamMembersProps> = ({
   return (
     <>
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
             <div className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              <CardTitle>Team Members</CardTitle>
-              <Badge variant="outline" className="ml-2">
+              <Users className="h-4 w-4 sm:h-5 sm:w-5" />
+              <CardTitle className="text-base sm:text-lg">Team Members</CardTitle>
+              <Badge variant="outline" className="ml-2 text-xs">
                 {stats.total}
               </Badge>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               {availableMembers.length > 0 && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => setShowAssignDialog(true)}
+                  className="flex-1 sm:flex-none text-xs sm:text-sm"
                 >
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Assign Member
+                  <UserPlus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Assign Member</span>
+                  <span className="sm:hidden">Assign</span>
                 </Button>
               )}
-              <Button 
+              <Button
                 size="sm"
                 onClick={() => setShowAddDialog(true)}
+                className="flex-1 sm:flex-none text-xs sm:text-sm"
               >
-                <Plus className="mr-2 h-4 w-4" />
-                Add New Member
+                <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Add New Member</span>
+                <span className="sm:hidden">Add New</span>
               </Button>
             </div>
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
           {/* Team Stats */}
           {stats.total > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="text-center p-3 bg-gray-50 rounded-lg">
-                <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
+              <div className="text-center p-2 sm:p-3 bg-gray-50 rounded-lg">
+                <div className="text-lg sm:text-2xl font-bold text-gray-900">{stats.total}</div>
                 <div className="text-xs text-gray-600">Total Members</div>
               </div>
-              <div className="text-center p-3 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-700">{stats.active}</div>
+              <div className="text-center p-2 sm:p-3 bg-green-50 rounded-lg">
+                <div className="text-lg sm:text-2xl font-bold text-green-700">{stats.active}</div>
                 <div className="text-xs text-green-600">Active</div>
               </div>
-              <div className="text-center p-3 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-700">
+              <div className="text-center p-2 sm:p-3 bg-blue-50 rounded-lg">
+                <div className="text-lg sm:text-2xl font-bold text-blue-700">
                   {Object.keys(stats.roles).length}
                 </div>
                 <div className="text-xs text-blue-600">Different Roles</div>
               </div>
-              <div className="text-center p-3 bg-purple-50 rounded-lg">
-                <div className="text-2xl font-bold text-purple-700">
+              <div className="text-center p-2 sm:p-3 bg-purple-50 rounded-lg">
+                <div className="text-lg sm:text-2xl font-bold text-purple-700">
                   {projectTeamMembers.filter(m => m.currentProjects?.length === 1).length}
                 </div>
                 <div className="text-xs text-purple-600">Dedicated</div>
@@ -241,19 +245,19 @@ export const ProjectTeamMembers: React.FC<ProjectTeamMembersProps> = ({
 
           {/* Team Members List */}
           {stats.total === 0 ? (
-            <div className="text-center py-12">
-              <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No team members assigned</h3>
-              <p className="text-gray-600 mb-4">
+            <div className="text-center py-8 sm:py-12">
+              <Users className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 text-gray-400" />
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No team members assigned</h3>
+              <p className="text-sm sm:text-base text-gray-600 mb-3 sm:mb-4 px-4">
                 Start building your team by adding members to this project.
               </p>
-              <div className="flex items-center justify-center gap-2">
-                <Button onClick={() => setShowAddDialog(true)}>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                <Button onClick={() => setShowAddDialog(true)} className="w-full sm:w-auto text-sm">
                   <Plus className="mr-2 h-4 w-4" />
                   Add First Member
                 </Button>
                 {availableMembers.length > 0 && (
-                  <Button variant="outline" onClick={() => setShowAssignDialog(true)}>
+                  <Button variant="outline" onClick={() => setShowAssignDialog(true)} className="w-full sm:w-auto text-sm">
                     <UserPlus className="mr-2 h-4 w-4" />
                     Assign Existing Member
                   </Button>
@@ -261,7 +265,7 @@ export const ProjectTeamMembers: React.FC<ProjectTeamMembersProps> = ({
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {projectTeamMembers.map(member => (
                 <TeamMemberCard
                   key={member.id}

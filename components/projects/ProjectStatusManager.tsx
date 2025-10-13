@@ -11,9 +11,9 @@ import { cn } from '@/lib/utils'
 import { useCoordinatedProjectStatus } from '@/hooks/projects/use-coordinated-project-status'
 import { StatusValidationDialog } from './StatusValidationDialog'
 import { toast } from '@/hooks/use-toast'
-import type { 
-  ProjectStatusManagerProps, 
-  CoordinatedProjectStatusUpdate 
+import type {
+    ProjectStatusManagerProps,
+    CoordinatedProjectStatusUpdate
 } from '@/types/projects/status-coordination'
 
 const PROJECT_STATUSES = [
@@ -73,7 +73,7 @@ export const ProjectStatusManager = React.memo<ProjectStatusManagerProps>(({
                 // Show success toast with professional messaging
                 const updatedCount = result.data?.cascadeResults?.scheduleProjectsUpdated || 0
                 const statusLabel = PROJECT_STATUSES.find(s => s.value === newStatus)?.label || newStatus
-                
+
                 let message = `Project status updated to ${statusLabel}`
                 if (updatedCount > 0) {
                     message += ` • ${updatedCount} related item${updatedCount > 1 ? 's' : ''} synced`
@@ -97,7 +97,7 @@ export const ProjectStatusManager = React.memo<ProjectStatusManagerProps>(({
         } catch (error) {
             console.error('Status update failed:', error)
             toast({
-                title: "Update Failed", 
+                title: "Update Failed",
                 description: "An error occurred while updating the status",
                 variant: "destructive",
             })
@@ -116,11 +116,11 @@ export const ProjectStatusManager = React.memo<ProjectStatusManagerProps>(({
     }
 
     return (
-        <div className={cn("space-y-3", className)}>
-            {/* Status Selector */}
-            <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                    <Label htmlFor="project-status" className="text-sm font-medium">
+        <div className={cn("space-y-2 xs:space-y-3", className)}>
+            {/* Status Selector - Mobile Responsive */}
+            <div className="space-y-1.5 xs:space-y-2">
+                <div className="flex items-center gap-1.5 xs:gap-2">
+                    <Label htmlFor="project-status" className="text-xs xs:text-sm font-medium">
                         Project Status
                     </Label>
                     {isUpdating && (
@@ -128,19 +128,29 @@ export const ProjectStatusManager = React.memo<ProjectStatusManagerProps>(({
                     )}
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 xs:gap-3">
                     <Select
                         value={project.status}
                         onValueChange={handleStatusSelect}
                         disabled={disabled || isUpdating}
                     >
-                        <SelectTrigger id="project-status" className="w-48">
+                        <SelectTrigger
+                            id="project-status"
+                            className="w-full xs:w-48 h-9 xs:h-10 text-sm xs:text-base"
+                        >
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                             {PROJECT_STATUSES.map((status) => (
-                                <SelectItem key={status.value} value={status.value}>
-                                    <Badge className={cn("text-xs", status.color)} variant="outline">
+                                <SelectItem
+                                    key={status.value}
+                                    value={status.value}
+                                    className="text-sm"
+                                >
+                                    <Badge
+                                        className={cn("text-xs", status.color)}
+                                        variant="outline"
+                                    >
                                         {status.label}
                                     </Badge>
                                 </SelectItem>
@@ -150,15 +160,15 @@ export const ProjectStatusManager = React.memo<ProjectStatusManagerProps>(({
                 </div>
             </div>
 
-            {/* Success feedback (subtle) */}
+            {/* Success feedback (commented out but kept responsive) */}
             {/* {result?.success && !isUpdating && !error && (
-                <Alert className="py-2 bg-green-50 border-green-200">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <AlertDescription className="text-sm text-green-800">
-                        Status updated successfully
-                    </AlertDescription>
-                </Alert>
-            )} */}
+    <Alert className="py-1.5 xs:py-2 bg-green-50 border-green-200">
+      <CheckCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-green-600" />
+      <AlertDescription className="text-xs xs:text-sm text-green-800">
+        Status updated successfully
+      </AlertDescription>
+    </Alert>
+  )} */}
 
             {/* Status Validation Dialog */}
             <StatusValidationDialog

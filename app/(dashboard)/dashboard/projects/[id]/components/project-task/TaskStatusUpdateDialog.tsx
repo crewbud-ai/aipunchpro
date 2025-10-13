@@ -136,7 +136,7 @@ export const TaskStatusUpdateDialog: React.FC<TaskStatusUpdateDialogProps> = ({
   // ==============================================
   // EFFECTS
   // ==============================================
-  
+
   // Initialize form when task changes
   useEffect(() => {
     if (task && isOpen) {
@@ -152,10 +152,10 @@ export const TaskStatusUpdateDialog: React.FC<TaskStatusUpdateDialogProps> = ({
   // ==============================================
   // COMPUTED VALUES
   // ==============================================
-  
+
   const selectedStatusOption = STATUS_OPTIONS.find(opt => opt.value === selectedStatus)
-  
-  const canSubmit = selectedStatus && 
+
+  const canSubmit = selectedStatus &&
     (!selectedStatusOption?.progressRequired || progressPercentage >= 0) &&
     (!selectedStatusOption?.hoursRequired || actualHours > 0)
 
@@ -169,11 +169,11 @@ export const TaskStatusUpdateDialog: React.FC<TaskStatusUpdateDialogProps> = ({
   // ==============================================
   // EVENT HANDLERS
   // ==============================================
-  
+
   const handleStatusChange = (status: string) => {
     setSelectedStatus(status)
     setLocalError('')
-    
+
     // Auto-adjust progress based on status
     const statusOption = STATUS_OPTIONS.find(opt => opt.value === status)
     if (statusOption) {
@@ -233,74 +233,72 @@ export const TaskStatusUpdateDialog: React.FC<TaskStatusUpdateDialogProps> = ({
   // ==============================================
   // RENDER
   // ==============================================
-  
+
   if (!task) return null
 
   const displayError = localError || coordinationError
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md w-[95vw] max-w-[95vw] sm:w-full sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Timer className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Timer className="h-4 w-4 sm:h-5 sm:w-5" />
             Update Task Status
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             Update the status and progress for "{task.title}"
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Current Status */}
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 p-3 bg-gray-50 rounded-lg">
             <div>
-              <div className="text-sm font-medium text-gray-900">Current Status</div>
+              <div className="text-xs sm:text-sm font-medium text-gray-900">Current Status</div>
               <Badge variant="outline" className={STATUS_OPTIONS.find(opt => opt.value === task.status)?.color}>
                 {STATUS_OPTIONS.find(opt => opt.value === task.status)?.label}
               </Badge>
             </div>
-            <div className="text-right">
-              <div className="text-sm font-medium text-gray-900">{task.progressPercentage || 0}%</div>
+            <div className="text-left sm:text-right">
+              <div className="text-xs sm:text-sm font-medium text-gray-900">{task.progressPercentage || 0}%</div>
               <div className="text-xs text-gray-600">Progress</div>
             </div>
           </div>
 
           {/* Error Display */}
           {displayError && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="text-sm">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{displayError}</AlertDescription>
             </Alert>
           )}
 
           {/* Status Selection */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">New Status</Label>
+          <div className="space-y-2 sm:space-y-3">
+            <Label className="text-xs sm:text-sm font-medium">New Status</Label>
             <div className="space-y-2">
               {STATUS_OPTIONS.map((option) => {
                 const Icon = option.icon
                 return (
                   <div
                     key={option.value}
-                    className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                      selectedStatus === option.value
+                    className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 border rounded-lg cursor-pointer transition-colors ${selectedStatus === option.value
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                      }`}
                     onClick={() => handleStatusChange(option.value)}
                   >
-                    <Icon className="h-4 w-4 text-gray-600" />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">{option.label}</div>
+                    <Icon className="h-4 w-4 text-gray-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-xs sm:text-sm">{option.label}</div>
                       <div className="text-xs text-gray-600">{option.description}</div>
                     </div>
-                    <div className="flex items-center">
-                      <div className={`w-4 h-4 border-2 rounded-full ${
-                        selectedStatus === option.value
+                    <div className="flex items-center flex-shrink-0">
+                      <div className={`w-4 h-4 border-2 rounded-full ${selectedStatus === option.value
                           ? 'border-blue-500 bg-blue-500'
                           : 'border-gray-300'
-                      }`}>
+                        }`}>
                         {selectedStatus === option.value && (
                           <div className="w-full h-full bg-white rounded-full scale-50" />
                         )}
@@ -314,8 +312,8 @@ export const TaskStatusUpdateDialog: React.FC<TaskStatusUpdateDialogProps> = ({
 
           {/* Progress Percentage (if required) */}
           {selectedStatusOption?.progressRequired && (
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">Progress Percentage</Label>
+            <div className="space-y-2 sm:space-y-3">
+              <Label className="text-xs sm:text-sm font-medium">Progress Percentage</Label>
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                   <Input
@@ -324,9 +322,9 @@ export const TaskStatusUpdateDialog: React.FC<TaskStatusUpdateDialogProps> = ({
                     max="100"
                     value={progressPercentage}
                     onChange={(e) => setProgressPercentage(Number(e.target.value))}
-                    className="w-20"
+                    className="w-20 text-sm"
                   />
-                  <span className="text-sm text-gray-600">%</span>
+                  <span className="text-xs sm:text-sm text-gray-600">%</span>
                 </div>
                 <Progress value={progressPercentage} className="h-2" />
               </div>
@@ -335,24 +333,24 @@ export const TaskStatusUpdateDialog: React.FC<TaskStatusUpdateDialogProps> = ({
 
           {/* Actual Hours (if status is completed or user wants to update) */}
           {(selectedStatusOption?.hoursRequired || selectedStatus === 'in_progress') && (
-            <div className="space-y-3">
-              <Label className="text-sm font-medium">
+            <div className="space-y-2 sm:space-y-3">
+              <Label className="text-xs sm:text-sm font-medium">
                 Actual Hours
                 {selectedStatusOption?.hoursRequired && (
                   <span className="text-red-500 ml-1">*</span>
                 )}
               </Label>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <Input
                   type="number"
                   min="0"
                   step="0.25"
                   value={actualHours}
                   onChange={(e) => setActualHours(Number(e.target.value))}
-                  className="w-24"
+                  className="w-24 text-sm"
                   placeholder="0.0"
                 />
-                <span className="text-sm text-gray-600">hours</span>
+                <span className="text-xs sm:text-sm text-gray-600">hours</span>
                 {task.estimatedHours && (
                   <span className="text-xs text-gray-500">
                     (Est: {task.estimatedHours}h)
@@ -363,20 +361,20 @@ export const TaskStatusUpdateDialog: React.FC<TaskStatusUpdateDialogProps> = ({
           )}
 
           {/* Notes */}
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Notes (Optional)</Label>
+          <div className="space-y-2 sm:space-y-3">
+            <Label className="text-xs sm:text-sm font-medium">Notes (Optional)</Label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add any additional notes about this status change..."
-              className="resize-none"
+              className="resize-none text-sm"
               rows={3}
             />
           </div>
 
           {/* Advanced Options */}
           {selectedStatus !== task.status && (
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               <Separator />
               <div className="flex items-center gap-3">
                 <input
@@ -384,9 +382,9 @@ export const TaskStatusUpdateDialog: React.FC<TaskStatusUpdateDialogProps> = ({
                   id="skipValidation"
                   checked={skipValidation}
                   onChange={(e) => setSkipValidation(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded border-gray-300"
+                  className="w-4 h-4 text-blue-600 rounded border-gray-300 flex-shrink-0"
                 />
-                <Label htmlFor="skipValidation" className="text-sm">
+                <Label htmlFor="skipValidation" className="text-xs sm:text-sm">
                   Skip dependency validation
                 </Label>
               </div>
@@ -400,8 +398,8 @@ export const TaskStatusUpdateDialog: React.FC<TaskStatusUpdateDialogProps> = ({
           {hasChanges && (
             <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
-                <FileText className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-900">Summary of Changes</span>
+                <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-blue-900">Summary of Changes</span>
               </div>
               <div className="space-y-1 text-xs text-blue-800">
                 {selectedStatus !== task.status && (
@@ -421,17 +419,11 @@ export const TaskStatusUpdateDialog: React.FC<TaskStatusUpdateDialogProps> = ({
           )}
         </div>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={isUpdating}
-          >
-            Cancel
-          </Button>
+        <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
           <Button
             onClick={handleSubmit}
             disabled={!canSubmit || !hasChanges || isUpdating}
+            className="w-full sm:w-auto text-sm bg-orange-600 hover:bg-orange-700"
           >
             {isUpdating ? (
               <>
@@ -444,6 +436,14 @@ export const TaskStatusUpdateDialog: React.FC<TaskStatusUpdateDialogProps> = ({
                 Update Status
               </>
             )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            disabled={isUpdating}
+            className="w-full sm:w-auto text-sm"
+          >
+            Cancel
           </Button>
         </DialogFooter>
       </DialogContent>

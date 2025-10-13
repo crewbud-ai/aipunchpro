@@ -48,6 +48,7 @@ body {
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
@@ -88,6 +89,7 @@ body {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -157,7 +159,7 @@ body {
   .PhoneInputCountrySelect {
     color: hsl(var(--foreground));
   }
-  
+
   .PhoneInputInput {
     color: hsl(var(--foreground));
   }
@@ -172,7 +174,7 @@ body {
 
 .leaflet-control-zoom {
   border: none !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
 }
 
 .leaflet-control-zoom a {
@@ -225,4 +227,9 @@ body {
   .leaflet-control-zoom {
     scale: 0.9;
   }
+}
+
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

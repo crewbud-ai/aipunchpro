@@ -546,7 +546,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -554,7 +554,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PermissionGuard, RoleGuard } from "@/components/ui/permission-guard"
-import { Building2, Calendar, Users, DollarSign, Plus, Search, Filter, Grid3X3, List, MapPin, Clock, UserCheck, Crown, TrendingUp } from "lucide-react"
+import { Building2, Calendar, Users, DollarSign, Plus, Search, Filter, Grid3X3, List, MapPin, Clock, UserCheck, Crown, TrendingUp, X } from "lucide-react"
 import { useProjects } from "@/hooks/projects/use-projects"
 import { useMemberProjects } from "@/hooks/projects/use-member-projects"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -564,10 +564,15 @@ import { formatCurrency, formatDate, formatStatusLabel, getDaysUntilDeadline, ge
 
 export default function ProjectsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [localSearchTerm, setLocalSearchTerm] = useState('')
+  const [statusSearch, setStatusSearch] = useState('') 
+  const [showFilters, setShowFilters] = useState(false)
 
   // Instead of checking role, check ACTUAL PERMISSIONS
   const canViewAllProjects = hasPermission('projects', 'viewAll')
   const canCreateProjects = hasPermission('projects', 'create')
+
+
 
   // Use different hooks based on PERMISSIONS, not role
   const adminHookResult = useProjects()
@@ -577,7 +582,11 @@ export default function ProjectsPage() {
   const hookResult = canViewAllProjects ? adminHookResult : memberHookResult
 
   const {
-    projects,
+    projectsByStatus
+  } = useProjects();
+
+  const {
+    projects: apiProjects,
     pagination,
     filters,
     isLoading,
@@ -594,6 +603,60 @@ export default function ProjectsPage() {
 
   // Get project stats (only for users without viewAll permission)
   const projectStats = !canViewAllProjects ? memberHookResult.projectStats : undefined
+
+
+  const filteredProjects = useMemo(() => {
+    if (!localSearchTerm.trim() && !statusSearch.trim()) {
+      return apiProjects // No search term, return all
+    }
+
+    const searchLower = localSearchTerm.toLowerCase().trim() || statusSearch.toLowerCase().trim()
+
+    return apiProjects.filter(project => {
+      // Search across multiple fields
+      const nameMatch = project.name?.toLowerCase().includes(searchLower)
+      const numberMatch = project.projectNumber?.toLowerCase().includes(searchLower)
+      const locationMatch = project.location?.address?.toLowerCase().includes(searchLower)
+      const cityMatch = project.location?.city?.toLowerCase().includes(searchLower)
+      const statusMatch = project.status?.toLowerCase().includes(searchLower)
+
+      return nameMatch || numberMatch || locationMatch || cityMatch || statusMatch
+    })
+  }, [apiProjects, localSearchTerm, statusSearch])
+
+
+  const handleSearchChange = useCallback((e: any) => {
+    setLocalSearchTerm(e.target.value) // Just update state, no API call!
+  }, [])
+
+  const handleClearSearch = useCallback(() => {
+    setLocalSearchTerm('')
+  }, [])
+
+  // ==============================================
+  // FILTER HANDLERS
+  // ==============================================
+  const handleStatusFilter = useCallback((status: any) => {
+    if (status === 'all') {
+      setStatusSearch('')
+    } else {
+      setStatusSearch(status)
+    }
+  }, [projectsByStatus, updateFilters])
+
+  const handleClearAllFilters = useCallback(() => {
+    setLocalSearchTerm('')
+    setStatusSearch('')
+  }, [clearFilters])
+
+
+
+  // ==============================================
+  // COMPUTED VALUES
+  // ==============================================
+  const hasActiveFilters = filters.status || filters.priority || localSearchTerm || statusSearch
+  const displayedProjects = filteredProjects
+  const projectCount = filteredProjects.length
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -670,23 +733,22 @@ export default function ProjectsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             {canViewAllProjects ? "Projects" : "My Projects"}
           </h1>
-          <p className="text-gray-600">
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
             {canViewAllProjects
               ? "Manage and track all your construction projects"
-              : "Projects you're assigned to work on"
-            }
+              : "Projects you're assigned to work on"}
           </p>
         </div>
 
         {/* Create Project Button - Using your permission system */}
         <PermissionGuard category="projects" permission="create">
-          <Link href="/dashboard/projects/new">
-            <Button className="bg-orange-600 hover:bg-orange-700">
+          <Link href="/dashboard/projects/new" className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700">
               <Plus className="mr-2 h-4 w-4" />
               New Project
             </Button>
@@ -758,100 +820,98 @@ export default function ProjectsPage() {
       </PermissionGuard>
 
       {/* Filters & Search */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 gap-4">
-          {/* Search */}
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
-              placeholder={canViewAllProjects ? "Search projects..." : "Search my projects..."}
-              value={filters.search || ''}
-              onChange={(e) => updateFilters({ search: e.target.value })}
-              className="pl-9"
+              placeholder="Search by name, number, client, or location..."
+              value={localSearchTerm}
+              onChange={handleSearchChange}
+              className="pl-10 pr-10 h-11 text-base"
             />
+            {localSearchTerm && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
-          {/* Status Filter */}
-          <Select
-            value={filters.status || 'all'}
-            onValueChange={(value) => updateFilters({ status: value === 'all' ? undefined : value as any })}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="not_started">Not Started</SelectItem>
-              <SelectItem value="in_progress">In Progress</SelectItem>
-              <SelectItem value="on_track">On Track</SelectItem>
-              <SelectItem value="ahead_of_schedule">Ahead of Schedule</SelectItem>
-              <SelectItem value="behind_schedule">Behind Schedule</SelectItem>
-              <SelectItem value="on_hold">On Hold</SelectItem>
-              <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-
-          {/* Sort - PERMISSION-BASED OPTIONS */}
-          <Select
-            value={filters.sortBy || 'created_at'}
-            onValueChange={(value) => updateFilters({ sortBy: value as any })}
-          >
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="created_at">Created Date</SelectItem>
-              <SelectItem value="name">Name</SelectItem>
-              <SelectItem value="startDate">Start Date</SelectItem>
-              <SelectItem value="endDate">End Date</SelectItem>
-              <SelectItem value="progress">Progress</SelectItem>
-              {/* Show joinedAt sort only for users without viewAll permission */}
-              <PermissionGuard condition={!canViewAllProjects}>
-                <SelectItem value="joinedAt">Joined Date</SelectItem>
-              </PermissionGuard>
-              {/* Show budget sort only for users with financial view permission */}
-              <PermissionGuard category="financials" permission="view">
-                <SelectItem value="budget">Budget</SelectItem>
-              </PermissionGuard>
-            </SelectContent>
-          </Select>
-
-          {/* Clear Filters */}
-          {(filters.search || filters.status) && (
-            <Button variant="outline" onClick={clearFilters}>
-              <Filter className="mr-2 h-4 w-4" />
-              Clear
-            </Button>
-          )}
-        </div>
-
-        {/* View Mode Toggle */}
-        <div className="flex border border-gray-200 rounded-md">
+          {/* Filter Toggle Button - Mobile */}
           <Button
-            variant={viewMode === 'grid' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('grid')}
-            className="rounded-r-none"
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+            className="w-full sm:hidden h-10"
           >
-            <Grid3X3 className="h-4 w-4" />
+            <Filter className="mr-2 h-4 w-4" />
+            Filters {hasActiveFilters && `(${[filters.status, filters.priority, localSearchTerm].filter(Boolean).length})`}
           </Button>
-          <Button
-            variant={viewMode === 'list' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('list')}
-            className="rounded-l-none"
-          >
-            <List className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+
+          {/* Filters Row - Desktop Always Show, Mobile Toggle */}
+          <div className={`${showFilters ? 'flex' : 'hidden'} sm:flex flex-col sm:flex-row gap-3`}>
+            {/* Status Filter */}
+            <Select
+              value={filters.status}
+              onValueChange={handleStatusFilter}
+            >
+              <SelectTrigger className="h-10 sm:h-11 text-base">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="not_started">Not Started</SelectItem>
+                <SelectItem value="in_progress">In Progress</SelectItem>
+                <SelectItem value="on_hold">On Hold</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* View Toggle - Desktop Only */}
+            <div className="hidden md:flex border rounded-md">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className="rounded-r-none h-full"
+              >
+                <Grid3X3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="rounded-l-none h-full"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Clear Filters */}
+            {hasActiveFilters && (
+              <Button
+                variant="outline"
+                onClick={handleClearAllFilters}
+                className="h-10 sm:h-11"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Clear
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Projects Count */}
       {hasProjects && (
         <div className="flex items-center justify-between text-sm text-gray-600">
           <span>
-            Showing {projects.length} of {pagination.total} projects
+            Showing {projectCount} of {pagination.total} projects
           </span>
           <span>
             Page {pagination.page} of {pagination.totalPages}
@@ -888,9 +948,12 @@ export default function ProjectsPage() {
       )}
 
       {/* Projects Grid */}
-      {hasProjects && viewMode === 'grid' && (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {projects.map((project: any) => {
+      {projectCount > 0 && (
+        <div className={`grid gap-4 sm:gap-6 ${viewMode === 'grid'
+          ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+          : 'grid-cols-1'
+          }`}>
+          {displayedProjects.map((project: any) => {
             const daysUntilDeadline = getDaysUntilDeadline(project.endDate)
 
             return (
@@ -1023,34 +1086,22 @@ export default function ProjectsPage() {
       {/* List View and Pagination remain the same, just replace isMember checks with permission checks */}
 
       {/* Pagination */}
-      {hasProjects && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-4">
           <Button
             variant="outline"
+            size="sm"
             onClick={() => setPage(pagination.page - 1)}
             disabled={pagination.page === 1}
           >
             Previous
           </Button>
-
-          <div className="flex items-center gap-1">
-            {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-              const pageNumber = i + 1
-              return (
-                <Button
-                  key={pageNumber}
-                  variant={pagination.page === pageNumber ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setPage(pageNumber)}
-                >
-                  {pageNumber}
-                </Button>
-              )
-            })}
-          </div>
-
+          <span className="text-sm text-gray-600">
+            Page {pagination.page} of {pagination.totalPages}
+          </span>
           <Button
             variant="outline"
+            size="sm"
             onClick={() => setPage(pagination.page + 1)}
             disabled={pagination.page === pagination.totalPages}
           >

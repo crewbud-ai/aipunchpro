@@ -110,21 +110,21 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
     // RENDER
     // ==============================================
     return (
-        <div className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+        <div className="flex items-start sm:items-center gap-2 sm:gap-3 p-3 sm:p-4 border rounded-lg hover:bg-gray-50 transition-colors">
             {/* Avatar */}
-            <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-blue-100 text-blue-700 font-medium">
+            <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
+                <AvatarFallback className="bg-blue-100 text-blue-700 font-medium text-xs sm:text-sm">
                     {initials}
                 </AvatarFallback>
             </Avatar>
 
             {/* Member Info */}
             <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-medium text-gray-900 truncate">
+                <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-1">
+                    <h4 className="font-medium text-sm sm:text-base text-gray-900 truncate">
                         {member.firstName} {member.lastName}
                     </h4>
-                    <Badge variant="outline" className={getStatusColor()}>
+                    <Badge variant="outline" className={`text-xs ${getStatusColor()}`}>
                         {member.isActive ? 'Active' : 'Inactive'}
                     </Badge>
                     {member.role && (
@@ -134,44 +134,44 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
                     )}
                 </div>
 
-                <div className="flex items-center gap-4 text-sm text-gray-600">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-gray-600">
                     {/* Email */}
-                    <div className="flex items-center gap-1">
-                        <Mail className="h-3 w-3" />
-                        <span className="truncate max-w-48">{member.email}</span>
+                    <div className="flex items-center gap-1 min-w-0">
+                        <Mail className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{member.email}</span>
                     </div>
 
                     {/* Phone (if available) */}
                     {member.phone && (
                         <div className="flex items-center gap-1">
-                            <Phone className="h-3 w-3" />
-                            <span>{member.phone}</span>
+                            <Phone className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{member.phone}</span>
                         </div>
                     )}
 
                     {/* Trade Specialty (if available) */}
                     {member.tradeSpecialty && (
                         <div className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            <span className="capitalize">{member.tradeSpecialty}</span>
+                            <User className="h-3 w-3 flex-shrink-0" />
+                            <span className="capitalize truncate">{member.tradeSpecialty}</span>
                         </div>
                     )}
                 </div>
 
                 {/* Project-specific info */}
                 {projectAssignment && (
-                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-2 text-xs text-gray-500">
                         {/* Join Date */}
                         <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>Joined: {formatDate(projectAssignment.joinedAt)}</span>
+                            <Calendar className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">Joined: {formatDate(projectAssignment.joinedAt)}</span>
                         </div>
 
                         {/* Project Rate */}
                         {(projectAssignment.hourlyRate || member.hourlyRate) && (
                             <div className="flex items-center gap-1">
-                                <DollarSign className="h-3 w-3" />
-                                <span>Rate: {formatRate(projectAssignment.hourlyRate || member.hourlyRate)}</span>
+                                <DollarSign className="h-3 w-3 flex-shrink-0" />
+                                <span className="truncate">Rate: {formatRate(projectAssignment.hourlyRate || member.hourlyRate)}</span>
                             </div>
                         )}
 
@@ -190,12 +190,13 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-1">
-                {/* Quick View Button */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+                {/* Quick View Button - Hidden on mobile, shown in dropdown */}
                 <Button
                     variant="ghost"
                     size="sm"
                     onClick={onViewDetails}
+                    className="hidden sm:flex"
                 >
                     <Eye className="h-4 w-4" />
                 </Button>
@@ -203,11 +204,11 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
                 {/* More Actions Dropdown */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 sm:h-9 sm:w-9 p-0">
                             <MoreHorizontal className="h-4 w-4" />
                         </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" className="text-sm">
                         <DropdownMenuItem onClick={onViewDetails}>
                             <Eye className="mr-2 h-4 w-4" />
                             View Details

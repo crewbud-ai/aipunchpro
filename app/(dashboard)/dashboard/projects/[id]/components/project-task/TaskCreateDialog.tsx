@@ -95,20 +95,20 @@ const getDefaultFormData = (projectId: string): CreateScheduleProjectFormData =>
   description: '',
   projectId: projectId,
   tradeRequired: '',
-  
+
   startDate: '',
   endDate: '',
   startTime: '',
   endTime: '',
   estimatedHours: undefined,
-  
+
   assignedProjectMemberIds: [],
   priority: 'medium',
   status: 'planned',
   location: '',
   notes: '',
   dependsOn: [],
-  
+
   currentStep: 1,
   completedSteps: [],
 })
@@ -126,7 +126,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
   // ==============================================
   // STATE
   // ==============================================
-  const [formData, setFormData] = useState<CreateScheduleProjectFormData>(() => 
+  const [formData, setFormData] = useState<CreateScheduleProjectFormData>(() =>
     getDefaultFormData(projectId)
   )
   const [localErrors, setLocalErrors] = useState<Record<string, string>>({})
@@ -149,11 +149,11 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
   // ==============================================
   // COMPUTED VALUES
   // ==============================================
-  
+
   // Get project team members (members assigned to this project)
   const projectTeamMembers = useMemo(() => {
-    return teamMembers.filter(member => 
-      member.isActive && 
+    return teamMembers.filter(member =>
+      member.isActive &&
       member.currentProjects?.some(project => project.id === projectId)
     )
   }, [teamMembers, projectId])
@@ -173,7 +173,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
   // ==============================================
   // EFFECTS
   // ==============================================
-  
+
   // Reset form when dialog opens
   useEffect(() => {
     if (isOpen) {
@@ -193,13 +193,13 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
   // ==============================================
   // EVENT HANDLERS
   // ==============================================
-  
+
   const updateFormData = (field: keyof CreateScheduleProjectFormData, value: any) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
     }))
-    
+
     // Clear field error when user starts typing
     if (localErrors[field]) {
       setLocalErrors(prev => {
@@ -215,7 +215,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
     const newMembers = checked
       ? [...currentMembers, memberId]
       : currentMembers.filter(id => id !== memberId)
-    
+
     updateFormData('assignedProjectMemberIds', newMembers)
   }
 
@@ -237,15 +237,15 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
     if (formData.startDate && formData.endDate) {
       const startDate = new Date(formData.startDate)
       const endDate = new Date(formData.endDate)
-      
+
       if (endDate < startDate) {
         errors.endDate = 'End date must be on or after start date'
       }
 
       // If same day and both times provided, validate times
-      if (formData.startTime && formData.endTime && 
-          formData.startDate === formData.endDate &&
-          formData.endTime <= formData.startTime) {
+      if (formData.startTime && formData.endTime &&
+        formData.startDate === formData.endDate &&
+        formData.endTime <= formData.startTime) {
         errors.endTime = 'End time must be after start time for same-day work'
       }
     }
@@ -264,7 +264,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
@@ -304,24 +304,24 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
   // ==============================================
   // RENDER
   // ==============================================
-  
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] max-w-[95vw] sm:w-full sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
             Create New Task
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             Create a new scheduled task for {projectName}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           {/* Error Display */}
           {displayError && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="text-sm">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{displayError}</AlertDescription>
             </Alert>
@@ -329,7 +329,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
 
           {/* Success Display */}
           {isSuccess && (
-            <Alert className="bg-green-50 border-green-200">
+            <Alert className="bg-green-50 border-green-200 text-sm">
               <CheckCircle className="h-4 w-4 text-green-600" />
               <AlertDescription className="text-green-800">
                 Task created successfully!
@@ -339,16 +339,16 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
 
           {/* Basic Information */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                 <FileText className="h-4 w-4" />
                 Basic Information
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0 sm:pt-0">
               {/* Title */}
               <div className="space-y-2">
-                <Label htmlFor="title">
+                <Label htmlFor="title" className="text-sm">
                   Task Title <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -356,7 +356,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
                   value={formData.title}
                   onChange={(e) => updateFormData('title', e.target.value)}
                   placeholder="Enter task title..."
-                  className={localErrors.title ? 'border-red-500' : ''}
+                  className={`text-sm ${localErrors.title ? 'border-red-500' : ''}`}
                 />
                 {localErrors.title && (
                   <p className="text-sm text-red-600">{localErrors.title}</p>
@@ -365,24 +365,25 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
 
               {/* Description */}
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description" className="text-sm">Description</Label>
                 <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => updateFormData('description', e.target.value)}
                   placeholder="Describe the work to be done..."
                   rows={3}
+                  className="text-sm"
                 />
               </div>
 
               {/* Trade Required */}
               <div className="space-y-2">
-                <Label>Trade Required</Label>
+                <Label className="text-sm">Trade Required</Label>
                 <Select
                   value={formData.tradeRequired || undefined}
                   onValueChange={(value) => updateFormData('tradeRequired', value === 'none' ? '' : value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="text-sm">
                     <SelectValue placeholder="Select trade specialty" />
                   </SelectTrigger>
                   <SelectContent>
@@ -400,17 +401,17 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
 
           {/* Schedule & Timing */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                 <Calendar className="h-4 w-4" />
                 Schedule & Timing
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0 sm:pt-0">
               {/* Date Range */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="startDate">
+                  <Label htmlFor="startDate" className="text-sm">
                     Start Date <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -418,7 +419,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
                     type="date"
                     value={formData.startDate}
                     onChange={(e) => updateFormData('startDate', e.target.value)}
-                    className={localErrors.startDate ? 'border-red-500' : ''}
+                    className={`text-sm ${localErrors.startDate ? 'border-red-500' : ''}`}
                   />
                   {localErrors.startDate && (
                     <p className="text-sm text-red-600">{localErrors.startDate}</p>
@@ -426,7 +427,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="endDate">
+                  <Label htmlFor="endDate" className="text-sm">
                     End Date <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -434,7 +435,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
                     type="date"
                     value={formData.endDate}
                     onChange={(e) => updateFormData('endDate', e.target.value)}
-                    className={localErrors.endDate ? 'border-red-500' : ''}
+                    className={`text-sm ${localErrors.endDate ? 'border-red-500' : ''}`}
                   />
                   {localErrors.endDate && (
                     <p className="text-sm text-red-600">{localErrors.endDate}</p>
@@ -443,25 +444,26 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
               </div>
 
               {/* Time Range */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="startTime">Start Time</Label>
+                  <Label htmlFor="startTime" className="text-sm">Start Time</Label>
                   <Input
                     id="startTime"
                     type="time"
                     value={formData.startTime}
                     onChange={(e) => updateFormData('startTime', e.target.value)}
+                    className="text-sm"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="endTime">End Time</Label>
+                  <Label htmlFor="endTime" className="text-sm">End Time</Label>
                   <Input
                     id="endTime"
                     type="time"
                     value={formData.endTime}
                     onChange={(e) => updateFormData('endTime', e.target.value)}
-                    className={localErrors.endTime ? 'border-red-500' : ''}
+                    className={`text-sm ${localErrors.endTime ? 'border-red-500' : ''}`}
                   />
                   {localErrors.endTime && (
                     <p className="text-sm text-red-600">{localErrors.endTime}</p>
@@ -471,7 +473,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
 
               {/* Estimated Hours */}
               <div className="space-y-2">
-                <Label htmlFor="estimatedHours">Estimated Hours</Label>
+                <Label htmlFor="estimatedHours" className="text-sm">Estimated Hours</Label>
                 <Input
                   id="estimatedHours"
                   type="number"
@@ -480,7 +482,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
                   value={formData.estimatedHours || ''}
                   onChange={(e) => updateFormData('estimatedHours', e.target.value ? Number(e.target.value) : undefined)}
                   placeholder="0.00"
-                  className={localErrors.estimatedHours ? 'border-red-500' : ''}
+                  className={`text-sm ${localErrors.estimatedHours ? 'border-red-500' : ''}`}
                 />
                 {localErrors.estimatedHours && (
                   <p className="text-sm text-red-600">{localErrors.estimatedHours}</p>
@@ -491,21 +493,21 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
 
           {/* Assignment & Details */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                 <Users className="h-4 w-4" />
                 Team Assignment
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm">
                 Select team members to assign to this task
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0 sm:pt-0">
               {/* Team Members */}
               {isTeamLoading ? (
                 <div className="space-y-2">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-3 p-3 border rounded-lg animate-pulse">
+                    <div key={i} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 border rounded-lg animate-pulse">
                       <div className="w-4 h-4 bg-gray-200 rounded" />
                       <div className="w-8 h-8 bg-gray-200 rounded-full" />
                       <div className="flex-1">
@@ -516,34 +518,37 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
                   ))}
                 </div>
               ) : projectTeamMembers.length === 0 ? (
-                <Alert>
+                <Alert className="text-sm">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    No team members are assigned to this project yet. 
+                    No team members are assigned to this project yet.
                     Please assign team members to the project first.
                   </AlertDescription>
                 </Alert>
               ) : (
                 <div className="space-y-2">
                   {projectTeamMembers.map((member) => (
-                    <div key={member.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50">
+                    <div key={member.id} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 border rounded-lg hover:bg-gray-50">
                       <Checkbox
                         checked={formData.assignedProjectMemberIds.includes(member.id)}
                         onCheckedChange={(checked) => handleTeamMemberToggle(member.id, checked as boolean)}
                       />
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-xs sm:text-sm truncate">
                           {member.firstName} {member.lastName}
                         </div>
-                        <div className="text-xs text-gray-600 flex items-center gap-2">
+                        <div className="text-xs text-gray-600 flex flex-wrap items-center gap-1 sm:gap-2">
                           {member.tradeSpecialty && (
                             <div className="flex items-center gap-1">
-                              <Briefcase className="h-3 w-3" />
-                              {member.tradeSpecialty}
+                              <Briefcase className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{member.tradeSpecialty}</span>
                             </div>
                           )}
                           {member.jobTitle && (
-                            <span>• {member.jobTitle}</span>
+                            <>
+                              <span className="hidden sm:inline">•</span>
+                              <span className="truncate">{member.jobTitle}</span>
+                            </>
                           )}
                         </div>
                       </div>
@@ -551,7 +556,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
                   ))}
                 </div>
               )}
-              
+
               {localErrors.assignedProjectMemberIds && (
                 <p className="text-sm text-red-600">{localErrors.assignedProjectMemberIds}</p>
               )}
@@ -560,22 +565,22 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
 
           {/* Priority & Status */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                 <Target className="h-4 w-4" />
                 Priority & Status
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0 sm:pt-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {/* Priority */}
                 <div className="space-y-2">
-                  <Label>Priority</Label>
+                  <Label className="text-sm">Priority</Label>
                   <Select
                     value={formData.priority}
                     onValueChange={(value) => updateFormData('priority', value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -593,12 +598,12 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
 
                 {/* Status */}
                 <div className="space-y-2">
-                  <Label>Initial Status</Label>
+                  <Label className="text-sm">Initial Status</Label>
                   <Select
                     value={formData.status}
                     onValueChange={(value) => updateFormData('status', value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -616,52 +621,47 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
 
           {/* Additional Details */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                 <FileText className="h-4 w-4" />
                 Additional Details
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0 sm:pt-0">
               {/* Location */}
               <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
+                <Label htmlFor="location" className="text-sm">Location</Label>
                 <Input
                   id="location"
                   value={formData.location}
                   onChange={(e) => updateFormData('location', e.target.value)}
                   placeholder="Specific location within the project site..."
+                  className="text-sm"
                 />
               </div>
 
               {/* Notes */}
               <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
+                <Label htmlFor="notes" className="text-sm">Notes</Label>
                 <Textarea
                   id="notes"
                   value={formData.notes}
                   onChange={(e) => updateFormData('notes', e.target.value)}
                   placeholder="Additional notes, special instructions, or requirements..."
                   rows={3}
+                  className="text-sm"
                 />
               </div>
             </CardContent>
           </Card>
         </form>
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClose}
-            disabled={isLoading}
-          >
-            Cancel
-          </Button>
+        <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
           <Button
             type="submit"
             onClick={handleSubmit}
             disabled={!canSubmit || isLoading}
+            className="w-full sm:w-auto text-sm bg-orange-600 hover:bg-orange-700"
           >
             {isLoading ? (
               <>
@@ -674,6 +674,15 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
                 Create Task
               </>
             )}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleClose}
+            disabled={isLoading}
+            className="w-full sm:w-auto text-sm"
+          >
+            Cancel
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -113,47 +113,50 @@ export function ProjectReports({ projectId, projectName, projectStatus }: Projec
   // RENDER
   // ==============================================
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Project Reports</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Project Reports</h2>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
             Generate and export reports for {projectName}
           </p>
         </div>
       </div>
 
-      <Tabs value={activeReportTab} onValueChange={setActiveReportTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="quick-export">Quick Export</TabsTrigger>
-          <TabsTrigger value="custom">Custom Report</TabsTrigger>
-          <TabsTrigger value="overview">Project Overview</TabsTrigger>
+      <Tabs value={activeReportTab} onValueChange={setActiveReportTab} className="space-y-3 sm:space-y-4">
+        <TabsList className="w-full grid grid-cols-3">
+          <TabsTrigger value="quick-export" className="text-xs sm:text-sm">
+            <span className="hidden sm:inline">Quick Export</span>
+            <span className="sm:hidden">Quick</span>
+          </TabsTrigger>
+          <TabsTrigger value="custom" className="text-xs sm:text-sm">Custom</TabsTrigger>
+          <TabsTrigger value="overview" className="text-xs sm:text-sm">Overview</TabsTrigger>
         </TabsList>
 
         {/* Quick Export Tab */}
-        <TabsContent value="quick-export" className="space-y-4">
+        <TabsContent value="quick-export" className="space-y-3 sm:space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Download className="h-5 w-5" />
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Download className="h-4 w-4 sm:h-5 sm:w-5" />
                 Quick Payroll Export
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm">
                 Export payroll data for this project by time period
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 md:grid-cols-2">
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+              <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2">
                 <Button
                   onClick={() => handleQuickExport('this-week')}
                   disabled={isExporting}
                   variant="outline"
-                  className="h-auto py-4 flex-col items-start"
+                  className="h-auto py-3 sm:py-4 flex-col items-start"
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <Calendar className="h-4 w-4" />
-                    <span className="font-semibold">This Week</span>
+                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="font-semibold text-sm sm:text-base">This Week</span>
                   </div>
                   <span className="text-xs text-gray-600">
                     Export payroll for current week
@@ -164,11 +167,11 @@ export function ProjectReports({ projectId, projectName, projectStatus }: Projec
                   onClick={() => handleQuickExport('this-month')}
                   disabled={isExporting}
                   variant="outline"
-                  className="h-auto py-4 flex-col items-start"
+                  className="h-auto py-3 sm:py-4 flex-col items-start"
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <Calendar className="h-4 w-4" />
-                    <span className="font-semibold">This Month</span>
+                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="font-semibold text-sm sm:text-base">This Month</span>
                   </div>
                   <span className="text-xs text-gray-600">
                     Export payroll for current month
@@ -179,11 +182,11 @@ export function ProjectReports({ projectId, projectName, projectStatus }: Projec
                   onClick={() => handleQuickExport('this-quarter')}
                   disabled={isExporting}
                   variant="outline"
-                  className="h-auto py-4 flex-col items-start"
+                  className="h-auto py-3 sm:py-4 flex-col items-start"
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <BarChart3 className="h-4 w-4" />
-                    <span className="font-semibold">This Quarter</span>
+                    <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="font-semibold text-sm sm:text-base">This Quarter</span>
                   </div>
                   <span className="text-xs text-gray-600">
                     Export payroll for current quarter
@@ -194,11 +197,11 @@ export function ProjectReports({ projectId, projectName, projectStatus }: Projec
                   onClick={() => handleQuickExport('all-time')}
                   disabled={isExporting}
                   variant="outline"
-                  className="h-auto py-4 flex-col items-start"
+                  className="h-auto py-3 sm:py-4 flex-col items-start"
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <Activity className="h-4 w-4" />
-                    <span className="font-semibold">All Time</span>
+                    <Activity className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="font-semibold text-sm sm:text-base">All Time</span>
                   </div>
                   <span className="text-xs text-gray-600">
                     Export all project payroll data
@@ -210,19 +213,19 @@ export function ProjectReports({ projectId, projectName, projectStatus }: Projec
         </TabsContent>
 
         {/* Custom Report Tab */}
-        <TabsContent value="custom" className="space-y-4">
+        <TabsContent value="custom" className="space-y-3 sm:space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
                 Custom Report Options
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm">
                 For advanced filtering and custom date ranges, use the central reports page
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Alert>
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+              <Alert className="text-sm">
                 <TrendingUp className="h-4 w-4" />
                 <AlertDescription>
                   Visit the{' '}
@@ -236,8 +239,8 @@ export function ProjectReports({ projectId, projectName, projectStatus }: Projec
                 </AlertDescription>
               </Alert>
 
-              <div className="mt-4">
-                <Button asChild variant="default">
+              <div className="mt-3 sm:mt-4">
+                <Button asChild variant="default" className="w-full sm:w-auto text-sm">
                   <a href={`/dashboard/reports?projectId=${projectId}`}>
                     <TrendingUp className="mr-2 h-4 w-4" />
                     Open in Reports
@@ -249,17 +252,17 @@ export function ProjectReports({ projectId, projectName, projectStatus }: Projec
         </TabsContent>
 
         {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
+        <TabsContent value="overview" className="space-y-3 sm:space-y-4">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-medium">
                   Available Reports
                 </CardTitle>
                 <FileText className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">5</div>
+              <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+                <div className="text-xl sm:text-2xl font-bold">5</div>
                 <p className="text-xs text-muted-foreground">
                   Report types available
                 </p>
@@ -267,29 +270,29 @@ export function ProjectReports({ projectId, projectName, projectStatus }: Projec
             </Card>
 
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-medium">
                   Export Formats
                 </CardTitle>
                 <Download className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">CSV</div>
+              <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+                <div className="text-xl sm:text-2xl font-bold">CSV</div>
                 <p className="text-xs text-muted-foreground">
                   PDF coming soon
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+            <Card className="sm:col-span-2 md:col-span-1">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-medium">
                   Project Status
                 </CardTitle>
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent>
-                <Badge variant="outline" className="capitalize">
+              <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+                <Badge variant="outline" className="capitalize text-xs">
                   {projectStatus.replace('_', ' ')}
                 </Badge>
                 <p className="text-xs text-muted-foreground mt-2">
@@ -300,56 +303,56 @@ export function ProjectReports({ projectId, projectName, projectStatus }: Projec
           </div>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Report Types</CardTitle>
-              <CardDescription>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Report Types</CardTitle>
+              <CardDescription className="text-sm">
                 Available reports for this project
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 p-3 border rounded-lg">
-                  <Clock className="h-5 w-5 text-blue-600 mt-0.5" />
-                  <div className="flex-1">
-                    <h4 className="font-medium">Payroll & Time Tracking</h4>
-                    <p className="text-sm text-gray-600">
+            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+              <div className="space-y-2 sm:space-y-3">
+                <div className="flex items-start gap-2 sm:gap-3 p-3 border rounded-lg">
+                  <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-sm sm:text-base">Payroll & Time Tracking</h4>
+                    <p className="text-xs sm:text-sm text-gray-600">
                       Export detailed time entries, labor costs, and overtime for this project
                     </p>
                   </div>
-                  <Badge>Available</Badge>
+                  <Badge className="text-xs flex-shrink-0">Available</Badge>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 border rounded-lg">
-                  <Users className="h-5 w-5 text-green-600 mt-0.5" />
-                  <div className="flex-1">
-                    <h4 className="font-medium">Team Performance</h4>
-                    <p className="text-sm text-gray-600">
+                <div className="flex items-start gap-2 sm:gap-3 p-3 border rounded-lg">
+                  <Users className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-sm sm:text-base">Team Performance</h4>
+                    <p className="text-xs sm:text-sm text-gray-600">
                       View hours logged by each team member on this project
                     </p>
                   </div>
-                  <Badge>Available</Badge>
+                  <Badge className="text-xs flex-shrink-0">Available</Badge>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 border rounded-lg opacity-50">
-                  <DollarSign className="h-5 w-5 text-orange-600 mt-0.5" />
-                  <div className="flex-1">
-                    <h4 className="font-medium">Cost Analysis</h4>
-                    <p className="text-sm text-gray-600">
+                <div className="flex items-start gap-2 sm:gap-3 p-3 border rounded-lg opacity-50">
+                  <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-sm sm:text-base">Cost Analysis</h4>
+                    <p className="text-xs sm:text-sm text-gray-600">
                       Detailed breakdown of project costs vs budget
                     </p>
                   </div>
-                  <Badge variant="secondary">Coming Soon</Badge>
+                  <Badge variant="secondary" className="text-xs flex-shrink-0">Coming Soon</Badge>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 border rounded-lg opacity-50">
-                  <Activity className="h-5 w-5 text-purple-600 mt-0.5" />
-                  <div className="flex-1">
-                    <h4 className="font-medium">Progress Report</h4>
-                    <p className="text-sm text-gray-600">
+                <div className="flex items-start gap-2 sm:gap-3 p-3 border rounded-lg opacity-50">
+                  <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-sm sm:text-base">Progress Report</h4>
+                    <p className="text-xs sm:text-sm text-gray-600">
                       Schedule adherence, milestones, and completion status
                     </p>
                   </div>
-                  <Badge variant="secondary">Coming Soon</Badge>
+                  <Badge variant="secondary" className="text-xs flex-shrink-0">Coming Soon</Badge>
                 </div>
               </div>
             </CardContent>

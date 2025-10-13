@@ -16,7 +16,8 @@ import {
   Building,
   ChevronRight,
   ChevronLeft,
-  User
+  User,
+  CheckCircle
 } from "lucide-react"
 import { useCreateProject, useProjectNameCheck } from "@/hooks/projects"
 import { cn } from "@/lib/utils"
@@ -146,13 +147,7 @@ export default function CreateProjectPage() {
   }
 
   const handleSubmit = async () => {
-    console.log('Submit clicked - Form Data:', formData)
-    console.log('Submit clicked - Errors:', errors)
-    console.log('Submit clicked - Can Submit:', canSubmit)
-    console.log('Submit clicked - Has Errors:', hasErrors)
-
     if (validateForm()) {
-      console.log('Validation passed, creating project...')
       await createProject()
     } else {
       console.log('Validation failed')
@@ -303,141 +298,113 @@ export default function CreateProjectPage() {
   // ==============================================
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-4 mb-4">
+      <div className="mx-auto max-w-4xl">
+        {/* Header - Mobile Responsive */}
+        <div className="mb-6 sm:mb-8">
+          <div className="flex items-start xs:items-center gap-2 xs:gap-3 sm:gap-4 mb-3 xs:mb-4">
             <Link href="/dashboard/projects">
-              <Button variant="outline" size="icon" className="shrink-0">
-                <ArrowLeft className="h-4 w-4" />
+              <Button variant="outline" size="icon" className="shrink-0 h-8 w-8 xs:h-9 xs:w-9 sm:h-10 sm:w-10">
+                <ArrowLeft className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
               </Button>
             </Link>
             <div className="min-w-0 flex-1">
-              <h1 className="text-2xl font-bold text-gray-900">Create New Project</h1>
-              <p className="text-gray-600 mt-1">Set up your project with location, timeline, and client details</p>
+              <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-gray-900 leading-tight xs:leading-normal truncate">
+                Create New Project
+              </h1>
+              <p className="text-xs xs:text-sm sm:text-base text-gray-600 mt-0.5 xs:mt-0.5 sm:mt-1 line-clamp-2 leading-snug xs:leading-normal">
+                Set up your project with location, timeline, and client details
+              </p>
             </div>
           </div>
 
-          {/* Progress Bar */}
+          {/* Progress Bar - Mobile Responsive */}
           <div className="space-y-2">
-            <div className="flex justify-between text-sm font-medium text-gray-700">
+            <div className="flex justify-between text-xs sm:text-sm font-medium text-gray-700">
               <span>Step {activeStep} of {totalSteps}</span>
-              <span>{Math.round(progressPercentage)}% Complete</span>
+              <span className="hidden xs:inline">{Math.round(progressPercentage)}% Complete</span>
+              <span className="xs:hidden">{Math.round(progressPercentage)}%</span>
             </div>
-            <Progress value={progressPercentage} className="h-2" />
+            <Progress value={progressPercentage} className="h-1.5 sm:h-2" />
           </div>
         </div>
 
-        {/* Form Card */}
+        {/* Form Card - Mobile Responsive */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <StepIcon className="h-5 w-5" />
-              {currentStepMeta.title}
+          {/* <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+              <StepIcon className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+              <span className="truncate text-md md:tsxt-lg">{currentStepMeta.title}</span>
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm !mt-0">
               {currentStepMeta.description}
             </CardDescription>
-          </CardHeader>
+          </CardHeader> */}
 
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6 py-4 sm:py-6">
             {/* Render Current Step */}
             {renderStepContent()}
 
-            {/* Navigation Buttons */}
+            {/* Navigation Buttons - Mobile Responsive */}
             <Separator />
-            <div className="flex flex-col sm:flex-row gap-3 pt-6">
-              <div className="flex gap-3 sm:flex-1">
+            <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-4 sm:pt-6">
+
+              {/* Left side (Previous / Cancel button) */}
+              <div className="flex gap-2 sm:gap-3 order-2 md:order-1">
                 {activeStep > 1 && (
                   <Button
                     type="button"
                     variant="outline"
                     onClick={handlePrevious}
-                    className="flex-1 sm:flex-none"
+                    className="h-10 sm:h-11"
                   >
-                    <ChevronLeft className="mr-2 h-4 w-4" />
-                    Previous
+                    <ChevronLeft className="mr-1 sm:mr-2 h-4 w-4" />
+                    <span className="text-sm sm:text-base">Previous</span>
                   </Button>
                 )}
 
                 {activeStep === 1 && (
-                  <Link href="/dashboard/projects" className="flex-1 sm:flex-none">
-                    <Button variant="outline" className="w-full">
+                  <Link href="/dashboard/projects">
+                    <Button
+                      variant="outline"
+                      className="h-10 sm:h-11 text-sm sm:text-base"
+                    >
                       Cancel
                     </Button>
                   </Link>
                 )}
               </div>
 
+              {/* Right side (Next / Submit button) */}
               {activeStep < totalSteps ? (
                 <Button
                   onClick={handleNext}
                   disabled={!canProceedToNext}
-                  className="flex-1 sm:flex-none"
+                  className="order-1 md:order-2 w-full md:w-auto bg-orange-600 hover:bg-orange-700 text-white h-11 sm:h-12 text-base"
                 >
-                  Next
-                  <ChevronRight className="ml-2 h-4 w-4" />
+                  <span className="text-sm sm:text-base">Next</span>
+                  <ChevronRight className="ml-1 sm:ml-2 h-4 w-4" />
                 </Button>
               ) : (
                 <Button
                   onClick={handleSubmit}
                   disabled={!canSubmit || isLoading}
-                  className="flex-1 sm:flex-none"
+                  className="order-1 md:order-2 w-full md:w-auto h-10 sm:h-11 bg-orange-600 hover:bg-orange-700"
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating Project...
+                      <span className="text-sm sm:text-base">Creating...</span>
                     </>
                   ) : (
                     <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Create Project
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      <span className="text-sm sm:text-base">Create Project</span>
                     </>
                   )}
                 </Button>
               )}
             </div>
 
-            {/* Error Display */}
-            {/* {hasErrors && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  <div>
-                    <p className="font-medium mb-2">Please fix the following errors:</p>
-                    <ul className="list-disc list-inside space-y-1 text-sm">
-                      {Object.entries(errors).map(([field, error]) => (
-                        error && (
-                          <li key={field}>
-                            <span className="font-medium capitalize">{field.replace(/([A-Z])/g, ' $1')}:</span> {error}
-                          </li>
-                        )
-                      ))}
-                    </ul>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )} */}
-
-            {/* Step Indicator */}
-            <div className="flex justify-center pt-4">
-              <div className="flex space-x-2">
-                {Array.from({ length: totalSteps }, (_, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "w-2 h-2 rounded-full transition-colors",
-                      i + 1 === activeStep
-                        ? "bg-blue-600"
-                        : i + 1 < activeStep
-                          ? "bg-green-600"
-                          : "bg-gray-300"
-                    )}
-                  />
-                ))}
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

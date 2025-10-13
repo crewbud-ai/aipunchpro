@@ -122,7 +122,7 @@ export default function EditProjectPage() {
             const timer = setTimeout(() => {
                 router.push('/dashboard/projects')
             }, 1000)
-            
+
             return () => clearTimeout(timer)
         }
     }, [isSuccess, router])
@@ -264,15 +264,6 @@ export default function EditProjectPage() {
     }
 
     const handleSave = async () => {
-        console.log('Save clicked - Form Data:', formData)
-        console.log('Save clicked - Errors:', errors)
-        console.log('Save clicked - Can Submit (hook):', canSubmit)
-        console.log('Save clicked - Can Save (local):', canSave)
-        console.log('Save clicked - Has Changes:', hasChanges)
-        console.log('Save clicked - Has Unsaved Changes:', hasUnsavedChanges)
-        console.log('Save clicked - Actual Has Errors:', actualHasErrors)
-        console.log('Save clicked - Tags:', formData.tags)
-
         await updateProject()
     }
 
@@ -390,30 +381,53 @@ export default function EditProjectPage() {
     }
 
     // ==============================================
+    // COMPUTED VALUES
+    // ==============================================
+    const progressPercentage = (activeStep / totalSteps) * 100
+
+
+
+    // ==============================================
+    // RENDER STEP CONTENT
+    // ==============================================
+    const renderStepContent = () => {
+        switch (activeStep) {
+            case 1:
+                return <ProjectInfoStep {...step1Props} />
+            case 2:
+                return <LocationStep {...step2Props} />
+            case 3:
+                return <DetailsStep {...step3Props} />
+            default:
+                return null
+        }
+    }
+
+    // ==============================================
     // RENDER
     // ==============================================
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+            <div className="mx-auto max-w-4xl">
                 {/* Header */}
-                <div className="mb-8">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 mb-4">
-                            <Link href={`/dashboard/projects/${projectId}`}>
-                                <Button variant="outline" size="icon" className="shrink-0">
-                                    <ArrowLeft className="h-4 w-4" />
-                                </Button>
-                            </Link>
-                            <div>
-                                <h1 className="text-2xl font-bold text-gray-900">Edit Project</h1>
-                                <p className="text-gray-600 mt-1">
-                                    Update project details and settings
-                                </p>
-                            </div>
+                <div className="mb-6 sm:mb-8">
+                    <div className="flex items-start xs:items-center gap-2 xs:gap-3 sm:gap-4 mb-3 xs:mb-4">
+                        <Link href={`/dashboard/projects/${projectId}`}>
+                            <Button variant="outline" size="icon" className="shrink-0 h-8 w-8 xs:h-9 xs:w-9 sm:h-10 sm:w-10">
+                                <ArrowLeft className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
+                            </Button>
+                        </Link>
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-gray-900 leading-tight xs:leading-normal truncate">
+                                Edit Project
+                            </h1>
+                            <p className="text-xs xs:text-sm sm:text-base text-gray-600 mt-0.5 xs:mt-0.5 sm:mt-1 line-clamp-2 leading-snug xs:leading-normal">
+                                Update project details and settings
+                            </p>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 md:block hidden">
                             <Button asChild variant="ghost" size="sm">
                                 <Link href={`/dashboard/projects/${projectId}`}>
                                     <Eye className="mr-2 h-4 w-4" />
@@ -425,170 +439,113 @@ export default function EditProjectPage() {
 
                     {/* Progress */}
                     <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-600">Step {activeStep} of {totalSteps}</span>
-                            <span className="text-gray-600">{Math.round((activeStep / totalSteps) * 100)}% Complete</span>
+                        <div className="flex justify-between text-xs sm:text-sm font-medium text-gray-700">
+                            <span>Step {activeStep} of {totalSteps}</span>
+                            <span className="hidden xs:inline">{Math.round(progressPercentage)}% Complete</span>
+                            <span className="xs:hidden">{Math.round(progressPercentage)}%</span>
                         </div>
-                        <Progress value={(activeStep / totalSteps) * 100} className="h-2" />
+                        <Progress value={progressPercentage} className="h-1.5 sm:h-2" />
                     </div>
                 </div>
-                
-                {/* Main Content */}
-                <div className="grid grid-cols-1 gap-6">
-                    <Card>
-                        <CardHeader className="pb-4">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <CardTitle className="flex items-center gap-2">
-                                        {activeStep === 1 && (
-                                            <>
-                                                <Building className="h-5 w-5" />
-                                                Project Information
-                                            </>
-                                        )}
-                                        {activeStep === 2 && (
-                                            <>
-                                                <MapPin className="h-5 w-5" />
-                                                Location
-                                            </>
-                                        )}
-                                        {activeStep === 3 && (
-                                            <>
-                                                <Calendar className="h-5 w-5" />
-                                                Details & Settings
-                                            </>
-                                        )}
-                                    </CardTitle>
-                                    <CardDescription>
-                                        {activeStep === 1 && "Update basic project information"}
-                                        {activeStep === 2 && "Set project location (optional)"}
-                                        {activeStep === 3 && "Configure project details and team"}
-                                    </CardDescription>
-                                </div>
-                            </div>
-                        </CardHeader>
 
-                        <CardContent className="space-y-6">
-                            {/* Step Content */}
-                            {activeStep === 1 && <ProjectInfoStep {...step1Props} />}
-                            {activeStep === 2 && <LocationStep {...step2Props} />}
-                            {activeStep === 3 && <DetailsStep {...step3Props} />}
-
-                            <Separator />
-
-                            {/* Navigation */}
-                            <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                                <div className="flex gap-2 flex-1">
-                                    {activeStep > 1 && (
-                                        <Button
-                                            variant="outline"
-                                            onClick={handlePrevious}
-                                            className="flex-1 sm:flex-none"
-                                        >
-                                            <ChevronLeft className="mr-2 h-4 w-4" />
-                                            Previous
-                                        </Button>
-                                    )}
-
+                <Card>
+                    <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6 py-4 sm:py-6">
+                        {/* Step Content */}
+                        {renderStepContent()}
+                        <Separator />
+                        {/* Navigation */}
+                        <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                            <div className="flex gap-2 flex-1">
+                                {activeStep > 1 && (
                                     <Button
                                         variant="outline"
-                                        onClick={handleCancel}
+                                        onClick={handlePrevious}
                                         className="flex-1 sm:flex-none"
                                     >
-                                        <X className="mr-2 h-4 w-4" />
-                                        Cancel
-                                    </Button>
-                                </div>
-
-                                {activeStep < totalSteps ? (
-                                    <Button
-                                        onClick={handleNext}
-                                        disabled={!canProceedToNext}
-                                        className="flex-1 sm:flex-none"
-                                    >
-                                        Next
-                                        <ChevronRight className="ml-2 h-4 w-4" />
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        onClick={handleSave}
-                                        disabled={!canSave}
-                                        className="flex-1 sm:flex-none"
-                                    >
-                                        {isUpdating ? (
-                                            <>
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                Saving Changes...
-                                            </>
-                                        ) : isSuccess ? (
-                                            <>
-                                                <Save className="mr-2 h-4 w-4" />
-                                                Saved! Redirecting...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Save className="mr-2 h-4 w-4" />
-                                                Save Changes
-                                            </>
-                                        )}
+                                        <ChevronLeft className="mr-2 h-4 w-4" />
+                                        Previous
                                     </Button>
                                 )}
+
+                                <Button
+                                    variant="outline"
+                                    onClick={handleCancel}
+                                    className="flex-1 sm:flex-none"
+                                >
+                                    <X className="mr-2 h-4 w-4" />
+                                    Cancel
+                                </Button>
                             </div>
 
-                            {/* Error Display - Show actual errors to debug the issue */}
-                            {actualHasErrors && (
-                                <Alert variant="destructive">
-                                    <AlertCircle className="h-4 w-4" />
-                                    <AlertDescription>
-                                        <div>
-                                            <p className="font-medium mb-2">Please fix the following errors:</p>
-                                            <ul className="list-disc list-inside space-y-1 text-sm">
-                                                {Object.entries(errors).map(([field, error]) => (
-                                                    error && error !== '' && error !== null && error !== undefined && (
-                                                        <li key={field}>
-                                                            <span className="font-medium capitalize">{field.replace(/([A-Z])/g, ' $1')}:</span> {error}
-                                                        </li>
-                                                    )
-                                                ))}
-                                            </ul>
-                                            {/* Debug info to see what's causing the issue */}
-                                            <details className="mt-2">
-                                                <summary className="text-xs cursor-pointer">Debug Info (click to expand)</summary>
-                                                <pre className="text-xs mt-1 bg-gray-100 p-2 rounded">{JSON.stringify(errors, null, 2)}</pre>
-                                                <p className="text-xs mt-1">hasErrors (hook): {hasErrors.toString()}</p>
-                                                <p className="text-xs">actualHasErrors: {actualHasErrors.toString()}</p>
-                                                <p className="text-xs">canSubmit (hook): {canSubmit.toString()}</p>
-                                                <p className="text-xs">canSave (local): {canSave?.toString() ?? 'null'}</p>
-                                                <p className="text-xs">hasChanges: {hasChanges.toString()}</p>
-                                                <p className="text-xs">hasUnsavedChanges: {hasUnsavedChanges.toString()}</p>
-                                                <p className="text-xs">Tags: {JSON.stringify(formData.tags)}</p>
-                                            </details>
-                                        </div>
-                                    </AlertDescription>
-                                </Alert>
+                            {activeStep < totalSteps ? (
+                                <Button
+                                    onClick={handleNext}
+                                    disabled={!canProceedToNext}
+                                    className="flex-1 sm:flex-none bg-orange-600 hover:bg-orange-700"
+                                >
+                                    Next
+                                    <ChevronRight className="ml-2 h-4 w-4" />
+                                </Button>
+                            ) : (
+                                <Button
+                                    onClick={handleSave}
+                                    disabled={!canSave}
+                                    className="flex-1 sm:flex-none bg-orange-600 hover:bg-orange-700"
+                                >
+                                    {isUpdating ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Saving Changes...
+                                        </>
+                                    ) : isSuccess ? (
+                                        <>
+                                            <Save className="mr-2 h-4 w-4" />
+                                            Saved! Redirecting...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="mr-2 h-4 w-4" />
+                                            Save Changes
+                                        </>
+                                    )}
+                                </Button>
                             )}
+                        </div>
 
-                            {/* Step Indicator */}
-                            <div className="flex justify-center pt-4">
-                                <div className="flex space-x-2">
-                                    {Array.from({ length: totalSteps }, (_, i) => (
-                                        <div
-                                            key={i}
-                                            className={cn(
-                                                "w-2 h-2 rounded-full transition-colors",
-                                                i + 1 === activeStep
-                                                    ? "bg-blue-600"
-                                                    : i + 1 < activeStep
-                                                        ? "bg-green-600"
-                                                        : "bg-gray-300"
-                                            )}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                        {/* Error Display - Show actual errors to debug the issue */}
+                        {actualHasErrors && (
+                            <Alert variant="destructive">
+                                <AlertCircle className="h-4 w-4" />
+                                <AlertDescription>
+                                    <div>
+                                        <p className="font-medium mb-2">Please fix the following errors:</p>
+                                        <ul className="list-disc list-inside space-y-1 text-sm">
+                                            {Object.entries(errors).map(([field, error]) => (
+                                                error && error !== '' && error !== null && error !== undefined && (
+                                                    <li key={field}>
+                                                        <span className="font-medium capitalize">{field.replace(/([A-Z])/g, ' $1')}:</span> {error}
+                                                    </li>
+                                                )
+                                            ))}
+                                        </ul>
+                                        {/* Debug info to see what's causing the issue */}
+                                        <details className="mt-2">
+                                            <summary className="text-xs cursor-pointer">Debug Info (click to expand)</summary>
+                                            <pre className="text-xs mt-1 bg-gray-100 p-2 rounded">{JSON.stringify(errors, null, 2)}</pre>
+                                            <p className="text-xs mt-1">hasErrors (hook): {hasErrors.toString()}</p>
+                                            <p className="text-xs">actualHasErrors: {actualHasErrors.toString()}</p>
+                                            <p className="text-xs">canSubmit (hook): {canSubmit.toString()}</p>
+                                            <p className="text-xs">canSave (local): {canSave?.toString() ?? 'null'}</p>
+                                            <p className="text-xs">hasChanges: {hasChanges.toString()}</p>
+                                            <p className="text-xs">hasUnsavedChanges: {hasUnsavedChanges.toString()}</p>
+                                            <p className="text-xs">Tags: {JSON.stringify(formData.tags)}</p>
+                                        </details>
+                                    </div>
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                    </CardContent>
+                </Card>
             </div>
         </div>
     )
