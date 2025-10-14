@@ -50,7 +50,7 @@ export default function CreatePunchlistPage() {
         createPunchlistItem,
         goToNextStep,
         goToPrevStep,
-        
+
         isUploadingFiles,
         hasPendingFiles,
         pendingFiles,
@@ -235,7 +235,7 @@ export default function CreatePunchlistPage() {
         errors,
         updateFormData: updateFormData as (field: string, value: any) => void,
         clearFieldError,
-        
+
         // File upload props
         isUploadingFiles,
         hasPendingFiles,
@@ -314,44 +314,40 @@ export default function CreatePunchlistPage() {
     // ==============================================
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+            <div className="mx-auto max-w-4xl">
                 {/* Header */}
-                <div className="mb-8">
-                    <div className="flex items-center gap-4 mb-4">
+                <div className="mb-6 sm:mb-8">
+                    <div className="flex items-start xs:items-center gap-2 xs:gap-3 sm:gap-4 mb-3 xs:mb-4">
                         <Link href="/dashboard/punchlist">
                             <Button variant="outline" size="icon" className="shrink-0">
-                                <ArrowLeft className="h-4 w-4" />
+                                <ArrowLeft className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
                             </Button>
                         </Link>
                         <div className="min-w-0 flex-1">
-                            <h1 className="text-2xl font-bold text-gray-900">Create New Punchlist Item</h1>
-                            <p className="text-gray-600 mt-1">Track and manage construction defects and completion items</p>
+                            <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-gray-900 leading-tight xs:leading-normal truncate">
+                                Create New Punchlist Item
+                            </h1>
+                            <p className="text-xs xs:text-sm sm:text-base text-gray-600 mt-0.5 xs:mt-0.5 sm:mt-1 line-clamp-2 leading-snug xs:leading-normal">
+                                Track and manage construction defects and completion items
+                            </p>
                         </div>
                     </div>
 
                     {/* Progress Bar */}
                     <div className="space-y-2">
-                        <div className="flex justify-between text-sm font-medium text-gray-700">
+                        <div className="flex justify-between text-xs sm:text-sm font-medium text-gray-700">
                             <span>Step {currentStep} of {totalSteps}</span>
-                            <span>{Math.round(progressPercentage)}% Complete</span>
+                            <span className="hidden xs:inline">{Math.round(progressPercentage)}% Complete</span>
+                            <span className="xs:hidden">{Math.round(progressPercentage)}%</span>
                         </div>
-                        <Progress value={progressPercentage} className="h-2" />
+                        <Progress value={progressPercentage} className="h-1.5 sm:h-2" />
                     </div>
                 </div>
 
                 {/* Form Card */}
                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <StepIcon className="h-5 w-5" />
-                            {currentStepMeta.title}
-                        </CardTitle>
-                        <CardDescription>
-                            {currentStepMeta.description}
-                        </CardDescription>
-                    </CardHeader>
                     <form>
-                        <CardContent className="space-y-6">
+                        <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6 py-4 sm:py-6">
 
                             {/* Render Current Step */}
                             {renderStepContent()}
@@ -359,8 +355,8 @@ export default function CreatePunchlistPage() {
                             {/* Show upload progress globally */}
                             {isUploadingFiles && (
                                 <Alert>
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    <AlertDescription>
+                                    <Loader2 className="h-3.5 w-3.5 xs:h-4 xs:w-4 animate-spin shrink-0" />
+                                    <AlertDescription className="text-xs xs:text-sm leading-snug">
                                         Uploading files... {uploadProgress}% complete. Please don't close this page.
                                     </AlertDescription>
                                 </Alert>
@@ -369,41 +365,45 @@ export default function CreatePunchlistPage() {
                             {/* Show upload error globally */}
                             {uploadError && (
                                 <Alert variant="destructive">
-                                    <AlertCircle className="h-4 w-4" />
-                                    <AlertDescription>Upload Error: {uploadError}</AlertDescription>
+                                    <AlertCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
+                                    <AlertDescription className="text-xs xs:text-sm leading-snug">
+                                        Upload Error: {uploadError}
+                                    </AlertDescription>
                                 </Alert>
                             )}
 
                             {/* Show general errors */}
                             {errors.general && (
                                 <Alert variant="destructive">
-                                    <AlertCircle className="h-4 w-4" />
-                                    <AlertDescription>{errors.general}</AlertDescription>
+                                    <AlertCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
+                                    <AlertDescription className="text-xs xs:text-sm leading-snug">
+                                        {errors.general}
+                                    </AlertDescription>
                                 </Alert>
                             )}
 
                             {/* Navigation Buttons */}
                             <Separator />
-                            <div className="flex flex-col sm:flex-row gap-3 pt-6">
-                                <div className="flex gap-3 sm:flex-1">
+                            <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-4 sm:pt-6">
+                                <div className="flex gap-2 sm:gap-3 order-2 md:order-1">
                                     {currentStep > 1 && (
                                         <Button
                                             type="button"
                                             variant="outline"
                                             onClick={handlePrevious}
                                             disabled={isUploadingFiles}
-                                            className="flex-1 sm:flex-none"
+                                            className="h-10 sm:h-11"
                                         >
-                                            <ChevronLeft className="mr-2 h-4 w-4" />
-                                            Previous
+                                            <ChevronLeft className="mr-1 sm:mr-2 h-4 w-4" />
+                                            <span className="text-sm sm:text-base">Previous</span>
                                         </Button>
                                     )}
 
                                     {currentStep === 1 && (
-                                        <Link href="/dashboard/punchlist" className="flex-1 sm:flex-none">
-                                            <Button 
-                                                variant="outline" 
-                                                className="w-full"
+                                        <Link href="/dashboard/punchlist" >
+                                            <Button
+                                                variant="outline"
+                                                className="h-10 sm:h-11 text-sm sm:text-base"
                                                 disabled={isUploadingFiles}
                                             >
                                                 Cancel
@@ -417,27 +417,29 @@ export default function CreatePunchlistPage() {
                                         type="button"
                                         onClick={handleNext}
                                         disabled={!canProceedToNext || isUploadingFiles}
-                                        className="flex-1 sm:flex-none"
+                                        className="order-1 md:order-2 w-full md:w-auto bg-orange-600 hover:bg-orange-700 text-white h-11 sm:h-12 text-base"
                                     >
-                                        Next
-                                        <ChevronRight className="ml-2 h-4 w-4" />
+                                        <span className="text-sm sm:text-base">Next</span>
+                                        <ChevronRight className="ml-1 sm:ml-2 h-4 w-4" />
                                     </Button>
                                 ) : (
                                     <Button
                                         type="button"
                                         onClick={handleSubmit}
                                         disabled={!canSubmit || isUploadingFiles}
-                                        className="flex-1 sm:flex-none"
+                                        className="order-1 md:order-2 w-full md:w-auto h-10 sm:h-11 bg-orange-600 hover:bg-orange-700"
                                     >
                                         {(isLoading || isUploadingFiles) ? (
                                             <>
                                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                {isUploadingFiles ? 'Uploading...' : 'Creating...'}
+                                                <span className="text-sm sm:text-base">
+                                                    {isUploadingFiles ? 'Uploading...' : 'Creating...'}
+                                                </span>
                                             </>
                                         ) : (
                                             <>
                                                 <CheckCircle className="mr-2 h-4 w-4" />
-                                                Create Punchlist Item
+                                                <span className="text-sm sm:text-base">Create Punchlist Item</span>
                                             </>
                                         )}
                                     </Button>
@@ -449,13 +451,13 @@ export default function CreatePunchlistPage() {
 
                 {/* Assignment Summary (visible on all steps when assignments exist) */}
                 {assignedMemberCount > 0 && currentStep !== 3 && (
-                    <Card className="mt-4">
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <Users className="h-4 w-4 text-gray-500" />
-                                    <span className="text-sm font-medium">Assignments:</span>
-                                    <span className="text-sm text-gray-600">
+                    <Card className="mt-3 xs:mt-4">
+                        <CardContent className="p-3 xs:p-4">
+                            <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 xs:gap-0">
+                                <div className="flex items-center gap-1.5 xs:gap-2">
+                                    <Users className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-500 shrink-0" />
+                                    <span className="text-xs xs:text-sm font-medium">Assignments:</span>
+                                    <span className="text-xs xs:text-sm text-gray-600">
                                         {assignedMemberCount} team member{assignedMemberCount !== 1 ? 's' : ''} assigned
                                         {hasPrimaryAssignee && ' (has primary)'}
                                     </span>
@@ -467,19 +469,19 @@ export default function CreatePunchlistPage() {
 
                 {/* File upload summary (visible on all steps) */}
                 {(hasPendingFiles || (formData.photos && formData.photos.length > 0) || (formData.attachments && formData.attachments.length > 0)) && currentStep !== 4 && (
-                    <Card className="mt-4">
-                        <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <Camera className="h-4 w-4 text-gray-500" />
-                                    <span className="text-sm font-medium">Files:</span>
-                                    <span className="text-sm text-gray-600">
+                    <Card className="mt-3 xs:mt-4">
+                        <CardContent className="p-3 xs:p-4">
+                            <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 xs:gap-0">
+                                <div className="flex items-center gap-1.5 xs:gap-2">
+                                    <Camera className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-500 shrink-0" />
+                                    <span className="text-xs xs:text-sm font-medium">Files:</span>
+                                    <span className="text-xs xs:text-sm text-gray-600">
                                         {(formData.photos?.length || 0)} photos, {(formData.attachments?.length || 0)} attachments
                                         {hasPendingFiles && `, ${pendingFiles.length} pending`}
                                     </span>
                                 </div>
                                 {isUploadingFiles && (
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1.5 xs:gap-2">
                                         <Loader2 className="h-3 w-3 animate-spin" />
                                         <span className="text-xs text-gray-500">{uploadProgress}%</span>
                                     </div>

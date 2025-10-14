@@ -7,9 +7,9 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Clock, AlertCircle, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { 
-  type CreateScheduleProjectFormData, 
-  type UpdateScheduleProjectFormData 
+import {
+  type CreateScheduleProjectFormData,
+  type UpdateScheduleProjectFormData
 } from "@/types/schedule-projects"
 
 // ==============================================
@@ -22,8 +22,8 @@ type ScheduleProjectFormData = CreateScheduleProjectFormData | UpdateSchedulePro
 // ==============================================
 interface TimingStepProps {
   mode?: 'create' | 'edit'
-  formData: Pick<ScheduleProjectFormData, 'startDate' | 'endDate' | 'startTime' | 'endTime' | 'estimatedHours'> & 
-    Partial<Pick<UpdateScheduleProjectFormData, 'actualHours'>>
+  formData: Pick<ScheduleProjectFormData, 'startDate' | 'endDate' | 'startTime' | 'endTime' | 'estimatedHours'> &
+  Partial<Pick<UpdateScheduleProjectFormData, 'actualHours'>>
   errors: any
   updateFormData: (field: string, value: any) => void // Made more flexible
   clearFieldError: (field: string) => void
@@ -33,11 +33,11 @@ interface TimingStepProps {
 // ==============================================
 // COMPONENT
 // ==============================================
-export const TimingStep = React.memo<TimingStepProps>(({ 
+export const TimingStep = React.memo<TimingStepProps>(({
   mode = 'create',
-  formData, 
-  errors, 
-  updateFormData, 
+  formData,
+  errors,
+  updateFormData,
   clearFieldError,
   handleStartDateChange
 }) => {
@@ -48,12 +48,12 @@ export const TimingStep = React.memo<TimingStepProps>(({
 
   // Check if we have actual hours (edit mode)
   const hasActualHours = mode === 'edit' && 'actualHours' in formData
-  
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 xs:space-y-5 sm:space-y-6">
       {/* Mode indicator */}
       {mode === 'edit' && (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 xs:gap-2">
           <Badge variant="secondary" className="text-xs">
             Editing Schedule
           </Badge>
@@ -65,19 +65,19 @@ export const TimingStep = React.memo<TimingStepProps>(({
       )}
 
       {/* Date Range */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 xs:gap-4 sm:gap-6">
         <div>
-          <Label htmlFor="startDate" className="text-base font-medium">
+          <Label htmlFor="startDate" className="text-sm xs:text-base font-medium">
             {getLabel("Start Date")} <span className="text-red-500">*</span>
           </Label>
-          <div className="relative mt-2">
+          <div className="relative mt-1.5 xs:mt-2">
             <Input
               id="startDate"
               type="date"
               value={formData.startDate}
               onChange={(e) => handleStartDateChange(e.target.value)}
               className={cn(
-                "block",
+                "block text-sm xs:text-base h-10 xs:h-11",
                 errors.startDate && "border-red-500 focus:border-red-500 focus:ring-red-500 w-full"
               )}
               style={{
@@ -86,18 +86,18 @@ export const TimingStep = React.memo<TimingStepProps>(({
             />
           </div>
           {errors.startDate && (
-            <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {errors.startDate}
+            <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+              <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+              <span className="leading-tight">{errors.startDate}</span>
             </p>
           )}
         </div>
 
         <div>
-          <Label htmlFor="endDate" className="text-base font-medium">
+          <Label htmlFor="endDate" className="text-sm xs:text-base font-medium">
             {getLabel("End Date")} <span className="text-red-500">*</span>
           </Label>
-          <div className="relative mt-2">
+          <div className="relative mt-1.5 xs:mt-2">
             <Input
               id="endDate"
               type="date"
@@ -107,7 +107,7 @@ export const TimingStep = React.memo<TimingStepProps>(({
                 clearFieldError('endDate')
               }}
               className={cn(
-                "block",
+                "block text-sm xs:text-base h-10 xs:h-11",
                 errors.endDate && "border-red-500 focus:border-red-500 focus:ring-red-500"
               )}
               style={{
@@ -116,21 +116,21 @@ export const TimingStep = React.memo<TimingStepProps>(({
             />
           </div>
           {errors.endDate && (
-            <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {errors.endDate}
+            <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+              <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+              <span className="leading-tight">{errors.endDate}</span>
             </p>
           )}
         </div>
       </div>
 
       {/* Time Range */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 xs:gap-4 sm:gap-6">
         <div>
-          <Label htmlFor="startTime" className="text-base font-medium">
+          <Label htmlFor="startTime" className="text-sm xs:text-base font-medium">
             {getLabel("Start Time")}
           </Label>
-          <div className="relative mt-2">
+          <div className="relative mt-1.5 xs:mt-2">
             <Input
               id="startTime"
               type="time"
@@ -140,25 +140,24 @@ export const TimingStep = React.memo<TimingStepProps>(({
                 clearFieldError('startTime')
               }}
               className={cn(
-                "block",
+                "block text-sm xs:text-base h-10 xs:h-11",
                 errors.startTime && "border-red-500 focus:border-red-500 focus:ring-red-500"
               )}
             />
-            {/* <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" /> */}
           </div>
           {errors.startTime && (
-            <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {errors.startTime}
+            <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+              <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+              <span className="leading-tight">{errors.startTime}</span>
             </p>
           )}
         </div>
 
         <div>
-          <Label htmlFor="endTime" className="text-base font-medium">
+          <Label htmlFor="endTime" className="text-sm xs:text-base font-medium">
             {getLabel("End Time")}
           </Label>
-          <div className="relative mt-2">
+          <div className="relative mt-1.5 xs:mt-2">
             <Input
               id="endTime"
               type="time"
@@ -168,16 +167,15 @@ export const TimingStep = React.memo<TimingStepProps>(({
                 clearFieldError('endTime')
               }}
               className={cn(
-                "block",
+                "block text-sm xs:text-base h-10 xs:h-11",
                 errors.endTime && "border-red-500 focus:border-red-500 focus:ring-red-500"
               )}
             />
-            {/* <Clock className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" /> */}
           </div>
           {errors.endTime && (
-            <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {errors.endTime}
+            <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+              <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+              <span className="leading-tight">{errors.endTime}</span>
             </p>
           )}
         </div>
@@ -185,12 +183,12 @@ export const TimingStep = React.memo<TimingStepProps>(({
 
       {/* Hours Section */}
       <div className={cn(
-        "grid gap-6",
+        "grid gap-3.5 xs:gap-4 sm:gap-6",
         hasActualHours ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"
       )}>
         {/* Estimated Hours */}
         <div>
-          <Label htmlFor="estimatedHours" className="text-base font-medium">
+          <Label htmlFor="estimatedHours" className="text-sm xs:text-base font-medium">
             {getLabel("Estimated Hours")}
           </Label>
           <Input
@@ -205,14 +203,14 @@ export const TimingStep = React.memo<TimingStepProps>(({
               clearFieldError('estimatedHours')
             }}
             className={cn(
-              "mt-2",
+              "mt-1.5 xs:mt-2 text-sm xs:text-base h-10 xs:h-11",
               errors.estimatedHours && "border-red-500 focus:border-red-500 focus:ring-red-500"
             )}
           />
           {errors.estimatedHours && (
-            <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              {errors.estimatedHours}
+            <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+              <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+              <span className="leading-tight">{errors.estimatedHours}</span>
             </p>
           )}
         </div>
@@ -220,9 +218,9 @@ export const TimingStep = React.memo<TimingStepProps>(({
         {/* Actual Hours (Edit Mode Only) */}
         {hasActualHours && (
           <div>
-            <Label htmlFor="actualHours" className="text-base font-medium">
+            <Label htmlFor="actualHours" className="text-sm xs:text-base font-medium">
               Actual Hours
-              <Badge variant="outline" className="ml-2 text-xs">
+              <Badge variant="outline" className="ml-1.5 xs:ml-2 text-xs">
                 Edit Mode
               </Badge>
             </Label>
@@ -238,17 +236,17 @@ export const TimingStep = React.memo<TimingStepProps>(({
                 clearFieldError('actualHours')
               }}
               className={cn(
-                "mt-2",
+                "mt-1.5 xs:mt-2 text-sm xs:text-base h-10 xs:h-11",
                 errors.actualHours && "border-red-500 focus:border-red-500 focus:ring-red-500"
               )}
             />
             {errors.actualHours && (
-              <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                {errors.actualHours}
+              <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                <span className="leading-tight">{errors.actualHours}</span>
               </p>
             )}
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 mt-1 leading-snug">
               Track actual time spent on this work
             </p>
           </div>
@@ -257,14 +255,9 @@ export const TimingStep = React.memo<TimingStepProps>(({
 
       {/* Hours comparison (Edit Mode) */}
       {hasActualHours && formData.estimatedHours && formData.actualHours && (
-        <Alert className={cn(
-          "border-l-4",
-          formData.actualHours > formData.estimatedHours 
-            ? "border-l-yellow-400 bg-yellow-50" 
-            : "border-l-green-400 bg-green-50"
-        )}>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
+        <Alert className={cn( "border-l-4", formData.actualHours > formData.estimatedHours ? "border-l-yellow-400 bg-yellow-50" : "border-l-green-400 bg-green-50" )}>
+          <AlertCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
+          <AlertDescription className="text-xs xs:text-sm leading-snug">
             {formData.actualHours > formData.estimatedHours ? (
               <>
                 <strong>Over estimate:</strong> Actual hours ({formData.actualHours}h) exceed estimated hours ({formData.estimatedHours}h) by {(formData.actualHours - formData.estimatedHours).toFixed(1)} hours.

@@ -271,44 +271,40 @@ export default function CreateSchedulePage() {
     // ==============================================
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+            <div className="mx-auto max-w-4xl">
                 {/* Header */}
-                <div className="mb-8">
-                    <div className="flex items-center gap-4 mb-4">
+                <div className="mb-6 sm:mb-8">
+                    <div className="flex items-start xs:items-center gap-2 xs:gap-3 sm:gap-4 mb-3 xs:mb-4">
                         <Link href="/dashboard/schedule">
-                            <Button variant="outline" size="icon" className="shrink-0">
-                                <ArrowLeft className="h-4 w-4" />
+                            <Button variant="outline" size="icon" className="shrink-0 h-8 w-8 xs:h-9 xs:w-9 sm:h-10 sm:w-10">
+                                <ArrowLeft className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
                             </Button>
                         </Link>
                         <div className="min-w-0 flex-1">
-                            <h1 className="text-2xl font-bold text-gray-900">Create New Schedule Project</h1>
-                            <p className="text-gray-600 mt-1">Schedule work with team assignments and timing details</p>
+                            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 break-words">
+                                Create New Schedule Project
+                            </h1>
+                            <p className="text-sm sm:text-base text-gray-600 mt-1">
+                                Schedule work with team assignments and timing details
+                            </p>
                         </div>
                     </div>
 
                     {/* Progress Bar */}
                     <div className="space-y-2">
-                        <div className="flex justify-between text-sm font-medium text-gray-700">
+                        <div className="flex justify-between text-xs sm:text-sm font-medium text-gray-700">
                             <span>Step {currentStep} of {totalSteps}</span>
-                            <span>{Math.round(progressPercentage)}% Complete</span>
+                            <span className="hidden xs:inline">{Math.round(progressPercentage)}% Complete</span>
+                            <span className="xs:hidden">{Math.round(progressPercentage)}%</span>
                         </div>
-                        <Progress value={progressPercentage} className="h-2" />
+                        <Progress value={progressPercentage} className="h-1.5 sm:h-2" />
                     </div>
                 </div>
 
                 {/* Form Card */}
                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <StepIcon className="h-5 w-5" />
-                            {currentStepMeta.title}
-                        </CardTitle>
-                        <CardDescription>
-                            {currentStepMeta.description}
-                        </CardDescription>
-                    </CardHeader>
                     <form>
-                        <CardContent className="space-y-6">
+                        <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
 
                             {/* Render Current Step */}
                             {renderStepContent()}
@@ -316,30 +312,32 @@ export default function CreateSchedulePage() {
                             {/* Show general errors */}
                             {errors.general && (
                                 <Alert variant="destructive">
-                                    <AlertCircle className="h-4 w-4" />
-                                    <AlertDescription>{errors.general}</AlertDescription>
+                                    <AlertCircle className="h-4 w-4 shrink-0" />
+                                    <AlertDescription className="text-sm sm:text-base">
+                                        {errors.general}
+                                    </AlertDescription>
                                 </Alert>
                             )}
 
                             {/* Navigation Buttons */}
                             <Separator />
-                            <div className="flex flex-col sm:flex-row gap-3 pt-6">
-                                <div className="flex gap-3 sm:flex-1">
+                            <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-4 sm:pt-6">
+                                <div className="flex gap-2 sm:gap-3 order-2 md:order-1">
                                     {currentStep > 1 && (
                                         <Button
                                             type="button"
                                             variant="outline"
                                             onClick={handlePrevious}
-                                            className="flex-1 sm:flex-none"
+                                            className="h-10 sm:h-11"
                                         >
-                                            <ChevronLeft className="mr-2 h-4 w-4" />
-                                            Previous
+                                            <ChevronLeft className="mr-1 sm:mr-2 h-4 w-4" />
+                                            <span className="text-sm sm:text-base">Previous</span>
                                         </Button>
                                     )}
 
                                     {currentStep === 1 && (
                                         <Link href="/dashboard/schedule" className="flex-1 sm:flex-none">
-                                            <Button variant="outline" className="w-full">
+                                            <Button variant="outline" className="h-10 sm:h-11 text-sm sm:text-base">
                                                 Cancel
                                             </Button>
                                         </Link>
@@ -351,27 +349,27 @@ export default function CreateSchedulePage() {
                                         type="button"
                                         onClick={handleNext}
                                         disabled={!canProceedToNext}
-                                        className="flex-1 sm:flex-none"
+                                        className="order-1 md:order-2 w-full md:w-auto bg-orange-600 hover:bg-orange-700 text-white h-11 sm:h-12 text-base"
                                     >
                                         Next
-                                        <ChevronRight className="ml-2 h-4 w-4" />
+                                        <ChevronRight className="ml-1 sm:ml-2 h-4 w-4" />
                                     </Button>
                                 ) : (
                                     <Button
                                         type="button"
                                         onClick={handleSubmit}
                                         disabled={!canSubmit}
-                                        className="flex-1 sm:flex-none"
+                                        className="order-1 md:order-2 w-full md:w-auto h-10 sm:h-11 bg-orange-600 hover:bg-orange-700"
                                     >
                                         {isLoading ? (
                                             <>
                                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                Creating...
+                                                <span className="text-sm sm:text-base">Creating...</span>
                                             </>
                                         ) : (
                                             <>
                                                 <CheckCircle className="mr-2 h-4 w-4" />
-                                                Create Schedule Project
+                                                <span className="text-sm sm:text-base">Create Schedule Project</span>
                                             </>
                                         )}
                                     </Button>

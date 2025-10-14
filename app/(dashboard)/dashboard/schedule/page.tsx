@@ -9,17 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { 
-  Calendar, 
-  Clock, 
-  Users, 
-  MapPin, 
-  Plus, 
-  Search, 
-  Filter, 
-  LayoutGrid, 
-  CalendarDays, 
-  ChevronLeft, 
+import {
+  Calendar,
+  Clock,
+  Users,
+  MapPin,
+  Plus,
+  Search,
+  Filter,
+  LayoutGrid,
+  CalendarDays,
+  ChevronLeft,
   ChevronRight,
   AlertCircle,
   Loader2,
@@ -40,7 +40,7 @@ export default function SchedulePage() {
   // ==============================================
   // HOOKS FOR REAL DATA
   // ==============================================
-  
+
   // Schedule projects hook (following projects pattern)
   const {
     scheduleProjects,
@@ -80,7 +80,7 @@ export default function SchedulePage() {
   // ==============================================
   // LOCAL STATE
   // ==============================================
-  
+
   // Calendar state
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -92,21 +92,21 @@ export default function SchedulePage() {
   // ==============================================
   // COMPUTED VALUES
   // ==============================================
-  
+
   // Calendar utilities
   const currentMonth = currentDate.getMonth()
   const currentYear = currentDate.getFullYear()
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
   const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay()
-  
+
   // Generate calendar days
   const calendarDays = useMemo(() => {
     const days = []
-    
+
     // Previous month days
     const prevMonth = new Date(currentYear, currentMonth - 1, 0)
     const prevMonthDays = prevMonth.getDate()
-    
+
     for (let i = firstDayOfMonth - 1; i >= 0; i--) {
       days.push({
         date: prevMonthDays - i,
@@ -114,7 +114,7 @@ export default function SchedulePage() {
         dateString: new Date(currentYear, currentMonth - 1, prevMonthDays - i).toISOString().split('T')[0]
       })
     }
-    
+
     // Current month days
     for (let day = 1; day <= daysInMonth; day++) {
       days.push({
@@ -123,7 +123,7 @@ export default function SchedulePage() {
         dateString: new Date(currentYear, currentMonth, day).toISOString().split('T')[0]
       })
     }
-    
+
     // Next month days to fill the grid
     const remainingDays = 42 - days.length
     for (let day = 1; day <= remainingDays; day++) {
@@ -133,7 +133,7 @@ export default function SchedulePage() {
         dateString: new Date(currentYear, currentMonth + 1, day).toISOString().split('T')[0]
       })
     }
-    
+
     return days
   }, [currentMonth, currentYear, daysInMonth, firstDayOfMonth])
 
@@ -149,9 +149,9 @@ export default function SchedulePage() {
 
   // Active projects for filter dropdown
   const activeProjects = useMemo(() => {
-    return projects.filter(project => 
-      project.status === 'in_progress' || 
-      project.status === 'not_started' || 
+    return projects.filter(project =>
+      project.status === 'in_progress' ||
+      project.status === 'not_started' ||
       project.status === 'on_track'
     )
   }, [projects])
@@ -159,7 +159,7 @@ export default function SchedulePage() {
   // ==============================================
   // UTILITY FUNCTIONS
   // ==============================================
-  
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "planned":
@@ -253,7 +253,7 @@ export default function SchedulePage() {
   // ==============================================
   // EVENT HANDLERS
   // ==============================================
-  
+
   const handleSearch = (searchTerm: string) => {
     updateFiltersForm('search', searchTerm)
     // Apply search with a small delay for better UX
@@ -281,7 +281,7 @@ export default function SchedulePage() {
   // ==============================================
   // EFFECTS
   // ==============================================
-  
+
   // Load initial data
   useEffect(() => {
     loadScheduleProjects()
@@ -290,36 +290,38 @@ export default function SchedulePage() {
   // ==============================================
   // LOADING STATES
   // ==============================================
-  
+
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <Skeleton className="h-9 w-48 mb-2" />
-            <Skeleton className="h-5 w-96" />
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="w-full sm:w-auto">
+            <Skeleton className="h-8 sm:h-9 w-36 sm:w-48 mb-2" />
+            <Skeleton className="h-4 sm:h-5 w-full sm:w-96" />
           </div>
-          <Skeleton className="h-10 w-32" />
+          <Skeleton className="h-10 w-full sm:w-32" />
         </div>
-        
+
         <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col space-y-3 sm:space-y-4 md:flex-row md:space-y-0 md:space-x-4">
               <Skeleton className="h-10 flex-1" />
-              <Skeleton className="h-10 w-32" />
-              <Skeleton className="h-10 w-32" />
-              <Skeleton className="h-10 w-32" />
+              <div className="grid grid-cols-3 gap-2 md:gap-0 md:flex md:space-x-4">
+                <Skeleton className="h-10 w-full md:w-32" />
+                <Skeleton className="h-10 w-full md:w-32" />
+                <Skeleton className="h-10 w-full md:w-32" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid gap-4">
+        <div className="grid gap-3 sm:gap-4">
           {[1, 2, 3].map((i) => (
             <Card key={i}>
-              <CardContent className="p-6">
-                <Skeleton className="h-6 w-3/4 mb-4" />
+              <CardContent className="p-4 sm:p-6">
+                <Skeleton className="h-5 sm:h-6 w-3/4 mb-3 sm:mb-4" />
                 <Skeleton className="h-4 w-1/2 mb-2" />
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-4 w-full" />
@@ -335,26 +337,26 @@ export default function SchedulePage() {
   // ==============================================
   // ERROR STATES
   // ==============================================
-  
+
   if (isError) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Schedule</h1>
-            <p className="text-gray-600">Manage crew schedules and project timelines</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Schedule</h1>
+            <p className="text-sm sm:text-base text-gray-600">Manage crew schedules and project timelines</p>
           </div>
         </div>
-        
+
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
+          <AlertDescription className="text-sm sm:text-base">
             {error || "Failed to load schedule data. Please try again."}
           </AlertDescription>
         </Alert>
-        
+
         <div className="flex justify-center">
-          <Button onClick={() => refreshScheduleProjects()} variant="outline">
+          <Button onClick={() => refreshScheduleProjects()} variant="outline" className="w-full sm:w-auto">
             <Loader2 className="mr-2 h-4 w-4" />
             Try Again
           </Button>
@@ -366,17 +368,17 @@ export default function SchedulePage() {
   // ==============================================
   // MAIN RENDER
   // ==============================================
-  
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Schedule</h1>
-          <p className="text-gray-600">Manage crew schedules and project timelines</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Schedule</h1>
+          <p className="text-sm sm:text-base text-gray-600">Manage crew schedules and project timelines</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-none" asChild>
             <Link href="/dashboard/schedule/new">
               <Plus className="mr-2 h-4 w-4" />
               New Schedule
@@ -387,8 +389,8 @@ export default function SchedulePage() {
 
       {/* Filters Bar */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col space-y-4 md:flex-row md:space-y-0 md:space-x-4">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col space-y-3 sm:space-y-4 md:flex-row md:space-y-0 md:space-x-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -400,86 +402,90 @@ export default function SchedulePage() {
                 />
               </div>
             </div>
-            
-            <Select 
-              value={filtersForm.projectId || "all"} 
-              onValueChange={(value) => handleFilterChange('projectId', value === "all" ? "" : value)}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All Projects" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Projects</SelectItem>
-                {activeProjects.map(project => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            
-            <Select 
-              value={filtersForm.status || "all"} 
-              onValueChange={(value) => handleFilterChange('status', value === "all" ? "" : value)}
-            >
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="planned">Planned</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="delayed">Delayed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
 
-            <Select 
-              value={filtersForm.priority || "all"} 
-              onValueChange={(value) => handleFilterChange('priority', value === "all" ? "" : value)}
-            >
-              <SelectTrigger className="w-[140px]">
-                <SelectValue placeholder="Priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priority</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-none md:flex gap-2 md:gap-4">
+              <Select
+                value={filtersForm.projectId || "all"}
+                onValueChange={(value) => handleFilterChange('projectId', value === "all" ? "" : value)}
+              >
+                <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectValue placeholder="All Projects" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Projects</SelectItem>
+                  {activeProjects.map(project => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <Tabs value={viewMode} onValueChange={handleViewModeChange}>
-              <TabsList>
-                <TabsTrigger value="calendar">
-                  <CalendarDays className="h-4 w-4 mr-2" />
-                  Calendar
-                </TabsTrigger>
-                <TabsTrigger value="list">
-                  <LayoutGrid className="h-4 w-4 mr-2" />
-                  List
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+              <Select
+                value={filtersForm.status || "all"}
+                onValueChange={(value) => handleFilterChange('status', value === "all" ? "" : value)}
+              >
+                <SelectTrigger className="w-full md:w-[140px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="planned">Planned</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="delayed">Delayed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={filtersForm.priority || "all"}
+                onValueChange={(value) => handleFilterChange('priority', value === "all" ? "" : value)}
+              >
+                <SelectTrigger className="w-full md:w-[140px]">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priority</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="col-span-2 sm:col-span-3 md:col-span-1">
+                <Tabs value={viewMode} onValueChange={handleViewModeChange}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="calendar" className="text-xs sm:text-sm">
+                      <CalendarDays className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Calendar</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="list" className="text-xs sm:text-sm">
+                      <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">List</span>
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Main Content */}
       <Tabs value={viewMode} onValueChange={handleViewModeChange}>
-        
+
         {/* Calendar View */}
-        <TabsContent value="calendar" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-4">
-            
+        <TabsContent value="calendar" className="space-y-4 sm:space-y-6">
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-4">
+
             {/* Calendar Sidebar */}
             <Card>
-              <CardHeader>
+              <CardHeader className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
                     Calendar
                   </CardTitle>
                   <Button variant="ghost" size="sm" onClick={goToToday}>
@@ -487,26 +493,26 @@ export default function SchedulePage() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                
+              <CardContent className="space-y-4 p-4 sm:p-6 pt-0">
+
                 {/* Month Navigation */}
                 <div className="flex items-center justify-between">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => navigateMonth("prev")}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <h3 className="font-medium">
-                    {currentDate.toLocaleDateString('en-US', { 
-                      month: 'long', 
-                      year: 'numeric' 
+                  <h3 className="font-medium text-sm sm:text-base">
+                    {currentDate.toLocaleDateString('en-US', {
+                      month: 'long',
+                      year: 'numeric'
                     })}
                   </h3>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => navigateMonth("next")}
                   >
                     <ChevronRight className="h-4 w-4" />
@@ -516,22 +522,22 @@ export default function SchedulePage() {
                 {/* Calendar Grid */}
                 <div className="grid grid-cols-7 gap-1 text-xs">
                   {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(day => (
-                    <div key={day} className="p-2 text-center font-medium text-gray-500">
+                    <div key={day} className="p-1 sm:p-2 text-center font-medium text-gray-500">
                       {day}
                     </div>
                   ))}
-                  
+
                   {calendarDays.map((day, index) => {
                     const tasksForDay = getTasksForDate(day.dateString)
                     const isSelected = selectedDate === day.dateString
                     const isToday = day.dateString === new Date().toISOString().split('T')[0]
-                    
+
                     return (
                       <button
                         key={index}
                         onClick={() => handleDateSelect(day.dateString)}
                         className={`
-                          p-2 text-sm relative hover:bg-gray-100 rounded transition-colors
+                          p-1 sm:p-2 text-xs sm:text-sm relative hover:bg-gray-100 rounded transition-colors
                           ${!day.isCurrentMonth ? 'text-gray-400' : 'text-gray-900'}
                           ${isSelected ? 'bg-orange-100 text-orange-900 font-medium' : ''}
                           ${isToday ? 'bg-blue-100 text-blue-900 font-medium' : ''}
@@ -539,7 +545,7 @@ export default function SchedulePage() {
                       >
                         {day.date}
                         {tasksForDay.length > 0 && (
-                          <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2">
+                          <div className="absolute bottom-0.5 sm:bottom-1 left-1/2 transform -translate-x-1/2">
                             <div className="w-1 h-1 bg-orange-500 rounded-full"></div>
                           </div>
                         )}
@@ -552,8 +558,8 @@ export default function SchedulePage() {
 
             {/* Schedule Items for Selected Date */}
             <div className="lg:col-span-3 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <h2 className="text-lg sm:text-xl font-semibold">
                   {new Date(selectedDate).toLocaleDateString("en-US", {
                     weekday: "long",
                     year: "numeric",
@@ -561,7 +567,7 @@ export default function SchedulePage() {
                     day: "numeric",
                   })}
                 </h2>
-                <Badge variant="outline">
+                <Badge variant="outline" className="self-start sm:self-auto">
                   {filteredScheduleForDate.length} tasks scheduled
                 </Badge>
               </div>
@@ -569,11 +575,11 @@ export default function SchedulePage() {
               {filteredScheduleForDate.length > 0 ? (
                 filteredScheduleForDate.map((item) => (
                   <Card key={item.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-semibold">{item.title}</h3>
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <h3 className="text-base sm:text-lg font-semibold break-words">{item.title}</h3>
                             <Badge className={getStatusColor(item.status)}>
                               {formatStatusLabel(item.status)}
                             </Badge>
@@ -584,33 +590,33 @@ export default function SchedulePage() {
 
                           {item.project && (
                             <div className="flex items-center gap-2 mb-3">
-                              <Building2 className="h-4 w-4 text-gray-400" />
-                              <span className="text-gray-600">{item.project.name}</span>
+                              <Building2 className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                              <span className="text-sm sm:text-base text-gray-600 truncate">{item.project.name}</span>
                             </div>
                           )}
 
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 text-sm">
                             {(item.startTime || item.endTime) && (
                               <div className="flex items-center gap-2">
-                                <Clock className="h-4 w-4 text-gray-400" />
-                                <span>
+                                <Clock className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                <span className="truncate">
                                   {item.startTime && formatTime(item.startTime)}
                                   {item.startTime && item.endTime && " - "}
                                   {item.endTime && formatTime(item.endTime)}
                                 </span>
                               </div>
                             )}
-                            
+
                             {item.location && (
                               <div className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4 text-gray-400" />
-                                <span>{item.location}</span>
+                                <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                <span className="truncate">{item.location}</span>
                               </div>
                             )}
-                            
+
                             {item.assignedMembers && item.assignedMembers.length > 0 && (
                               <div className="flex items-center gap-2">
-                                <Users className="h-4 w-4 text-gray-400" />
+                                <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
                                 <span>{item.assignedMembers.length} crew members</span>
                               </div>
                             )}
@@ -630,19 +636,19 @@ export default function SchedulePage() {
                           )}
                         </div>
 
-                        <div className="flex gap-2 ml-4">
-                          <Button variant="outline" size="sm" asChild>
+                        <div className="flex sm:flex-col gap-2 sm:ml-4">
+                          <Button variant="outline" size="sm" className="flex-1 sm:flex-none" asChild>
                             <Link href={`/dashboard/schedule/${item.id}`}>
                               <Eye className="h-4 w-4" />
                             </Link>
                           </Button>
-                          <Button variant="outline" size="sm" asChild>
+                          <Button variant="outline" size="sm" className="flex-1 sm:flex-none" asChild>
                             <Link href={`/dashboard/schedule/${item.id}/edit`}>
                               <Edit2 className="h-4 w-4" />
                             </Link>
                           </Button>
                           {item.status === "planned" && (
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                            <Button size="sm" className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700">
                               <Play className="h-4 w-4" />
                             </Button>
                           )}
@@ -653,11 +659,11 @@ export default function SchedulePage() {
                 ))
               ) : (
                 <Card>
-                  <CardContent className="p-12 text-center">
-                    <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks scheduled</h3>
-                    <p className="text-gray-600 mb-4">No tasks are scheduled for this date.</p>
-                    <Button className="bg-orange-600 hover:bg-orange-700" asChild>
+                  <CardContent className="p-8 sm:p-12 text-center">
+                    <Calendar className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No tasks scheduled</h3>
+                    <p className="text-sm sm:text-base text-gray-600 mb-4">No tasks are scheduled for this date.</p>
+                    <Button className="bg-orange-600 hover:bg-orange-700 w-full sm:w-auto" asChild>
                       <Link href="/dashboard/schedule/new">
                         <Plus className="mr-2 h-4 w-4" />
                         Schedule Task
@@ -676,11 +682,11 @@ export default function SchedulePage() {
             <>
               {scheduleProjects.map((item) => (
                 <Card key={item.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold">{item.title}</h3>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <h3 className="text-base sm:text-lg font-semibold break-words">{item.title}</h3>
                           <Badge className={getStatusColor(item.status)}>
                             {formatStatusLabel(item.status)}
                           </Badge>
@@ -691,14 +697,14 @@ export default function SchedulePage() {
 
                         {item.project && (
                           <div className="flex items-center gap-2 mb-3">
-                            <Building2 className="h-4 w-4 text-gray-400" />
-                            <span className="text-gray-600">{item.project.name}</span>
+                            <Building2 className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <span className="text-sm sm:text-base text-gray-600 truncate">{item.project.name}</span>
                           </div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-sm">
                           <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-gray-400" />
+                            <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
                             <span>
                               {new Date(item.startDate).toLocaleDateString('en-US', {
                                 month: 'short',
@@ -706,27 +712,27 @@ export default function SchedulePage() {
                               })}
                             </span>
                           </div>
-                          
+
                           {(item.startTime || item.endTime) && (
                             <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-gray-400" />
-                              <span>
+                              <Clock className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                              <span className="truncate">
                                 {item.startTime && formatTime(item.startTime)}
                                 {item.startTime && item.endTime && " - "}
                                 {item.endTime && formatTime(item.endTime)}
                               </span>
                             </div>
                           )}
-                          
+
                           {item.location && (
                             <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4 text-gray-400" />
-                              <span>{item.location}</span>
+                              <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                              <span className="truncate">{item.location}</span>
                             </div>
                           )}
                           {item.assignedMembers && (
                             <div className="flex items-center gap-2">
-                              <Users className="h-4 w-4 text-gray-400" />
+                              <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
                               <span>{item.assignedMembers.length} crew members</span>
                             </div>
                           )}
@@ -746,19 +752,19 @@ export default function SchedulePage() {
                         )}
                       </div>
 
-                      <div className="flex gap-2 ml-4">
-                        <Button variant="outline" size="sm" asChild>
+                      <div className="flex sm:flex-col gap-2 sm:ml-4">
+                        <Button variant="outline" size="sm" className="flex-1 sm:flex-none" asChild>
                           <Link href={`/dashboard/schedule/${item.id}`}>
                             <Eye className="h-4 w-4" />
                           </Link>
                         </Button>
-                        <Button variant="outline" size="sm" asChild>
+                        <Button variant="outline" size="sm" className="flex-1 sm:flex-none" asChild>
                           <Link href={`/dashboard/schedule/${item.id}/edit`}>
                             <Edit2 className="h-4 w-4" />
                           </Link>
                         </Button>
                         {item.status === "planned" && (
-                          <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                          <Button size="sm" className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700">
                             <Play className="h-4 w-4" />
                           </Button>
                         )}
@@ -770,11 +776,11 @@ export default function SchedulePage() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-700">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <p className="text-sm text-gray-700 text-center sm:text-left">
                     Page {currentPage} of {totalPages}
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 justify-center sm:justify-end">
                     <Button
                       variant="outline"
                       size="sm"
@@ -797,23 +803,23 @@ export default function SchedulePage() {
             </>
           ) : isEmpty ? (
             <Card>
-              <CardContent className="p-12 text-center">
-                <CalendarDays className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No schedules found</h3>
-                <p className="text-gray-600 mb-4">
-                  {Object.values(filters).some(v => v && v !== '') 
-                    ? "No schedules match your current filters. Try adjusting your search criteria." 
+              <CardContent className="p-8 sm:p-12 text-center">
+                <CalendarDays className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No schedules found</h3>
+                <p className="text-sm sm:text-base text-gray-600 mb-4">
+                  {Object.values(filters).some(v => v && v !== '')
+                    ? "No schedules match your current filters. Try adjusting your search criteria."
                     : "Get started by creating your first schedule."}
                 </p>
-                <div className="flex gap-2 justify-center">
-                  <Button className="bg-orange-600 hover:bg-orange-700" asChild>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                  <Button className="bg-orange-600 hover:bg-orange-700 w-full sm:w-auto" asChild>
                     <Link href="/dashboard/schedule/new">
                       <Plus className="mr-2 h-4 w-4" />
                       Create Schedule
                     </Link>
                   </Button>
                   {Object.values(filters).some(v => v && v !== '') && (
-                    <Button variant="outline" onClick={clearFilters}>
+                    <Button variant="outline" className="w-full sm:w-auto" onClick={clearFilters}>
                       Clear Filters
                     </Button>
                   )}

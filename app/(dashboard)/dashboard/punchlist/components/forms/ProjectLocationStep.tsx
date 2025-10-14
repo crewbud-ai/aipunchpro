@@ -15,9 +15,9 @@ import { Building2, AlertCircle, RefreshCw, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // Import types
-import { 
+import {
     type CreatePunchlistItemFormData,
-    type UpdatePunchlistItemFormData 
+    type UpdatePunchlistItemFormData
 } from "@/types/punchlist-items"
 import type { ProjectSummary } from "@/types/projects"
 
@@ -64,7 +64,7 @@ export const ProjectLocationStep = React.memo<ProjectLocationStepProps>(({
     handleProjectChange,
     selectedProject,
 }: ProjectLocationStepProps) => {
-    
+
     // Dynamic labels based on mode
     const getLabel = (base: string) => {
         return mode === 'edit' ? `Update ${base}` : base
@@ -73,7 +73,7 @@ export const ProjectLocationStep = React.memo<ProjectLocationStepProps>(({
     // ==============================================
     // EVENT HANDLERS
     // ==============================================
-    
+
     const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value
         updateFormData('location', value)
@@ -87,8 +87,8 @@ export const ProjectLocationStep = React.memo<ProjectLocationStepProps>(({
     }
 
     // Selected project details - different logic for create vs edit
-    const currentProject = mode === 'edit' 
-        ? selectedProject 
+    const currentProject = mode === 'edit'
+        ? selectedProject
         : activeProjects.find(p => p.id === formData.projectId)
 
     // Project is readonly in edit mode (typically can't change project assignment)
@@ -98,29 +98,29 @@ export const ProjectLocationStep = React.memo<ProjectLocationStepProps>(({
     // RENDER
     // ==============================================
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 xs:space-y-5 sm:space-y-6">
             {/* Project Selection */}
             <div className="space-y-2">
-                <Label htmlFor="project" className="text-sm font-medium">
+                <Label htmlFor="project" className="text-sm xs:text-base font-medium">
                     {getLabel('Project')} <span className="text-red-500">*</span>
                 </Label>
-                
+
                 {isProjectsLoading ? (
                     <div className="space-y-2">
-                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 xs:h-11 w-full" />
                         <Skeleton className="h-4 w-3/4" />
                     </div>
                 ) : hasProjectsError ? (
                     <div className="space-y-2">
                         <Alert variant="destructive">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>
+                            <AlertCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
+                            <AlertDescription className="text-xs xs:text-sm leading-snug">
                                 Failed to load projects. Please try again.
-                                <Button 
-                                    variant="outline" 
-                                    size="sm" 
+                                <Button
+                                    variant="outline"
+                                    size="sm"
                                     onClick={refreshProjects}
-                                    className="ml-2"
+                                    className="ml-2 h-auto py-1 px-2"
                                 >
                                     <RefreshCw className="h-3 w-3 mr-1" />
                                     Retry
@@ -130,15 +130,15 @@ export const ProjectLocationStep = React.memo<ProjectLocationStepProps>(({
                     </div>
                 ) : isProjectReadonly ? (
                     /* Project readonly display in edit mode */
-                    <div className="p-3 bg-gray-50 border border-gray-200 rounded-md">
-                        <div className="flex items-center gap-2">
-                            <Building2 className="h-4 w-4 text-gray-400" />
-                            <span className="font-medium">
+                    <div className="p-2.5 xs:p-3 bg-gray-50 border border-gray-200 rounded-md">
+                        <div className="flex items-center gap-1.5 xs:gap-2">
+                            <Building2 className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 shrink-0" />
+                            <span className="font-medium text-sm xs:text-base">
                                 {currentProject?.name || 'Unknown Project'}
                             </span>
                         </div>
                         {currentProject?.description && (
-                            <div className="text-xs text-gray-500 mt-1">
+                            <div className="text-xs text-gray-500 mt-0.5 xs:mt-1 leading-snug">
                                 {currentProject.description}
                             </div>
                         )}
@@ -146,14 +146,17 @@ export const ProjectLocationStep = React.memo<ProjectLocationStepProps>(({
                 ) : (
                     <>
                         <Select value={formData.projectId || ""} onValueChange={handleProjectChange}>
-                            <SelectTrigger className={cn(errors.projectId && "border-red-500")}>
+                            <SelectTrigger className={cn(
+                                "text-sm xs:text-base h-10 xs:h-11",
+                                errors.projectId && "border-red-500"
+                            )}>
                                 <SelectValue placeholder="Select a project" />
                             </SelectTrigger>
                             <SelectContent>
                                 {activeProjects.map((project) => (
-                                    <SelectItem key={project.id} value={project.id}>
-                                        <div className="flex items-center gap-2">
-                                            <Building2 className="h-4 w-4 text-gray-400" />
+                                    <SelectItem key={project.id} value={project.id} className="text-sm xs:text-base">
+                                        <div className="flex items-center gap-1.5 xs:gap-2">
+                                            <Building2 className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 shrink-0" />
                                             <div>
                                                 <div className="font-medium">{project.name}</div>
                                             </div>
@@ -163,31 +166,31 @@ export const ProjectLocationStep = React.memo<ProjectLocationStepProps>(({
                             </SelectContent>
                         </Select>
                         {errors.projectId && (
-                            <Alert variant="destructive" className="py-2">
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertDescription className="text-sm">
+                            <Alert variant="destructive" className="py-1.5 xs:py-2">
+                                <AlertCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
+                                <AlertDescription className="text-xs xs:text-sm leading-snug">
                                     {errors.projectId}
                                 </AlertDescription>
                             </Alert>
                         )}
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 leading-tight">
                             Choose the project where this issue was found
                         </p>
                     </>
                 )}
-                
+
                 {isProjectReadonly && (
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 leading-tight">
                         Project assignment cannot be changed after creation
                     </p>
                 )}
             </div>
 
             {/* Location Details Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 xs:gap-4">
                 {/* General Location */}
                 <div className="space-y-2">
-                    <Label htmlFor="location" className="text-sm font-medium">
+                    <Label htmlFor="location" className="text-sm xs:text-base font-medium">
                         {getLabel('Location/Area')}
                     </Label>
                     <Input
@@ -195,24 +198,27 @@ export const ProjectLocationStep = React.memo<ProjectLocationStepProps>(({
                         placeholder="e.g. 2nd Floor, East Wing"
                         value={formData.location}
                         onChange={handleLocationChange}
-                        className={cn(errors.location && "border-red-500")}
+                        className={cn(
+                            "text-sm xs:text-base h-10 xs:h-11",
+                            errors.location && "border-red-500"
+                        )}
                     />
                     {errors.location && (
-                        <Alert variant="destructive" className="py-2">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription className="text-sm">
+                        <Alert variant="destructive" className="py-1.5 xs:py-2">
+                            <AlertCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
+                            <AlertDescription className="text-xs xs:text-sm leading-snug">
                                 {errors.location}
                             </AlertDescription>
                         </Alert>
                     )}
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 leading-tight">
                         General area within the project
                     </p>
                 </div>
 
                 {/* Specific Room/Area */}
                 <div className="space-y-2">
-                    <Label htmlFor="roomArea" className="text-sm font-medium">
+                    <Label htmlFor="roomArea" className="text-sm xs:text-base font-medium">
                         {getLabel('Room/Specific Area')}
                     </Label>
                     <Input
@@ -220,17 +226,20 @@ export const ProjectLocationStep = React.memo<ProjectLocationStepProps>(({
                         placeholder="e.g. Conference Room B, Unit 204"
                         value={formData.roomArea}
                         onChange={handleRoomAreaChange}
-                        className={cn(errors.roomArea && "border-red-500")}
+                        className={cn(
+                            "text-sm xs:text-base h-10 xs:h-11",
+                            errors.roomArea && "border-red-500"
+                        )}
                     />
                     {errors.roomArea && (
-                        <Alert variant="destructive" className="py-2">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription className="text-sm">
+                        <Alert variant="destructive" className="py-1.5 xs:py-2">
+                            <AlertCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
+                            <AlertDescription className="text-xs xs:text-sm leading-snug">
                                 {errors.roomArea}
                             </AlertDescription>
                         </Alert>
                     )}
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 leading-tight">
                         Specific room or area details
                     </p>
                 </div>
@@ -239,8 +248,8 @@ export const ProjectLocationStep = React.memo<ProjectLocationStepProps>(({
             {/* No Projects Available */}
             {!isProjectsLoading && !hasProjectsError && activeProjects.length === 0 && (
                 <Alert>
-                    <Building2 className="h-4 w-4" />
-                    <AlertDescription>
+                    <Building2 className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
+                    <AlertDescription className="text-xs xs:text-sm leading-snug">
                         No active projects found. You'll need to create a project first before adding punchlist items.
                     </AlertDescription>
                 </Alert>
