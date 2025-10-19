@@ -47,7 +47,7 @@ import {
 } from 'lucide-react'
 import { useTeamMember } from '@/hooks/team-members'
 import { useRemoveTeamMember } from '@/hooks/team-members/use-remove-team-member'
-import { formatDate, formatStatusLabel, getStatusColor } from '@/utils/format-functions'
+import { formatDate, formatRate, formatRoleLabel, formatStatusLabel, getStatusColor } from '@/utils/format-functions'
 
 interface TeamMemberDetailsDialogProps {
   memberId: string
@@ -143,23 +143,6 @@ export const TeamMemberDetailsDialog: React.FC<TeamMemberDetailsDialogProps> = (
     return teamMember.currentProjects?.find((project: any) => project.id === projectId)
   }, [teamMember, projectId])
 
-  // Get role display name
-  const getRoleDisplay = (role: string) => {
-    switch (role) {
-      case 'admin': return 'Administrator'
-      case 'manager': return 'Project Manager'
-      case 'supervisor': return 'Supervisor'
-      case 'member': return 'Team Member'
-      default: return role || 'Member'
-    }
-  }
-
-  // Format rate
-  const formatRate = (rate: number | null | undefined) => {
-    if (!rate) return 'Not set'
-    return `$${rate}/hr`
-  }
-
   // ==============================================
   // EVENT HANDLERS
   // ==============================================
@@ -239,7 +222,7 @@ export const TeamMemberDetailsDialog: React.FC<TeamMemberDetailsDialogProps> = (
   if (isLoading) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden w-[95vw] max-w-[95vw] sm:w-full sm:max-w-4xl">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden w-[95vw] max-w-[95vw] sm:w-full sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle className="text-base sm:text-lg">Team Member Details</DialogTitle>
           </DialogHeader>
@@ -257,7 +240,7 @@ export const TeamMemberDetailsDialog: React.FC<TeamMemberDetailsDialogProps> = (
   if (hasError || !teamMember) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden w-[95vw] max-w-[95vw] sm:w-full sm:max-w-4xl">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden w-[95vw] max-w-[95vw] sm:w-full sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle className="text-base sm:text-lg">Team Member Details</DialogTitle>
           </DialogHeader>
@@ -280,7 +263,7 @@ export const TeamMemberDetailsDialog: React.FC<TeamMemberDetailsDialogProps> = (
   // ==============================================
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col w-[95vw] max-w-[95vw] sm:w-full sm:max-w-4xl">
+      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col w-[95vw] max-w-[95vw] sm:w-full sm:max-w-5xl">
         <DialogHeader>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 pr-0 sm:pr-5">
             <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
@@ -298,7 +281,7 @@ export const TeamMemberDetailsDialog: React.FC<TeamMemberDetailsDialogProps> = (
                     {teamMember.isActive ? 'Active' : 'Inactive'}
                   </Badge>
                   <Badge variant="outline" className="text-xs">
-                    {getRoleDisplay(teamMember.role)}
+                    {formatRoleLabel(teamMember.role)}
                   </Badge>
                   {teamMember.tradeSpecialty && (
                     <Badge variant="outline" className="capitalize text-xs">
@@ -405,7 +388,7 @@ export const TeamMemberDetailsDialog: React.FC<TeamMemberDetailsDialogProps> = (
                     </div>
                     <div>
                       <Label className="text-xs sm:text-sm font-medium text-gray-600">Role</Label>
-                      <p className="text-xs sm:text-sm">{getRoleDisplay(teamMember.role)}</p>
+                      <p className="text-xs sm:text-sm">{formatRoleLabel(teamMember.role)}</p>
                     </div>
                     {teamMember.jobTitle && (
                       <div>

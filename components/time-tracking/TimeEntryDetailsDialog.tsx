@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { DollarSign, Clock, TrendingUp } from "lucide-react"
+import { formatDateSmart, formatTime12Hour, getTimeEntryStatusColor } from '@/utils/format-functions'
 
 // Type for the entry - properly handles the nested structure from API
 interface TimeEntryForDialog {
@@ -24,25 +25,25 @@ interface TimeEntryForDialog {
   startTime?: string
   endTime?: string | null
   totalHours?: number
-  
+
   // Hours breakdown
   regularHours?: number
   overtimeHours?: number
   doubleTimeHours?: number
-  
+
   // Rates & Payment
   regularRate?: number
   overtimeRate?: number
   doubleTimeRate?: number
   totalPay?: number
-  
+
   status: string
   workType?: string
   trade?: string
   description?: string
   workCompleted?: string
   issuesEncountered?: string
-  
+
   // Nested structure from API
   project?: {
     id: string
@@ -69,62 +70,12 @@ interface TimeEntryDetailsDialogProps {
   entry: TimeEntryForDialog | null
 }
 
-export function TimeEntryDetailsDialog({ 
-  isOpen, 
-  onClose, 
-  entry 
+export function TimeEntryDetailsDialog({
+  isOpen,
+  onClose,
+  entry
 }: TimeEntryDetailsDialogProps) {
-  
-  // ==============================================
-  // FORMAT FUNCTIONS
-  // ==============================================
-  const formatTime = (time?: string | null) => {
-    if (!time) return '-'
-    // Handle both HH:MM and HH:MM:SS formats
-    const parts = time.split(':')
-    const hours = parts[0]
-    const minutes = parts[1]
-    const hour = parseInt(hours)
-    const ampm = hour >= 12 ? 'PM' : 'AM'
-    const displayHour = hour % 12 || 12
-    return `${displayHour}:${minutes} ${ampm}`
-  }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    const today = new Date()
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-
-    if (date.toDateString() === today.toDateString()) {
-      return 'Today'
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday'
-    }
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'short',
-      month: 'short', 
-      day: 'numeric',
-      year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
-    })
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'clocked_in':
-        return 'bg-green-100 text-green-800 border-green-200'
-      case 'clocked_out':
-        return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'approved':
-        return 'bg-purple-100 text-purple-800 border-purple-200'
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'rejected':
-        return 'bg-red-100 text-red-800 border-red-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
 
   const getStatusLabel = (status: string) => {
     return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
@@ -161,112 +112,112 @@ export function TimeEntryDetailsDialog({
   // ==============================================
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Time Entry Details</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-base xs:text-lg">Time Entry Details</DialogTitle>
+          <DialogDescription className="text-xs xs:text-sm leading-snug xs:leading-normal">
             View complete information for this time entry
           </DialogDescription>
         </DialogHeader>
-        
-        <div className="space-y-4">
-          {/* Basic Info */}
-          <div className="grid grid-cols-2 gap-4">
+
+        <div className="space-y-3 xs:space-y-4">
+          {/* Basic Info - Mobile Responsive */}
+          <div className="grid grid-cols-2 gap-3 xs:gap-4">
             <div>
-              <p className="text-sm text-gray-500">Date</p>
-              <p className="font-medium">{formatDate(entry.date)}</p>
+              <p className="text-xs xs:text-sm text-gray-500">Date</p>
+              <p className="font-medium text-sm xs:text-base leading-snug">{formatDateSmart(entry.date)}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Status</p>
-              <Badge variant="outline" className={getStatusColor(entry.status)}>
+              <p className="text-xs xs:text-sm text-gray-500">Status</p>
+              <Badge variant="outline" className={`${getTimeEntryStatusColor(entry.status)} text-xs`}>
                 {getStatusLabel(entry.status)}
               </Badge>
             </div>
           </div>
 
-          {/* Project Info */}
-          <div className="pt-2 border-t">
-            <p className="text-sm text-gray-500">Project</p>
-            <p className="font-medium">{getProjectName()}</p>
+          {/* Project Info - Mobile Responsive */}
+          <div className="pt-2 xs:pt-2.5 sm:pt-3 border-t">
+            <p className="text-xs xs:text-sm text-gray-500 mb-0.5 xs:mb-1">Project</p>
+            <p className="font-medium text-sm xs:text-base leading-snug">{getProjectName()}</p>
             {entry.project?.projectNumber && (
-              <p className="text-xs text-gray-500">{entry.project.projectNumber}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{entry.project.projectNumber}</p>
             )}
             {getScheduleProjectTitle() && (
-              <div className="mt-2">
-                <p className="text-sm text-gray-500">Schedule Task</p>
-                <p className="text-sm font-medium text-gray-700">{getScheduleProjectTitle()}</p>
+              <div className="mt-1.5 xs:mt-2">
+                <p className="text-xs xs:text-sm text-gray-500 mb-0.5">Schedule Task</p>
+                <p className="text-xs xs:text-sm font-medium text-gray-700 leading-snug">{getScheduleProjectTitle()}</p>
               </div>
             )}
           </div>
 
-          {/* Worker Info (if available) */}
+          {/* Worker Info (if available) - Mobile Responsive */}
           {getWorkerName() && (
-            <div className="pt-2 border-t">
-              <p className="text-sm text-gray-500">Worker</p>
-              <p className="font-medium">{getWorkerName()}</p>
+            <div className="pt-2 xs:pt-2.5 sm:pt-3 border-t">
+              <p className="text-xs xs:text-sm text-gray-500 mb-0.5 xs:mb-1">Worker</p>
+              <p className="font-medium text-sm xs:text-base leading-snug">{getWorkerName()}</p>
               {entry.worker?.email && (
-                <p className="text-xs text-gray-500">{entry.worker.email}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{entry.worker.email}</p>
               )}
             </div>
           )}
 
-          {/* Time Info */}
-          <div className="grid grid-cols-3 gap-4 pt-2 border-t">
+          {/* Time Info - Mobile Responsive */}
+          <div className="grid grid-cols-2 xs:grid-cols-3 gap-3 xs:gap-4 pt-2 xs:pt-2.5 sm:pt-3 border-t">
             <div>
-              <p className="text-sm text-gray-500">Start Time</p>
-              <p className="font-medium">{formatTime(entry.startTime)}</p>
+              <p className="text-xs text-gray-500 mb-0.5">Start Time</p>
+              <p className="font-medium text-sm xs:text-base leading-snug">{entry.startTime && formatTime12Hour(entry.startTime)}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">End Time</p>
-              <p className="font-medium">
-                {entry.endTime ? formatTime(entry.endTime) : (
+              <p className="text-xs text-gray-500 mb-0.5">End Time</p>
+              <p className="font-medium text-sm xs:text-base leading-snug">
+                {entry.endTime ? formatTime12Hour(entry.endTime) : (
                   <span className="text-green-600">In Progress</span>
                 )}
               </p>
             </div>
-            <div>
-              <p className="text-sm text-gray-500">Total Hours</p>
-              <p className="font-medium text-lg">
+            <div className="col-span-2 xs:col-span-1">
+              <p className="text-xs text-gray-500 mb-0.5">Total Hours</p>
+              <p className="font-medium text-base xs:text-lg leading-snug">
                 {entry.totalHours ? `${entry.totalHours.toFixed(2)}h` : '-'}
               </p>
             </div>
           </div>
 
-          {/* ⭐ NEW: Payment/Earnings Section */}
+          {/* ⭐ Payment/Earnings Section - Mobile Responsive */}
           {hasPaymentInfo && (
-            <div className="pt-4 border-t">
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-green-900 flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" />
+            <div className="pt-3 xs:pt-4 border-t">
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-3 xs:p-4">
+                <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 xs:gap-0 mb-2.5 xs:mb-3">
+                  <h3 className="text-xs xs:text-sm font-semibold text-green-900 flex items-center gap-1.5 xs:gap-2">
+                    <DollarSign className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
                     Earnings Breakdown
                   </h3>
-                  <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                  <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300 text-xs self-start xs:self-auto">
                     {entry.status === 'approved' ? 'Approved' : 'Pending'}
                   </Badge>
                 </div>
 
-                {/* Total Earnings */}
-                <div className="mb-4 pb-4 border-b border-green-200">
+                {/* Total Earnings - Mobile Responsive */}
+                <div className="mb-3 xs:mb-4 pb-3 xs:pb-4 border-b border-green-200">
                   <p className="text-xs text-green-700 mb-1">Total Earnings</p>
-                  <p className="text-3xl font-bold text-green-700">
+                  <p className="text-2xl xs:text-3xl font-bold text-green-700">
                     ${(entry.totalPay ?? 0).toFixed(2)}
                   </p>
                 </div>
 
-                {/* Hours & Pay Breakdown */}
-                <div className="space-y-3">
+                {/* Hours & Pay Breakdown - Mobile Responsive */}
+                <div className="space-y-2.5 xs:space-y-3">
                   {/* Regular Hours */}
                   {(entry.regularHours ?? 0) > 0 && (
-                    <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-200">
-                      <div>
+                    <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 xs:gap-3 p-2.5 xs:p-3 bg-white rounded-lg border border-green-200">
+                      <div className="flex-1">
                         <p className="text-xs text-gray-600">Regular Hours</p>
-                        <p className="text-sm font-semibold text-gray-900">
+                        <p className="text-xs xs:text-sm font-semibold text-gray-900 leading-snug">
                           {(entry.regularHours ?? 0).toFixed(2)}h × ${(entry.regularRate ?? 0).toFixed(2)}/hr
                         </p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-gray-900">
+                      <div className="text-left xs:text-right">
+                        <p className="text-base xs:text-lg font-bold text-gray-900">
                           ${regularPay.toFixed(2)}
                         </p>
                       </div>
@@ -275,18 +226,18 @@ export function TimeEntryDetailsDialog({
 
                   {/* Overtime Hours */}
                   {(entry.overtimeHours ?? 0) > 0 && (
-                    <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-300">
-                      <div>
+                    <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 xs:gap-3 p-2.5 xs:p-3 bg-yellow-50 rounded-lg border border-yellow-300">
+                      <div className="flex-1">
                         <p className="text-xs text-yellow-700 flex items-center gap-1">
-                          <TrendingUp className="h-3 w-3" />
+                          <TrendingUp className="h-3 w-3 shrink-0" />
                           Overtime Hours
                         </p>
-                        <p className="text-sm font-semibold text-gray-900">
+                        <p className="text-xs xs:text-sm font-semibold text-gray-900 leading-snug">
                           {(entry.overtimeHours ?? 0).toFixed(2)}h × ${(entry.overtimeRate ?? 0).toFixed(2)}/hr
                         </p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-yellow-800">
+                      <div className="text-left xs:text-right">
+                        <p className="text-base xs:text-lg font-bold text-yellow-800">
                           ${overtimePay.toFixed(2)}
                         </p>
                       </div>
@@ -295,18 +246,18 @@ export function TimeEntryDetailsDialog({
 
                   {/* Double Time Hours */}
                   {(entry.doubleTimeHours ?? 0) > 0 && (
-                    <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-300">
-                      <div>
+                    <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 xs:gap-3 p-2.5 xs:p-3 bg-red-50 rounded-lg border border-red-300">
+                      <div className="flex-1">
                         <p className="text-xs text-red-700 flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
+                          <Clock className="h-3 w-3 shrink-0" />
                           Double Time Hours
                         </p>
-                        <p className="text-sm font-semibold text-gray-900">
+                        <p className="text-xs xs:text-sm font-semibold text-gray-900 leading-snug">
                           {(entry.doubleTimeHours ?? 0).toFixed(2)}h × ${(entry.doubleTimeRate ?? 0).toFixed(2)}/hr
                         </p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg font-bold text-red-800">
+                      <div className="text-left xs:text-right">
+                        <p className="text-base xs:text-lg font-bold text-red-800">
                           ${doubleTimePay.toFixed(2)}
                         </p>
                       </div>
@@ -314,11 +265,11 @@ export function TimeEntryDetailsDialog({
                   )}
                 </div>
 
-                {/* Payment Status Note */}
-                <div className="mt-4 pt-3 border-t border-green-200">
-                  <p className="text-xs text-green-700 text-center">
-                    {entry.status === 'approved' 
-                      ? '✓ This payment has been approved and will be included in the next payroll' 
+                {/* Payment Status Note - Mobile Responsive */}
+                <div className="mt-3 xs:mt-4 pt-2.5 xs:pt-3 border-t border-green-200">
+                  <p className="text-xs text-green-700 text-center leading-snug">
+                    {entry.status === 'approved'
+                      ? '✓ This payment has been approved and will be included in the next payroll'
                       : '💡 Earnings are pending approval by your administrator'}
                   </p>
                 </div>
@@ -326,51 +277,52 @@ export function TimeEntryDetailsDialog({
             </div>
           )}
 
-          {/* Work Details */}
+          {/* Work Details - Mobile Responsive */}
           {entry.description && (
-            <div className="pt-2 border-t">
-              <p className="text-sm text-gray-500 mb-1">Description</p>
-              <p className="text-sm bg-gray-50 p-3 rounded-md">{entry.description}</p>
+            <div className="pt-2 xs:pt-2.5 sm:pt-3 border-t">
+              <p className="text-xs xs:text-sm text-gray-500 mb-1">Description</p>
+              <p className="text-xs xs:text-sm bg-gray-50 p-2.5 xs:p-3 rounded-md leading-snug">{entry.description}</p>
             </div>
           )}
 
           {entry.workCompleted && (
             <div>
-              <p className="text-sm text-gray-500 mb-1">Work Completed</p>
-              <p className="text-sm bg-gray-50 p-3 rounded-md">{entry.workCompleted}</p>
+              <p className="text-xs xs:text-sm text-gray-500 mb-1">Work Completed</p>
+              <p className="text-xs xs:text-sm bg-gray-50 p-2.5 xs:p-3 rounded-md leading-snug">{entry.workCompleted}</p>
             </div>
           )}
 
           {entry.issuesEncountered && (
             <div>
-              <p className="text-sm text-gray-500 mb-1">Issues/Notes</p>
-              <p className="text-sm bg-gray-50 p-3 rounded-md">{entry.issuesEncountered}</p>
+              <p className="text-xs xs:text-sm text-gray-500 mb-1">Issues/Notes</p>
+              <p className="text-xs xs:text-sm bg-gray-50 p-2.5 xs:p-3 rounded-md leading-snug">{entry.issuesEncountered}</p>
             </div>
           )}
 
-          {/* Additional Info */}
+          {/* Additional Info - Mobile Responsive */}
           {(entry.workType || entry.trade) && (
-            <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+            <div className="grid grid-cols-2 gap-3 xs:gap-4 pt-2 xs:pt-2.5 sm:pt-3 border-t">
               {entry.workType && (
                 <div>
-                  <p className="text-sm text-gray-500">Work Type</p>
-                  <p className="font-medium capitalize">{entry.workType.replace('_', ' ')}</p>
+                  <p className="text-xs xs:text-sm text-gray-500 mb-0.5">Work Type</p>
+                  <p className="font-medium text-sm xs:text-base capitalize leading-snug">{entry.workType.replace('_', ' ')}</p>
                 </div>
               )}
               {entry.trade && (
                 <div>
-                  <p className="text-sm text-gray-500">Trade</p>
-                  <p className="font-medium capitalize">{entry.trade.replace('_', ' ')}</p>
+                  <p className="text-xs xs:text-sm text-gray-500 mb-0.5">Trade</p>
+                  <p className="font-medium text-sm xs:text-base capitalize leading-snug">{entry.trade.replace('_', ' ')}</p>
                 </div>
               )}
             </div>
           )}
 
-          {/* Dialog Actions */}
-          <div className="flex justify-end pt-4 border-t">
-            <Button 
-              variant="outline" 
+          {/* Dialog Actions - Mobile Responsive */}
+          <div className="flex justify-end pt-3 xs:pt-4 border-t">
+            <Button
+              variant="outline"
               onClick={onClose}
+              className="w-full xs:w-auto h-9 xs:h-10 text-sm xs:text-base"
             >
               Close
             </Button>

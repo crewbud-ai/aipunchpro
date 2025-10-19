@@ -35,6 +35,7 @@ import {
   User
 } from 'lucide-react'
 import { useAssignTeamMembers } from '@/hooks/team-members/use-assign-team-members'
+import { formatRoleLabel } from '@/utils/format-functions'
 
 interface TeamMember {
   id: string
@@ -107,17 +108,6 @@ export const AssignTeamMemberDialog: React.FC<AssignTeamMemberDialogProps> = ({
     return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase()
   }
 
-  // Get role display name
-  const getRoleDisplay = (role: string) => {
-    switch (role) {
-      case 'admin': return 'Administrator'
-      case 'manager': return 'Project Manager'
-      case 'supervisor': return 'Supervisor'
-      case 'member': return 'Team Member'
-      default: return role || 'Member'
-    }
-  }
-
   // ==============================================
   // EVENT HANDLERS
   // ==============================================
@@ -188,7 +178,7 @@ export const AssignTeamMemberDialog: React.FC<AssignTeamMemberDialogProps> = ({
   // ==============================================
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col w-[95vw] max-w-[95vw] sm:w-full sm:max-w-4xl">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col w-[95vw] max-w-[95vw] sm:w-full sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
             <UserPlus className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -279,7 +269,7 @@ export const AssignTeamMemberDialog: React.FC<AssignTeamMemberDialogProps> = ({
                             {member.firstName} {member.lastName}
                           </h4>
                           <Badge variant="secondary" className="text-xs">
-                            {getRoleDisplay(member.role)}
+                            {formatRoleLabel(member.role)}
                           </Badge>
                         </div>
 

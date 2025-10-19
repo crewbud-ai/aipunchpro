@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -45,6 +45,7 @@ import {
   ShieldCheck,
   BarChart3,
   Clock,
+  FileBarChart
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -54,6 +55,7 @@ import { useDashboard } from "@/hooks/dashboard/use-dashboard"
 
 // Import permissions system
 import { canViewMenuItem, hasPermission, getCurrentPermissions, isAdmin, isSuperAdmin, getCurrentRole } from "@/lib/permissions"
+import { formatIndustryLabel } from "@/utils/format-functions"
 
 // Navigation structure with permissions and submenus
 const navigation = [
@@ -171,27 +173,12 @@ const navigation = [
     icon: DollarSign,
     show: () => isAdmin() || isSuperAdmin(), // Only admins see this
   },
-  // {
-  //   name: "Payroll",
-  //   href: "/dashboard/payroll",
-  //   icon: DollarSign,
-  //   // Show to admins only
-  //   show: () => isAdmin() || isSuperAdmin(),
-  //   subItems: [
-  //     {
-  //       name: "Review & Approve",
-  //       href: "/dashboard/payroll",
-  //       icon: DollarSign,
-  //       show: () => hasPermission('financials', 'view'),
-  //     },
-  //     {
-  //       name: "Calculate Pay",
-  //       href: "/dashboard/payroll/calculate",
-  //       icon: Calculator,
-  //       show: () => hasPermission('financials', 'edit'),
-  //     },
-  //   ]
-  // },
+  {
+    name: "Reports",
+    href: "/dashboard/reports",
+    icon: FileBarChart,
+    show: () => isAdmin() || isSuperAdmin(), // Only admins see this
+  },
   {
     name: "AI Assistant",
     href: "/dashboard/ai",
@@ -199,27 +186,6 @@ const navigation = [
     show: () => true, // AI Assistant available to all
   },
 ]
-// Settings menu items (separate from main nav)
-// const settingsNavigation = [
-//   {
-//     name: "Company Settings",
-//     href: "/dashboard/settings",
-//     icon: Cog,
-//     show: () => hasPermission('admin', 'companySettings'),
-//   },
-//   {
-//     name: "User Management",
-//     href: "/dashboard/settings/users",
-//     icon: Users,
-//     show: () => hasPermission('admin', 'manageUsers'),
-//   },
-//   {
-//     name: "Roles & Permissions",
-//     href: "/dashboard/settings/roles",
-//     icon: ShieldCheck,
-//     show: () => hasPermission('admin', 'manageUsers'),
-//   },
-// ]
 
 // Sidebar navigation component
 function SidebarNavigation({ isMobile = false, onItemClick }: { isMobile?: boolean, onItemClick?: () => void }) {
@@ -362,8 +328,30 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   const pathname = usePathname()
+
+  // Add this useEffect
+  useEffect(() => {
+    if (sidebarOpen) {
+      // Small delay to ensure DOM is ready before animating
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setIsAnimating(true);
+        });
+      });
+    }
+  }, [sidebarOpen]);
+
+  const openSidebar = () => {
+    setSidebarOpen(true);
+  };
+
+  const closeSidebar = () => {
+    setIsAnimating(false);
+    setTimeout(() => setSidebarOpen(false), 300); // Match animation duration
+  };
 
   const {
     user,
@@ -383,6 +371,9 @@ export default function DashboardLayout({
   const handleSignOut = async () => {
     await signOut()
   }
+
+
+
 
   // Show loading state while user data is being loaded
   if (isLoading) {
@@ -419,14 +410,17 @@ export default function DashboardLayout({
       {/* Mobile sidebar */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
-          <div className="fixed inset-y-0 left-0 flex w-64 flex-col bg-white">
+          <div
+            className={`fixed inset-0 bg-gray-600 transition-opacity duration-300 ease-out ${isAnimating ? 'opacity-75' : 'opacity-0'}`}
+            onClick={closeSidebar}
+          />
+          <div className={`fixed inset-y-0 left-0 flex w-64 flex-col bg-white shadow-xl transform transition-transform duration-700 ease-out ${isAnimating ? 'translate-x-0' : '-translate-x-full'}`}>
             <div className="flex h-16 items-center justify-between px-4">
               <div className="flex items-center">
                 <Building2 className="h-8 w-8 text-orange-600" />
                 <span className="ml-2 text-xl font-bold text-gray-900">CrewBudAI</span>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}>
+              <Button variant="ghost" size="icon" onClick={closeSidebar}>
                 <X className="h-6 w-6" />
               </Button>
             </div>
@@ -436,13 +430,13 @@ export default function DashboardLayout({
               <div className="px-4 py-2 border-b border-gray-200">
                 <p className="text-sm font-medium text-gray-900">{company.name}</p>
                 {company.industry && (
-                  <p className="text-xs text-gray-500">{company.industry}</p>
+                  <p className="text-xs text-gray-500">{formatIndustryLabel(company.industry)}</p>
                 )}
               </div>
             )}
 
             {/* Mobile Navigation */}
-            <SidebarNavigation isMobile={true} onItemClick={() => setSidebarOpen(false)} />
+            <SidebarNavigation isMobile={true} onItemClick={closeSidebar} />
           </div>
         </div>
       )}
@@ -456,18 +450,18 @@ export default function DashboardLayout({
           </div>
 
           {/* Company info in desktop sidebar */}
+
           {company && (
             <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
               <p className="text-sm font-medium text-gray-900">{company.name}</p>
               {company.industry && (
-                <p className="text-xs text-gray-500">{company.industry}</p>
+                <p className="text-xs text-gray-500">{formatIndustryLabel(company.industry)}</p>
               )}
               {company.size && (
                 <p className="text-xs text-gray-500">Team size: {company.size}</p>
               )}
             </div>
           )}
-
           {/* Desktop Navigation */}
           <SidebarNavigation />
         </div>
@@ -477,7 +471,7 @@ export default function DashboardLayout({
       <div className="lg:pl-64">
         {/* Top navigation */}
         <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
+          <Button variant="ghost" size="icon" className="lg:hidden" onClick={openSidebar}>
             <Menu className="h-6 w-6" />
           </Button>
 
@@ -497,10 +491,10 @@ export default function DashboardLayout({
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Button variant="ghost" className="relative !h-8 !w-8 rounded-full">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src="" alt={userFullName} />
-                      <AvatarFallback className="bg-orange-100 text-orange-700">
+                      <AvatarFallback className="bg-orange-100 text-orange-700 hover:rounded-full">
                         {userInitials}
                       </AvatarFallback>
                     </Avatar>
@@ -557,6 +551,6 @@ export default function DashboardLayout({
           </div>
         </main>
       </div>
-    </div>
+    </div >
   )
 }

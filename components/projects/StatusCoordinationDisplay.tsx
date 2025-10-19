@@ -5,9 +5,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle, AlertCircle, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { 
-  StatusCoordinationResult, 
-  CoordinatedProjectStatusResult 
+import type {
+  StatusCoordinationResult,
+  CoordinatedProjectStatusResult
 } from '@/types/projects/status-coordination'
 
 interface StatusCoordinationDisplayProps {
@@ -66,7 +66,7 @@ export const StatusCoordinationDisplay = React.memo<StatusCoordinationDisplayPro
   // Minimal mode - only show if there were updates
   if (minimal) {
     if (updatedCount === 0) return null
-    
+
     return (
       <div className={cn("text-xs text-gray-500", className)}>
         {updatedCount} related item{updatedCount !== 1 ? 's' : ''} updated
@@ -77,18 +77,18 @@ export const StatusCoordinationDisplay = React.memo<StatusCoordinationDisplayPro
   // Standard mode - show success confirmation
   return (
     <Alert className={cn("border-green-200 bg-green-50", className)}>
-      <CheckCircle className="h-4 w-4 text-green-600" />
+      <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
       <AlertDescription className="text-green-800">
-        <div className="space-y-2">
-          <div className="font-medium">Update completed successfully</div>
-          
+        <div className="space-y-1.5 xs:space-y-2">
+          <div className="font-medium text-xs xs:text-sm sm:text-base">Update completed successfully</div>
+
           {updatedCount > 0 && (
-            <div className="flex flex-wrap gap-2 text-sm">
-              <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+            <div className="flex flex-wrap gap-1.5 xs:gap-2 text-xs xs:text-sm">
+              <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300 text-xs whitespace-nowrap">
                 ✅ {updatedCount} schedule project{updatedCount !== 1 ? 's' : ''} synced
               </Badge>
               {skippedCount > 0 && (
-                <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300">
+                <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-300 text-xs whitespace-nowrap">
                   ⏭️ {skippedCount} skipped
                 </Badge>
               )}
@@ -96,7 +96,7 @@ export const StatusCoordinationDisplay = React.memo<StatusCoordinationDisplayPro
           )}
 
           {updatedCount === 0 && skippedCount === 0 && (
-            <div className="text-sm text-green-700">
+            <div className="text-xs xs:text-sm text-green-700 leading-snug">
               No additional items required updates
             </div>
           )}

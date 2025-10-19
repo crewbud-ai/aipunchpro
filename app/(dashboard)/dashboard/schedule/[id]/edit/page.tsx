@@ -302,7 +302,7 @@ export default function EditSchedulePage() {
     if (isLoadingSchedule) {
         return (
             <div className="min-h-screen bg-gray-50">
-                <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+                <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
                     <div className="flex items-center gap-4">
                         <Skeleton className="h-10 w-10" />
                         <div className="space-y-2">
@@ -331,7 +331,7 @@ export default function EditSchedulePage() {
     if (hasScheduleError || isNotFound) {
         return (
             <div className="min-h-screen bg-gray-50">
-                <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+                <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
                     <Alert variant="destructive">
                         <AlertCircle className="h-4 w-4" />
                         <AlertDescription>
@@ -360,7 +360,7 @@ export default function EditSchedulePage() {
     if (isSuccess) {
         return (
             <div className="min-h-screen bg-gray-50">
-                <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+                <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
                     <div className="text-center">
                         <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
                         <h1 className="mt-4 text-2xl font-bold text-gray-900">Schedule Updated Successfully!</h1>
@@ -390,7 +390,7 @@ export default function EditSchedulePage() {
     // ==============================================
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="mx-auto max-w-4xl">
+            <div className="mx-auto max-w-3xl">
 
                 {/* Header */}
                 <div className="mb-6 sm:mb-8">

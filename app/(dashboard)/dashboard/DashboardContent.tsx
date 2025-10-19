@@ -314,33 +314,128 @@ export function DashboardContent({ user }: DashboardContentProps) {
   // RENDER
   // ==============================================
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex-1 min-w-0">
-        <h1 className="text-2xl sm:text-3xl font-bold truncate">
-          Welcome back, {user.firstName}!
-        </h1>
-        <p className="text-sm sm:text-base text-gray-600 mt-1">
-          Here's what's happening with your projects today.
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto max-w-5xl">
+        <div className="space-y-4 xs:space-y-5 sm:space-y-6">
+          {/* Header */}
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold truncate">
+              Welcome back, {user.firstName}!
+            </h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">
+              Here's what's happening with your projects today.
+            </p>
+          </div>
 
-      {/* MEMBER LAYOUT - Time Tracking Focus */}
-      {isMember ? (
-        <div className="space-y-6">
-          {/* Row 1: Unified Clock/Earnings Widget */}
-          <div className="grid gap-6 md:grid-cols-3">
-            {/* ⭐ NEW: Unified widget replacing both old components */}
-            <div className="md:col-span-1">
-              <UnifiedClockEarningsWidget />
+          {/* MEMBER LAYOUT - Time Tracking Focus */}
+          {isMember ? (
+            <div className="space-y-6">
+              {/* Row 1: Unified Clock/Earnings Widget */}
+              <div className="grid gap-6 md:grid-cols-3">
+                {/* ⭐ NEW: Unified widget replacing both old components */}
+                <div className="md:col-span-1">
+                  <UnifiedClockEarningsWidget />
+                </div>
+
+                {/* Quick Access Cards */}
+                <div className="md:col-span-2 grid gap-6 grid-cols-1 sm:grid-cols-2">
+                  {/* Schedule Card */}
+                  {canViewSchedule && (
+                    <Link href="/dashboard/schedule">
+                      <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
+                              <Calendar className="h-5 w-5 text-orange-600" />
+                            </div>
+                            <div>
+                              <CardTitle className="text-base">Schedule</CardTitle>
+                              <CardDescription className="text-sm">View assignments</CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                      </Card>
+                    </Link>
+                  )}
+
+                  {/* Punchlist Card */}
+                  {canViewPunchlist && (
+                    <Link href="/dashboard/punchlist">
+                      <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                              <ClipboardList className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                              <CardTitle className="text-base">Punchlist</CardTitle>
+                              <CardDescription className="text-sm">View tasks</CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                      </Card>
+                    </Link>
+                  )}
+                </div>
+              </div>
+
+              {/* ⭐ NEW: Row 2: Earnings Summary Cards */}
+              <EarningsSummaryCards />
+
+              {/* ⭐ NEW: Row 3: Time Entries Table */}
+              <TimeEntriesTable
+                timeEntries={timeEntries}
+                isLoading={isLoading}
+                title="Recent Time Entries"
+                showAll={false}
+                limit={5}
+              />
             </div>
+          ) : (
+            // ADMIN LAYOUT - Original cards for admins
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {/* Projects Card */}
+              {canViewProjects && (
+                <Link href="/dashboard/projects">
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                          <Building2 className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-base">Projects</CardTitle>
+                          <CardDescription className="text-sm">Manage projects</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                </Link>
+              )}
 
-            {/* Quick Access Cards */}
-            <div className="md:col-span-2 grid gap-6 grid-cols-1 sm:grid-cols-2">
+              {/* Team Card */}
+              {canViewTeam && (
+                <Link href="/dashboard/team">
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                          <Users className="h-5 w-5 text-green-600" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-base">Team</CardTitle>
+                          <CardDescription className="text-sm">Manage team members</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                </Link>
+              )}
+
               {/* Schedule Card */}
               {canViewSchedule && (
                 <Link href="/dashboard/schedule">
-                  <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer">
                     <CardHeader className="pb-3">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
@@ -348,7 +443,7 @@ export function DashboardContent({ user }: DashboardContentProps) {
                         </div>
                         <div>
                           <CardTitle className="text-base">Schedule</CardTitle>
-                          <CardDescription className="text-sm">View assignments</CardDescription>
+                          <CardDescription className="text-sm">View schedule</CardDescription>
                         </div>
                       </div>
                     </CardHeader>
@@ -359,15 +454,15 @@ export function DashboardContent({ user }: DashboardContentProps) {
               {/* Punchlist Card */}
               {canViewPunchlist && (
                 <Link href="/dashboard/punchlist">
-                  <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer">
                     <CardHeader className="pb-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                          <ClipboardList className="h-5 w-5 text-green-600" />
+                        <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                          <ClipboardList className="h-5 w-5 text-purple-600" />
                         </div>
                         <div>
                           <CardTitle className="text-base">Punchlist</CardTitle>
-                          <CardDescription className="text-sm">View tasks</CardDescription>
+                          <CardDescription className="text-sm">Manage tasks</CardDescription>
                         </div>
                       </div>
                     </CardHeader>
@@ -375,100 +470,9 @@ export function DashboardContent({ user }: DashboardContentProps) {
                 </Link>
               )}
             </div>
-          </div>
-
-          {/* ⭐ NEW: Row 2: Earnings Summary Cards */}
-          <EarningsSummaryCards />
-
-          {/* ⭐ NEW: Row 3: Time Entries Table */}
-          <TimeEntriesTable
-            timeEntries={timeEntries}
-            isLoading={isLoading}
-            title="Recent Time Entries"
-            showAll={false}
-            limit={5}
-          />
-        </div>
-      ) : (
-        // ADMIN LAYOUT - Original cards for admins
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Projects Card */}
-          {canViewProjects && (
-            <Link href="/dashboard/projects">
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                      <Building2 className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-base">Projects</CardTitle>
-                      <CardDescription className="text-sm">Manage projects</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
-            </Link>
-          )}
-
-          {/* Team Card */}
-          {canViewTeam && (
-            <Link href="/dashboard/team">
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                      <Users className="h-5 w-5 text-green-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-base">Team</CardTitle>
-                      <CardDescription className="text-sm">Manage team members</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
-            </Link>
-          )}
-
-          {/* Schedule Card */}
-          {canViewSchedule && (
-            <Link href="/dashboard/schedule">
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-                      <Calendar className="h-5 w-5 text-orange-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-base">Schedule</CardTitle>
-                      <CardDescription className="text-sm">View schedule</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
-            </Link>
-          )}
-
-          {/* Punchlist Card */}
-          {canViewPunchlist && (
-            <Link href="/dashboard/punchlist">
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                      <ClipboardList className="h-5 w-5 text-purple-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-base">Punchlist</CardTitle>
-                      <CardDescription className="text-sm">Manage tasks</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
-            </Link>
           )}
         </div>
-      )}
+      </div>
     </div>
   )
 }

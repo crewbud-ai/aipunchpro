@@ -32,6 +32,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useProjectFiles } from "@/hooks/projects/use-project-files"
+import { formatFileSize } from "@/utils/format-functions"
 
 // ==============================================
 // INTERFACES & TYPES
@@ -57,17 +58,6 @@ interface PendingFile {
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const ALLOWED_FILE_TYPES = ['application/pdf'] // Only PDF files allowed
 const ALLOWED_FILE_EXTENSIONS = ['.pdf'] // Only PDF extensions
-
-// ==============================================
-// UTILITY FUNCTIONS
-// ==============================================
-const formatFileSize = (bytes: number) => {
-  if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
 
 const generateFileId = () => Math.random().toString(36).substring(2, 15)
 

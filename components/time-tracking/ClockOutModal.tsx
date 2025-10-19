@@ -87,13 +87,13 @@ export function ClockOutModal({
     issuesEncountered: '',
     useLocation: false,
   })
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // ==============================================
   // EFFECTS
   // ==============================================
-  
+
   // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -110,11 +110,11 @@ export function ClockOutModal({
   // ==============================================
   // COMPUTED VALUES
   // ==============================================
-  const sessionDuration = currentSession ? 
-    Math.floor(currentSession.duration / 60) + 'h ' + (currentSession.duration % 60) + 'm' : 
+  const sessionDuration = currentSession ?
+    Math.floor(currentSession.duration / 60) + 'h ' + (currentSession.duration % 60) + 'm' :
     '0h 0m'
 
-  const startTime = currentSession ? 
+  const startTime = currentSession ?
     new Date(`1970-01-01T${currentSession.startTime}`).toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
@@ -139,7 +139,7 @@ export function ClockOutModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!currentSession) {
       return
     }
@@ -176,7 +176,7 @@ export function ClockOutModal({
       }
 
       const result = await clockOut(clockOutData)
-      
+
       if (result) {
         onSuccess()
       }
@@ -203,46 +203,46 @@ export function ClockOutModal({
   // ==============================================
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-scroll flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Square className="h-5 w-5 text-red-600" />
+          <DialogTitle className="flex items-center gap-1.5 xs:gap-2 text-base xs:text-lg">
+            <Square className="h-4 w-4 xs:h-5 xs:w-5 text-red-600 shrink-0" />
             Clock Out
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs xs:text-sm leading-snug xs:leading-normal">
             Confirm your work session details before clocking out.
           </DialogDescription>
         </DialogHeader>
 
-        {/* Session Summary */}
+        {/* Session Summary - Mobile Responsive */}
         {currentSession && (
           <Card className="bg-blue-50 border-blue-200">
-            <CardContent className="pt-4">
-              <div className="space-y-3">
+            <CardContent className="p-3 xs:p-4">
+              <div className="space-y-2.5 xs:space-y-3">
                 {/* Project Info */}
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-blue-600" />
-                  <div>
-                    <div className="font-medium text-blue-800">{currentSession.projectName}</div>
+                <div className="flex items-start gap-1.5 xs:gap-2">
+                  <Building2 className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-blue-600 shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-sm xs:text-base text-blue-800 leading-snug">{currentSession.projectName}</div>
                     {currentSession.scheduleProjectTitle && (
-                      <div className="text-sm text-blue-600">{currentSession.scheduleProjectTitle}</div>
+                      <div className="text-xs xs:text-sm text-blue-600 leading-snug mt-0.5">{currentSession.scheduleProjectTitle}</div>
                     )}
                   </div>
                 </div>
 
                 {/* Time Summary */}
-                <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="grid grid-cols-3 gap-2.5 xs:gap-3 sm:gap-4 text-center">
                   <div>
                     <div className="text-xs text-blue-600">Started</div>
-                    <div className="font-medium text-blue-800">{startTime}</div>
+                    <div className="font-medium text-xs xs:text-sm text-blue-800 leading-snug mt-0.5">{startTime}</div>
                   </div>
                   <div>
                     <div className="text-xs text-blue-600">Duration</div>
-                    <div className="font-mono font-semibold text-blue-800">{sessionDuration}</div>
+                    <div className="font-mono font-semibold text-xs xs:text-sm text-blue-800 leading-snug mt-0.5">{sessionDuration}</div>
                   </div>
                   <div>
                     <div className="text-xs text-blue-600">Ending</div>
-                    <div className="font-medium text-blue-800">{endTime}</div>
+                    <div className="font-medium text-xs xs:text-sm text-blue-800 leading-snug mt-0.5">{endTime}</div>
                   </div>
                 </div>
               </div>
@@ -250,10 +250,10 @@ export function ClockOutModal({
           </Card>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Work Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description">Work Summary (Optional)</Label>
+        <form onSubmit={handleSubmit} className="space-y-3 xs:space-y-4">
+          {/* Work Description - Mobile Responsive */}
+          <div className="space-y-1.5 xs:space-y-2">
+            <Label htmlFor="description" className="text-sm xs:text-base">Work Summary (Optional)</Label>
             <Textarea
               id="description"
               value={formData.description}
@@ -261,12 +261,13 @@ export function ClockOutModal({
               placeholder="Briefly describe what you worked on today..."
               disabled={isSubmitting}
               rows={2}
+              className="text-sm xs:text-base resize-none"
             />
           </div>
 
-          {/* Work Completed */}
-          <div className="space-y-2">
-            <Label htmlFor="workCompleted">Work Completed (Optional)</Label>
+          {/* Work Completed - Mobile Responsive */}
+          <div className="space-y-1.5 xs:space-y-2">
+            <Label htmlFor="workCompleted" className="text-sm xs:text-base">Work Completed (Optional)</Label>
             <Textarea
               id="workCompleted"
               value={formData.workCompleted}
@@ -274,12 +275,13 @@ export function ClockOutModal({
               placeholder="What tasks did you complete?"
               disabled={isSubmitting}
               rows={2}
+              className="text-sm xs:text-base resize-none"
             />
           </div>
 
-          {/* Issues Encountered */}
-          <div className="space-y-2">
-            <Label htmlFor="issuesEncountered">Issues or Notes (Optional)</Label>
+          {/* Issues Encountered - Mobile Responsive */}
+          <div className="space-y-1.5 xs:space-y-2">
+            <Label htmlFor="issuesEncountered" className="text-sm xs:text-base">Issues or Notes (Optional)</Label>
             <Textarea
               id="issuesEncountered"
               value={formData.issuesEncountered}
@@ -287,50 +289,52 @@ export function ClockOutModal({
               placeholder="Any issues, blockers, or important notes?"
               disabled={isSubmitting}
               rows={2}
+              className="text-sm xs:text-base resize-none"
             />
           </div>
 
-          {/* Location Option */}
-          <div className="flex items-center space-x-2">
+          {/* Location Option - Mobile Responsive */}
+          <div className="flex items-center gap-1.5 xs:gap-2">
             <input
               type="checkbox"
               id="useLocation"
               checked={formData.useLocation}
               onChange={(e) => handleInputChange('useLocation', e.target.checked)}
               disabled={isSubmitting}
-              className="rounded"
+              className="rounded h-4 w-4"
             />
-            <Label htmlFor="useLocation" className="flex items-center gap-2 text-sm">
-              <MapPin className="h-4 w-4" />
+            <Label htmlFor="useLocation" className="flex items-center gap-1.5 xs:gap-2 text-xs xs:text-sm cursor-pointer">
+              <MapPin className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
               Include my location
             </Label>
           </div>
 
-          {/* Error Display */}
+          {/* Error Display - Mobile Responsive */}
           {error && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription className="text-sm xs:text-base leading-snug">{error}</AlertDescription>
             </Alert>
           )}
 
-          {/* Success Preview */}
+          {/* Success Preview - Mobile Responsive */}
           {currentSession && (
             <Alert>
               <CheckCircle className="h-4 w-4" />
-              <AlertDescription>
+              <AlertDescription className="text-sm xs:text-base leading-snug">
                 You've worked {sessionDuration} today. Time will be submitted for approval.
               </AlertDescription>
             </Alert>
           )}
 
-          {/* Dialog Footer */}
-          <DialogFooter>
+          {/* Dialog Footer - Mobile Responsive */}
+          <DialogFooter className="gap-2 flex-col xs:flex-row">
             <Button
               type="button"
               variant="outline"
               onClick={handleClose}
               disabled={isSubmitting}
+              className="w-full xs:w-auto h-9 xs:h-10 text-sm xs:text-base"
             >
               Cancel
             </Button>
@@ -338,16 +342,17 @@ export function ClockOutModal({
               type="submit"
               disabled={!canSubmit}
               variant="destructive"
+              className="w-full xs:w-auto h-9 xs:h-10 text-sm xs:text-base"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Clocking Out...
+                  <Loader2 className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 animate-spin" />
+                  <span>Clocking Out...</span>
                 </>
               ) : (
                 <>
-                  <Square className="mr-2 h-4 w-4" />
-                  End Work Day
+                  <Square className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4" />
+                  <span>End Work Day</span>
                 </>
               )}
             </Button>

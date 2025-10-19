@@ -124,7 +124,7 @@ export const ProjectStatusManager = React.memo<ProjectStatusManagerProps>(({
                         Project Status
                     </Label>
                     {isUpdating && (
-                        <RefreshCw className="h-3 w-3 animate-spin text-gray-500" />
+                        <RefreshCw className="h-3 w-3 xs:h-3.5 xs:w-3.5 animate-spin text-gray-500 flex-shrink-0" />
                     )}
                 </div>
 
@@ -145,10 +145,10 @@ export const ProjectStatusManager = React.memo<ProjectStatusManagerProps>(({
                                 <SelectItem
                                     key={status.value}
                                     value={status.value}
-                                    className="text-sm"
+                                    className="text-xs xs:text-sm"
                                 >
                                     <Badge
-                                        className={cn("text-xs", status.color)}
+                                        className={cn("text-xs whitespace-nowrap", status.color)}
                                         variant="outline"
                                     >
                                         {status.label}
@@ -163,8 +163,8 @@ export const ProjectStatusManager = React.memo<ProjectStatusManagerProps>(({
             {/* Success feedback (commented out but kept responsive) */}
             {/* {result?.success && !isUpdating && !error && (
     <Alert className="py-1.5 xs:py-2 bg-green-50 border-green-200">
-      <CheckCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-green-600" />
-      <AlertDescription className="text-xs xs:text-sm text-green-800">
+      <CheckCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-green-600 flex-shrink-0" />
+      <AlertDescription className="text-xs xs:text-sm text-green-800 leading-snug">
         Status updated successfully
       </AlertDescription>
     </Alert>

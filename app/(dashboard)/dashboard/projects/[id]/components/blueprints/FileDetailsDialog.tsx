@@ -37,6 +37,7 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 import Image from "next/image"
+import { formatFileSize, getFileIcon, getFolderConfig } from "@/utils/format-functions"
 
 // ==============================================
 // INTERFACES
@@ -49,47 +50,6 @@ interface FileDetailsDialogProps {
   onDownload: (file: any) => void
 }
 
-// ==============================================
-// UTILITY FUNCTIONS
-// ==============================================
-const getFileIcon = (fileType: string, mimeType: string) => {
-  if (mimeType?.startsWith('image/')) {
-    return { icon: FileImage, color: 'text-blue-600', bgColor: 'bg-blue-100' }
-  } else if (mimeType === 'application/pdf') {
-    return { icon: FileType, color: 'text-red-600', bgColor: 'bg-red-100' }
-  } else if (mimeType?.includes('spreadsheet') || mimeType?.includes('excel')) {
-    return { icon: FileSpreadsheet, color: 'text-green-600', bgColor: 'bg-green-100' }
-  } else if (mimeType?.startsWith('video/')) {
-    return { icon: FileVideo, color: 'text-purple-600', bgColor: 'bg-purple-100' }
-  } else {
-    return { icon: FileText, color: 'text-gray-600', bgColor: 'bg-gray-100' }
-  }
-}
-
-const formatFileSize = (bytes: number) => {
-  if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
-
-const getFolderConfig = (folder: string) => {
-  switch (folder) {
-    case 'blueprints':
-      return { label: 'Blueprints', color: 'bg-blue-100 text-blue-800' }
-    case 'documents':
-      return { label: 'Documents', color: 'bg-gray-100 text-gray-800' }
-    case 'photos':
-      return { label: 'Photos', color: 'bg-green-100 text-green-800' }
-    case 'contracts':
-      return { label: 'Contracts', color: 'bg-purple-100 text-purple-800' }
-    case 'reports':
-      return { label: 'Reports', color: 'bg-orange-100 text-orange-800' }
-    default:
-      return { label: 'General', color: 'bg-gray-100 text-gray-800' }
-  }
-}
 
 // ==============================================
 // MAIN COMPONENT
@@ -142,7 +102,7 @@ export const FileDetailsDialog: React.FC<FileDetailsDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] max-w-[95vw] sm:w-full sm:max-w-4xl">
+      <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto w-[95vw] max-w-[95vw] sm:w-full sm:max-w-5xl">
         <DialogHeader>
           <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-0">
             <div className="flex-1 w-full sm:w-auto min-w-0">

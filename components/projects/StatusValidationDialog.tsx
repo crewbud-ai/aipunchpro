@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, AlertTriangle, AlertCircle, Info, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { StatusValidationResult } from '@/types/projects/status-coordination'
+import { getStatusColor } from '@/utils/format-functions'
 
 interface StatusValidationDialogProps {
     open: boolean
@@ -89,71 +90,57 @@ export const StatusValidationDialog = React.memo<StatusValidationDialogProps>(({
         ).join(' ')
     }
 
-    const getStatusBadgeColor = (status: string) => {
-        switch (status) {
-            case 'not_started': return 'bg-gray-100 text-gray-800'
-            case 'in_progress': return 'bg-blue-100 text-blue-800'
-            case 'on_track': return 'bg-green-100 text-green-800'
-            case 'ahead_of_schedule': return 'bg-emerald-100 text-emerald-800'
-            case 'behind_schedule': return 'bg-orange-100 text-orange-800'
-            case 'on_hold': return 'bg-yellow-100 text-yellow-800'
-            case 'completed': return 'bg-green-100 text-green-800'
-            case 'cancelled': return 'bg-red-100 text-red-800'
-            default: return 'bg-gray-100 text-gray-800'
-        }
-    }
-
     const hasBlockers = (validationResult?.blockers?.length ?? 0) > 0
     const hasWarnings = (validationResult?.warnings?.length ?? 0) > 0
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-w-[calc(100vw-2rem)] sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
+                    <DialogTitle className="flex items-center gap-1.5 xs:gap-2 text-base xs:text-lg">
                         Confirm Status Change
                     </DialogTitle>
-                    <DialogDescription className="flex items-center gap-2">
+                    <DialogDescription className="flex flex-wrap items-center gap-1.5 xs:gap-2 text-xs xs:text-sm leading-snug">
                         <span>Change from</span>
-                        <Badge className={cn("text-xs", getStatusBadgeColor(currentStatus))} variant="outline">
+                        <Badge className={cn("text-xs whitespace-nowrap", getStatusColor(currentStatus))} variant="outline">
                             {formatStatusLabel(currentStatus)}
                         </Badge>
                         <span>to</span>
-                        <Badge className={cn("text-xs", getStatusBadgeColor(newStatus))} variant="outline">
+                        <Badge className={cn("text-xs whitespace-nowrap", getStatusColor(newStatus))} variant="outline">
                             {formatStatusLabel(newStatus)}
                         </Badge>
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-3">
+                <div className="space-y-2.5 xs:space-y-3">
                     {/* Loading State */}
                     {isValidating && (
-                        <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-md">
-                            <Loader2 className="h-4 w-4 animate-spin text-gray-600" />
-                            <span className="text-sm text-gray-600">Checking dependencies...</span>
+                        <div className="flex items-center gap-1.5 xs:gap-2 p-2.5 xs:p-3 bg-gray-50 rounded-md">
+                            <Loader2 className="h-3.5 w-3.5 xs:h-4 xs:w-4 animate-spin text-gray-600 flex-shrink-0" />
+                            <span className="text-xs xs:text-sm text-gray-600">Checking dependencies...</span>
                         </div>
                     )}
 
                     {/* Error State */}
                     {error && (
                         <Alert variant="destructive">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>{error}</AlertDescription>
+                            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                            <AlertDescription className="text-xs xs:text-sm leading-snug">{error}</AlertDescription>
                         </Alert>
                     )}
 
                     {/* Validation Results */}
                     {validationResult && !isValidating && (
-                        <div className="space-y-3">
+                        <div className="space-y-2.5 xs:space-y-3">
                             {/* Blockers - Critical issues that prevent the change */}
                             {hasBlockers && (
                                 <Alert variant="destructive">
-                                    <AlertTriangle className="h-4 w-4" />
-                                    <AlertTitle>Cannot Change Status</AlertTitle>
-                                    <AlertDescription>
-                                        <ul className="mt-2 space-y-1">
+                                    <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                                    <AlertTitle className="text-sm xs:text-base">Cannot Change Status</AlertTitle>
+                                    <AlertDescription className="text-xs xs:text-sm">
+                                        <ul className="mt-1.5 xs:mt-2 space-y-0.5 xs:space-y-1">
                                             {(validationResult?.blockers ?? []).map((blocker, index) => (
-                                                <li key={index} className="text-sm flex items-start gap-1">
-                                                    <span className="text-red-600 mt-0.5">•</span>
+                                                <li key={index} className="text-xs xs:text-sm flex items-start gap-1 leading-snug">
+                                                    <span className="text-red-600 mt-0.5 flex-shrink-0">•</span>
                                                     <span>{blocker}</span>
                                                 </li>
                                             ))}
@@ -165,13 +152,13 @@ export const StatusValidationDialog = React.memo<StatusValidationDialogProps>(({
                             {/* Warnings - Important but not blocking */}
                             {hasWarnings && !hasBlockers && (
                                 <Alert className="border-orange-200 bg-orange-50">
-                                    <AlertTriangle className="h-4 w-4 text-orange-600" />
-                                    <AlertTitle className="text-orange-800">Important Notice</AlertTitle>
-                                    <AlertDescription className="text-orange-700">
-                                        <ul className="mt-2 space-y-1">
+                                    <AlertTriangle className="h-4 w-4 text-orange-600 flex-shrink-0" />
+                                    <AlertTitle className="text-orange-800 text-sm xs:text-base">Important Notice</AlertTitle>
+                                    <AlertDescription className="text-orange-700 text-xs xs:text-sm">
+                                        <ul className="mt-1.5 xs:mt-2 space-y-0.5 xs:space-y-1">
                                             {(validationResult?.warnings ?? []).map((warning, index) => (
-                                                <li key={index} className="text-sm flex items-start gap-1">
-                                                    <span className="text-orange-600 mt-0.5">•</span>
+                                                <li key={index} className="text-xs xs:text-sm flex items-start gap-1 leading-snug">
+                                                    <span className="text-orange-600 mt-0.5 flex-shrink-0">•</span>
                                                     <span>{warning}</span>
                                                 </li>
                                             ))}
@@ -183,8 +170,8 @@ export const StatusValidationDialog = React.memo<StatusValidationDialogProps>(({
                             {/* No issues detected */}
                             {!hasBlockers && !hasWarnings && (
                                 <Alert className="border-green-200 bg-green-50">
-                                    <CheckCircle className="h-4 w-4 text-green-600" />
-                                    <AlertDescription className="text-green-800">
+                                    <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                    <AlertDescription className="text-green-800 text-xs xs:text-sm leading-snug">
                                         No issues detected. Ready to proceed.
                                     </AlertDescription>
                                 </Alert>
@@ -193,15 +180,22 @@ export const StatusValidationDialog = React.memo<StatusValidationDialogProps>(({
                     )}
                 </div>
 
-                <DialogFooter>
-                    <Button variant="outline" onClick={handleCancel}>
+                <DialogFooter className="gap-2 flex-col xs:flex-row">
+                    <Button
+                        variant="outline"
+                        onClick={handleCancel}
+                        className="w-full xs:w-auto h-9 xs:h-10 text-sm xs:text-base"
+                    >
                         Cancel
                     </Button>
                     <Button
                         onClick={handleConfirm}
                         disabled={isValidating || hasBlockers}
                         variant={hasWarnings ? "default" : "default"}
-                        className={hasWarnings ? "bg-orange-600 hover:bg-orange-700" : ""}
+                        className={cn(
+                            "w-full xs:w-auto h-9 xs:h-10 text-sm xs:text-base",
+                            hasWarnings && "bg-orange-600 hover:bg-orange-700"
+                        )}
                     >
                         {hasWarnings ? "Continue Anyway" : "Confirm Change"}
                     </Button>

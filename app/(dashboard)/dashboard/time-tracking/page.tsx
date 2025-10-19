@@ -378,14 +378,28 @@ export default function TimeTrackingPage() {
   // ==============================================
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-20 w-full" />
-        <div className="grid gap-4 md:grid-cols-4">
+      <div className="space-y-4 xs:space-y-5 sm:space-y-6">
+        {/* Header Skeleton - Mobile Responsive */}
+        <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-4">
+          <div className="flex-1 min-w-0">
+            <Skeleton className="h-7 xs:h-8 sm:h-9 w-40 xs:w-48 sm:w-56 mb-1.5 xs:mb-2" />
+            <Skeleton className="h-4 xs:h-5 w-56 xs:w-64 sm:w-72" />
+          </div>
+          <Skeleton className="h-9 xs:h-10 w-24 xs:w-28 self-end xs:self-auto" />
+        </div>
+
+        {/* Stats Cards Skeleton - Mobile Responsive */}
+        <div className="grid gap-3 xs:gap-4 grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map(i => (
-            <Skeleton key={i} className="h-32 w-full" />
+            <Skeleton key={i} className="h-28 xs:h-32 w-full" />
           ))}
         </div>
-        <Skeleton className="h-96 w-full" />
+
+        {/* Earnings Card Skeleton - Mobile Responsive */}
+        <Skeleton className="h-44 xs:h-48 sm:h-52 w-full rounded-lg" />
+
+        {/* Table Skeleton - Mobile Responsive */}
+        <Skeleton className="h-80 xs:h-96 w-full rounded-lg" />
       </div>
     )
   }
@@ -394,131 +408,137 @@ export default function TimeTrackingPage() {
   // RENDER
   // ==============================================
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Time Tracking</h1>
-          <p className="text-gray-600 mt-1">View and manage your time entries</p>
-        </div>
-
-        {/* Export buttons - ONLY FOR MEMBERS */}
-        <div className="flex items-center gap-2">
-          {!userIsAdmin && userId && (
-            <PersonalTimesheetExport
-              userId={userId}
-              userName={`${profile?.firstName} ${profile?.lastName}`}
-            />
-          )}
-
-          {userIsAdmin && (
-            <Link href="/dashboard/payroll">
-              <Button size="sm">
-                Admin View
-              </Button>
-            </Link>
-          )}
-        </div>
-      </div>
-
-      {/* Stats Cards - Now with Earnings */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Total Hours */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
-            <Clock className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalHours}h</div>
-            <p className="text-xs text-gray-600 mt-1">
-              {stats.totalEntries} {stats.totalEntries === 1 ? 'entry' : 'entries'}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* This Week */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Week</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.weekHours}h</div>
-            <p className="text-xs text-gray-600 mt-1">Current week</p>
-          </CardContent>
-        </Card>
-
-        {/* Pending - With Earnings */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
-            <Timer className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingCount}</div>
-            <p className="text-xs text-gray-600 mt-1">
-              ${stats.pendingEarnings} awaiting approval
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Approved - With Earnings */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Approved</CardTitle>
-            <CheckCircle className="h-4 w-4 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.approvedCount}</div>
-            <p className="text-xs text-gray-600 mt-1">
-              ${stats.approvedEarnings} ready for payroll
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Earnings Summary Card */}
-      <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-green-900">
-            <DollarSign className="h-5 w-5" />
-            Total Earnings
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-baseline gap-3">
-            <div className="text-4xl font-bold text-green-700">
-              ${stats.totalEarnings}
-            </div>
-            <div className="text-sm text-green-600">
-              from {stats.totalHours} hours worked
-            </div>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-4 pt-4 border-t border-green-200">
-            <div>
-              <p className="text-xs text-green-700 mb-1">Approved</p>
-              <p className="text-xl font-semibold text-green-800">
-                ${stats.approvedEarnings}
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto max-w-5xl">
+        <div className="space-y-4 xs:space-y-5 sm:space-y-6">
+          {/* Page Header - Mobile Responsive */}
+          <div className="flex sm:flex-row flex-col sm:justify-between sm:items-center gap-3 sm:gap-4">
+            <div >
+              <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold truncate">Time Tracking</h1>
+              <p className="text-sm xs:text-base text-gray-600 mt-0.5 xs:mt-1 leading-snug">
+                View and manage your time entries
               </p>
             </div>
-            <div>
-              <p className="text-xs text-yellow-700 mb-1">Pending</p>
-              <p className="text-xl font-semibold text-yellow-800">
-                ${stats.pendingEarnings}
-              </p>
+
+            {/* Export buttons - ONLY FOR MEMBERS - Mobile Responsive */}
+            <div className="flex items-center w-full sm:w-auto gap-1.5 xs:gap-2 self-end xs:self-auto">
+              {!userIsAdmin && userId && (
+                <PersonalTimesheetExport
+                  userId={userId}
+                  userName={`${profile?.firstName} ${profile?.lastName}`}
+                />
+              )}
+
+              {userIsAdmin && (
+                <Link href="/dashboard/payroll">
+                  <Button size="sm" className="h-9 xs:h-10 text-xs xs:text-sm">
+                    Admin View
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Time Entries Table - Using Reusable Component */}
-      <TimeEntriesTable
-        timeEntries={timeEntries}
-        isLoading={isLoading}
-        title="All Time Entries"
-        showAll={true}
-      />
+          {/* Stats Cards - Now with Earnings - Mobile Responsive */}
+          <div className="grid gap-3 xs:gap-4 grid-cols-2 lg:grid-cols-4">
+            {/* Total Hours */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 xs:p-5 sm:p-6">
+                <CardTitle className="text-xs xs:text-sm font-medium">Total Hours</CardTitle>
+                <Clock className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-blue-600 shrink-0" />
+              </CardHeader>
+              <CardContent className="p-4 xs:p-5 sm:p-6 pt-0">
+                <div className="text-xl xs:text-2xl font-bold">{stats.totalHours}h</div>
+                <p className="text-xs text-gray-600 mt-0.5 xs:mt-1 leading-snug">
+                  {stats.totalEntries} {stats.totalEntries === 1 ? 'entry' : 'entries'}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* This Week */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 xs:p-5 sm:p-6">
+                <CardTitle className="text-xs xs:text-sm font-medium">This Week</CardTitle>
+                <TrendingUp className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-green-600 shrink-0" />
+              </CardHeader>
+              <CardContent className="p-4 xs:p-5 sm:p-6 pt-0">
+                <div className="text-xl xs:text-2xl font-bold">{stats.weekHours}h</div>
+                <p className="text-xs text-gray-600 mt-0.5 xs:mt-1 leading-snug">Current week</p>
+              </CardContent>
+            </Card>
+
+            {/* Pending - With Earnings */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 xs:p-5 sm:p-6">
+                <CardTitle className="text-xs xs:text-sm font-medium">Pending</CardTitle>
+                <Timer className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-yellow-600 shrink-0" />
+              </CardHeader>
+              <CardContent className="p-4 xs:p-5 sm:p-6 pt-0">
+                <div className="text-xl xs:text-2xl font-bold">{stats.pendingCount}</div>
+                <p className="text-xs text-gray-600 mt-0.5 xs:mt-1 leading-snug">
+                  ${stats.pendingEarnings} awaiting approval
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Approved - With Earnings */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 xs:p-5 sm:p-6">
+                <CardTitle className="text-xs xs:text-sm font-medium">Approved</CardTitle>
+                <CheckCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-purple-600 shrink-0" />
+              </CardHeader>
+              <CardContent className="p-4 xs:p-5 sm:p-6 pt-0">
+                <div className="text-xl xs:text-2xl font-bold">{stats.approvedCount}</div>
+                <p className="text-xs text-gray-600 mt-0.5 xs:mt-1 leading-snug">
+                  ${stats.approvedEarnings} ready for payroll
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Earnings Summary Card - Mobile Responsive */}
+          <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+            <CardHeader className="p-4 xs:p-5 sm:p-6">
+              <CardTitle className="flex items-center gap-1.5 xs:gap-2 text-green-900 text-base xs:text-lg">
+                <DollarSign className="h-4 w-4 xs:h-5 xs:w-5 shrink-0" />
+                Total Earnings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 xs:p-5 sm:p-6 pt-0">
+              <div className="flex flex-col xs:flex-row xs:items-baseline gap-1 xs:gap-3">
+                <div className="text-3xl xs:text-4xl font-bold text-green-700">
+                  ${stats.totalEarnings}
+                </div>
+                <div className="text-xs xs:text-sm text-green-600 leading-snug">
+                  from {stats.totalHours} hours worked
+                </div>
+              </div>
+              <div className="mt-3 xs:mt-4 grid grid-cols-2 gap-3 xs:gap-4 pt-3 xs:pt-4 border-t border-green-200">
+                <div>
+                  <p className="text-xs text-green-700 mb-0.5 xs:mb-1">Approved</p>
+                  <p className="text-lg xs:text-xl font-semibold text-green-800">
+                    ${stats.approvedEarnings}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-yellow-700 mb-0.5 xs:mb-1">Pending</p>
+                  <p className="text-lg xs:text-xl font-semibold text-yellow-800">
+                    ${stats.pendingEarnings}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Time Entries Table - Using Reusable Component */}
+          <TimeEntriesTable
+            timeEntries={timeEntries}
+            isLoading={isLoading}
+            title="All Time Entries"
+            showAll={true}
+          />
+        </div>
+      </div>
     </div>
   )
 }

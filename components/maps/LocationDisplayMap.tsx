@@ -109,7 +109,7 @@ export const LocationDisplayMap = ({
 
     try {
       const L = window.L
-      
+
       // Initialize map
       const map = L.map(mapRef.current, {
         center: [location.coordinates.lat, location.coordinates.lng],
@@ -228,12 +228,12 @@ export const LocationDisplayMap = ({
   if (mapError) {
     return (
       <div className={cn('relative border rounded-lg bg-gray-50', className)} style={{ height }}>
-        <div className="flex items-center justify-center h-full">
+        <div className="flex items-center justify-center h-full px-4">
           <div className="text-center text-gray-500">
-            <MapPin className="h-8 w-8 mx-auto mb-2" />
-            <p className="text-sm">Unable to load map</p>
+            <MapPin className="h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 mx-auto mb-1.5 xs:mb-2 flex-shrink-0" />
+            <p className="text-xs xs:text-sm">Unable to load map</p>
             {showAddress && (
-              <p className="text-xs mt-1 text-gray-400">{location.address}</p>
+              <p className="text-xs mt-1 text-gray-400 break-words max-w-xs mx-auto">{location.address}</p>
             )}
           </div>
         </div>
@@ -245,42 +245,43 @@ export const LocationDisplayMap = ({
   // RENDER
   // ==============================================
   return (
+    // Main Component - Responsive
     <div className={cn('relative', className)}>
       {/* Map Header */}
       {showControls && (
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <MapPin className="h-4 w-4" />
-            Project Location
+        <div className="flex items-center justify-between mb-1.5 xs:mb-2 gap-2">
+          <div className="flex items-center gap-1.5 xs:gap-2 text-xs xs:text-sm font-medium text-gray-700 min-w-0">
+            <MapPin className="h-3.5 w-3.5 xs:h-4 xs:w-4 flex-shrink-0" />
+            <span className="truncate">Project Location</span>
           </div>
-          
+
           {/* Map Controls */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleCenterLocation}
-              className="h-7 px-2 text-xs"
+              className="h-6 xs:h-7 px-1.5 xs:px-2 text-xs"
               title="Center on location"
               disabled={isMapLoading}
             >
-              <MapPin className="h-3 w-3" />
+              <MapPin className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
             </Button>
-            
+
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleToggleExpand}
-              className="h-7 px-2 text-xs"
+              className="h-6 xs:h-7 px-1.5 xs:px-2 text-xs"
               title={isExpanded ? "Collapse map" : "Expand map"}
               disabled={isMapLoading}
             >
               {isExpanded ? (
-                <Minimize2 className="h-3 w-3" />
+                <Minimize2 className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
               ) : (
-                <Maximize2 className="h-3 w-3" />
+                <Maximize2 className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
               )}
             </Button>
           </div>
@@ -288,43 +289,43 @@ export const LocationDisplayMap = ({
       )}
 
       {/* Map Container */}
-      <div 
+      <div
         className={cn(
           'relative border rounded-lg overflow-hidden bg-gray-100 transition-all duration-300',
           isMapLoading && 'bg-gray-50'
         )}
         style={{ height: currentHeight }}
       >
-        <div 
-          ref={mapRef} 
+        <div
+          ref={mapRef}
           className="w-full h-full"
         />
-        
+
         {/* Loading Overlay */}
         {isMapLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-            <div className="flex flex-col items-center gap-2 text-gray-500">
-              <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-              <p className="text-sm">Loading map...</p>
+            <div className="flex flex-col items-center gap-1.5 xs:gap-2 text-gray-500">
+              <div className="w-5 h-5 xs:w-6 xs:h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+              <p className="text-xs xs:text-sm">Loading map...</p>
             </div>
           </div>
         )}
 
         {/* Read-only indicator */}
-        <div className="absolute top-2 left-2 bg-white bg-opacity-90 px-2 py-1 rounded text-xs text-gray-600 shadow-sm">
+        <div className="absolute top-1.5 xs:top-2 left-1.5 xs:left-2 bg-white bg-opacity-90 px-1.5 xs:px-2 py-0.5 xs:py-1 rounded text-xs text-gray-600 shadow-sm whitespace-nowrap">
           📍 Project Location
         </div>
       </div>
 
       {/* Location Info */}
       {showAddress && (
-        <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-          <div className="flex items-start gap-3">
-            <MapPin className="h-4 w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+        <div className="mt-2 xs:mt-2.5 sm:mt-3 p-2.5 xs:p-3 bg-orange-50 border border-orange-200 rounded-lg">
+          <div className="flex items-start gap-2 xs:gap-2.5 sm:gap-3">
+            <MapPin className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-orange-600 mt-0.5 flex-shrink-0" />
             <div className="min-w-0 flex-1">
-              <h4 className="font-medium text-orange-900 text-sm">{location.displayName}</h4>
-              <p className="text-orange-800 text-xs mt-1 break-words">{location.address}</p>
-              <div className="text-orange-700 text-xs mt-2">
+              <h4 className="font-medium text-orange-900 text-xs xs:text-sm truncate">{location.displayName}</h4>
+              <p className="text-orange-800 text-xs mt-0.5 xs:mt-1 break-words leading-snug">{location.address}</p>
+              <div className="text-orange-700 text-xs mt-1.5 xs:mt-2 break-all leading-snug">
                 📍 {location.coordinates.lat.toFixed(6)}, {location.coordinates.lng.toFixed(6)}
               </div>
             </div>
@@ -340,9 +341,16 @@ export const LocationDisplayMap = ({
         }
         
         :global(.location-display-popup .leaflet-popup-content) {
-          font-size: 12px;
+          font-size: 11px;
           line-height: 1.4;
-          margin: 8px;
+          margin: 6px;
+        }
+
+        @media (min-width: 480px) {
+          :global(.location-display-popup .leaflet-popup-content) {
+            font-size: 12px;
+            margin: 8px;
+          }
         }
         
         :global(.location-display-popup .leaflet-popup-content-wrapper) {

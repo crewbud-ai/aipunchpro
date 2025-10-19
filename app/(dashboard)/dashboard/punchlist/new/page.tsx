@@ -314,7 +314,7 @@ export default function CreatePunchlistPage() {
     // ==============================================
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="mx-auto max-w-4xl">
+            <div className="mx-auto max-w-3xl">
                 {/* Header */}
                 <div className="mb-6 sm:mb-8">
                     <div className="flex items-start xs:items-center gap-2 xs:gap-3 sm:gap-4 mb-3 xs:mb-4">

@@ -36,6 +36,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { payrollReportsApi } from '@/lib/api/payroll'
 import { FileSpreadsheet } from "lucide-react"
 import { toast } from '@/hooks/use-toast'
+import { cn } from '@/lib/utils'
+import { formatDate } from '@/utils/format-functions'
 
 export default function PayrollPage() {
   // ==============================================
@@ -244,15 +246,6 @@ export default function PayrollPage() {
     setExpandedEmployees(new Set())
   }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })
-  }
-
   // ==============================================
   // LOADING STATE
   // ==============================================
@@ -274,369 +267,385 @@ export default function PayrollPage() {
   // RENDER
   // ==============================================
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Payroll Management</h1>
-          <p className="text-gray-600 mt-1">Review and approve employee timesheets</p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleQuickExport}
-            disabled={isExporting || timeEntries.length === 0}
-          >
-            {isExporting ? (
-              <>
-                <Loader /> Exporting...
-              </>
-            ) : (
-              <>
-                <FileSpreadsheet /> Export CSV
-              </>
-            )}
-          </Button>
-          {/* <Button className="bg-orange-600 hover:bg-orange-700">
-            <Play className="mr-2 h-4 w-4" />
-            Process Payroll
-          </Button> */}
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Gross Pay</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${stats.totalGrossPay}</div>
-            <p className="text-xs text-gray-600">Current period</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
-            <Clock className="h-4 w-4 text-blue-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalHours}h</div>
-            <p className="text-xs text-gray-600">Hours worked</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
-            <AlertCircle className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingApprovals}</div>
-            <p className="text-xs text-gray-600">Require review</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Employees</CardTitle>
-            <Users className="h-4 w-4 text-purple-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalEmployees}</div>
-            <p className="text-xs text-gray-600">Team members</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Filter:</span>
-            <div className="flex gap-2">
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto max-w-5xl">
+        <div className="space-y-4 xs:space-y-5 sm:space-y-6">
+          {/* Header */}
+          <div className="flex flex-col xs:flex-row xs:items-start xs:justify-between gap-3 xs:gap-4 px-2 xs:px-0">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-2xl xs:text-3xl font-bold text-gray-900 truncate">Payroll Management</h1>
+              <p className="text-xs xs:text-sm sm:text-base text-gray-600 mt-0.5 xs:mt-1 leading-snug">Review and approve employee timesheets</p>
+            </div>
+            <div className="flex gap-1.5 xs:gap-2 flex-shrink-0">
               <Button
-                variant={filterStatus === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilterStatus('all')}
+                variant="outline"
+                onClick={handleQuickExport}
+                disabled={isExporting || timeEntries.length === 0}
+                className="h-9 xs:h-10 text-sm xs:text-base flex-1 xs:flex-none"
               >
-                All Entries
-              </Button>
-              <Button
-                variant={filterStatus === 'pending' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilterStatus('pending')}
-              >
-                Pending ({timeEntries.filter(e => e.status === 'pending' || e.status === 'clocked_out').length})
-              </Button>
-              <Button
-                variant={filterStatus === 'approved' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFilterStatus('approved')}
-              >
-                Approved ({timeEntries.filter(e => e.status === 'approved').length})
+                {isExporting ? (
+                  <>
+                    <Loader className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 flex-shrink-0" />
+                    <span className="hidden xs:inline">Exporting...</span>
+                    <span className="xs:hidden">Export...</span>
+                  </>
+                ) : (
+                  <>
+                    <FileSpreadsheet className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 flex-shrink-0" />
+                    <span className="hidden xs:inline">Export CSV</span>
+                    <span className="xs:hidden">Export</span>
+                  </>
+                )}
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Alert for Pending Items */}
-      {stats.pendingApprovals > 0 && (
-        <Alert className="border-yellow-200 bg-yellow-50">
-          <AlertCircle className="h-4 w-4 text-yellow-600" />
-          <AlertDescription className="text-yellow-800">
-            You have <strong>{stats.pendingApprovals} time entries</strong> waiting for approval. Review and approve them to process payroll.
-          </AlertDescription>
-        </Alert>
-      )}
+          {/* Summary Cards */}
+          <div className="grid gap-3 xs:gap-4 grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 xs:px-4 sm:px-6 pt-3 xs:pt-4 sm:pt-6">
+                <CardTitle className="text-xs xs:text-sm font-medium truncate">Total Gross Pay</CardTitle>
+                <DollarSign className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-green-600 flex-shrink-0" />
+              </CardHeader>
+              <CardContent className="px-3 xs:px-4 sm:px-6">
+                <div className="text-lg xs:text-xl sm:text-2xl font-bold truncate">${stats.totalGrossPay}</div>
+                <p className="text-xs text-gray-600 truncate">Current period</p>
+              </CardContent>
+            </Card>
 
-      {/* Employee Payroll Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Employee Payroll Summary</CardTitle>
-              <CardDescription>
-                Click on employee cards to expand and view individual entries
-              </CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={expandAll}
-              >
-                Expand All
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={collapseAll}
-              >
-                Collapse All
-              </Button>
-            </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 xs:px-4 sm:px-6 pt-3 xs:pt-4 sm:pt-6">
+                <CardTitle className="text-xs xs:text-sm font-medium truncate">Total Hours</CardTitle>
+                <Clock className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-blue-600 flex-shrink-0" />
+              </CardHeader>
+              <CardContent className="px-3 xs:px-4 sm:px-6">
+                <div className="text-lg xs:text-xl sm:text-2xl font-bold truncate">{stats.totalHours}h</div>
+                <p className="text-xs text-gray-600 truncate">Hours worked</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 xs:px-4 sm:px-6 pt-3 xs:pt-4 sm:pt-6">
+                <CardTitle className="text-xs xs:text-sm font-medium truncate">Pending Approvals</CardTitle>
+                <AlertCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-yellow-600 flex-shrink-0" />
+              </CardHeader>
+              <CardContent className="px-3 xs:px-4 sm:px-6">
+                <div className="text-lg xs:text-xl sm:text-2xl font-bold truncate">{stats.pendingApprovals}</div>
+                <p className="text-xs text-gray-600 truncate">Require review</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 xs:px-4 sm:px-6 pt-3 xs:pt-4 sm:pt-6">
+                <CardTitle className="text-xs xs:text-sm font-medium truncate">Active Employees</CardTitle>
+                <Users className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-purple-600 flex-shrink-0" />
+              </CardHeader>
+              <CardContent className="px-3 xs:px-4 sm:px-6">
+                <div className="text-lg xs:text-xl sm:text-2xl font-bold truncate">{stats.totalEmployees}</div>
+                <p className="text-xs text-gray-600 truncate">Team members</p>
+              </CardContent>
+            </Card>
           </div>
-        </CardHeader>
-        <CardContent>
-          {employeePayrollData.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="font-medium">No time entries found</p>
-              <p className="text-sm mt-1">No data matches your current filter</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {employeePayrollData.map((employee) => {
-                const isExpanded = expandedEmployees.has(employee.userId)
 
-                return (
-                  <Card key={employee.userId} className="border-2">
-                    <CardHeader
-                      className="pb-3 cursor-pointer hover:bg-gray-50 transition-colors"
-                      onClick={() => toggleEmployeeExpanded(employee.userId)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold">
-                            {employee.workerName.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <CardTitle className="text-base">{employee.workerName}</CardTitle>
-                              {isExpanded ? (
-                                <ChevronUp className="h-4 w-4 text-gray-500" />
-                              ) : (
-                                <ChevronDown className="h-4 w-4 text-gray-500" />
+          {/* Filters */}
+          <Card>
+            <CardContent className="pt-4 xs:pt-5 sm:pt-6 px-4 xs:px-5 sm:px-6">
+              <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-3">
+                <div className="flex items-center gap-1.5 xs:gap-2 flex-shrink-0">
+                  <Filter className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-500 flex-shrink-0" />
+                  <span className="text-xs xs:text-sm font-medium text-gray-700">Filter:</span>
+                </div>
+                <div className="flex gap-1.5 xs:gap-2 flex-wrap">
+                  <Button
+                    variant={filterStatus === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFilterStatus('all')}
+                    className="h-8 xs:h-9 text-xs xs:text-sm"
+                  >
+                    All Entries
+                  </Button>
+                  <Button
+                    variant={filterStatus === 'pending' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFilterStatus('pending')}
+                    className="h-8 xs:h-9 text-xs xs:text-sm"
+                  >
+                    Pending ({timeEntries.filter(e => e.status === 'pending' || e.status === 'clocked_out').length})
+                  </Button>
+                  <Button
+                    variant={filterStatus === 'approved' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFilterStatus('approved')}
+                    className="h-8 xs:h-9 text-xs xs:text-sm"
+                  >
+                    Approved ({timeEntries.filter(e => e.status === 'approved').length})
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Alert for Pending Items */}
+          {stats.pendingApprovals > 0 && (
+            <Alert className="border-yellow-200 bg-yellow-50">
+              <AlertCircle className="h-4 w-4 text-yellow-600 flex-shrink-0" />
+              <AlertDescription className="text-yellow-800 text-xs xs:text-sm leading-snug">
+                You have <strong>{stats.pendingApprovals} time entries</strong> waiting for approval. Review and approve them to process payroll.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Employee Payroll Table */}
+          <Card>
+            <CardHeader className="px-4 xs:px-5 sm:px-6">
+              <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-3 xs:gap-4">
+                <div className="min-w-0 flex-1">
+                  <CardTitle className="text-base xs:text-lg truncate">Employee Payroll Summary</CardTitle>
+                  <CardDescription className="text-xs xs:text-sm leading-snug xs:leading-normal">
+                    Click on employee cards to expand and view individual entries
+                  </CardDescription>
+                </div>
+                <div className="flex gap-1.5 xs:gap-2 flex-shrink-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={expandAll}
+                    className="h-8 xs:h-9 text-xs xs:text-sm flex-1 xs:flex-none"
+                  >
+                    <span className="hidden xs:inline">Expand All</span>
+                    <span className="xs:hidden">Expand</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={collapseAll}
+                    className="h-8 xs:h-9 text-xs xs:text-sm flex-1 xs:flex-none"
+                  >
+                    <span className="hidden xs:inline">Collapse All</span>
+                    <span className="xs:hidden">Collapse</span>
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="px-4 xs:px-5 sm:px-6">
+              {employeePayrollData.length === 0 ? (
+                <div className="text-center py-8 xs:py-10 sm:py-12 text-gray-500">
+                  <Users className="h-10 w-10 xs:h-12 xs:w-12 mx-auto mb-2 xs:mb-3 opacity-50 flex-shrink-0" />
+                  <p className="font-medium text-sm xs:text-base">No time entries found</p>
+                  <p className="text-xs xs:text-sm mt-0.5 xs:mt-1">No data matches your current filter</p>
+                </div>
+              ) : (
+                <div className="space-y-3 xs:space-y-4">
+                  {employeePayrollData.map((employee) => {
+                    const isExpanded = expandedEmployees.has(employee.userId)
+
+                    return (
+                      <Card key={employee.userId} className="border-2">
+                        <CardHeader
+                          className="pb-3 cursor-pointer hover:bg-gray-50 transition-colors px-3 xs:px-4 sm:px-6 pt-3 xs:pt-4 sm:pt-6"
+                          onClick={() => toggleEmployeeExpanded(employee.userId)}
+                        >
+                          <div className="flex flex-col xs:flex-row xs:items-center gap-3 xs:gap-0 xs:justify-between">
+                            <div className="flex items-center gap-2 xs:gap-3 min-w-0 flex-1">
+                              <div className="w-9 h-9 xs:w-10 xs:h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold text-sm xs:text-base flex-shrink-0">
+                                {employee.workerName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 xs:gap-2">
+                                  <CardTitle className="text-sm xs:text-base truncate">{employee.workerName}</CardTitle>
+                                  {isExpanded ? (
+                                    <ChevronUp className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-500 flex-shrink-0" />
+                                  ) : (
+                                    <ChevronDown className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-500 flex-shrink-0" />
+                                  )}
+                                </div>
+                                <p className="text-xs xs:text-sm text-gray-600 truncate">
+                                  {employee.entries.length} {employee.entries.length === 1 ? 'entry' : 'entries'}
+                                </p>
+                                {employee.workerEmail && (
+                                  <p className="text-xs text-gray-500 mt-0.5 truncate">
+                                    {employee.workerEmail}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 xs:gap-4 flex-shrink-0">
+                              <div className="text-right">
+                                <p className="text-xl xs:text-2xl font-bold text-green-700">
+                                  ${employee.totalPay.toFixed(2)}
+                                </p>
+                                <p className="text-xs text-gray-600">
+                                  {employee.totalHours.toFixed(1)}h total
+                                </p>
+                              </div>
+                              {employee.pendingCount > 0 && (
+                                <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-300 text-xs whitespace-nowrap">
+                                  {employee.pendingCount} Pending
+                                </Badge>
                               )}
                             </div>
-                            <p className="text-sm text-gray-600">
-                              {employee.entries.length} {employee.entries.length === 1 ? 'entry' : 'entries'}
-                            </p>
-                            {employee.workerEmail && (
-                              <p className="text-xs text-gray-500 mt-0.5">
-                                {employee.workerEmail}
-                              </p>
-                            )}
                           </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-2xl font-bold text-green-700">
-                              ${employee.totalPay.toFixed(2)}
-                            </p>
-                            <p className="text-xs text-gray-600">
-                              {employee.totalHours.toFixed(1)}h total
-                            </p>
-                          </div>
-                          {employee.pendingCount > 0 && (
-                            <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-300">
-                              {employee.pendingCount} Pending
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
+                        </CardHeader>
 
-                    {isExpanded && (
-                      <div className="animate-in slide-in-from-top-2 duration-300">
-                        <CardContent>
-                          {/* Hours Breakdown */}
-                          <div className="grid grid-cols-3 gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
-                            <div>
-                              <p className="text-xs text-gray-600">Regular</p>
-                              <p className="text-sm font-semibold">
-                                {employee.regularHours.toFixed(1)}h
-                              </p>
-                            </div>
-                            {employee.overtimeHours > 0 && (
-                              <div>
-                                <p className="text-xs text-yellow-700">Overtime</p>
-                                <p className="text-sm font-semibold text-yellow-800">
-                                  {employee.overtimeHours.toFixed(1)}h
-                                </p>
+                        {isExpanded && (
+                          <div className="animate-in slide-in-from-top-2 duration-300">
+                            <CardContent className="px-3 xs:px-4 sm:px-6">
+                              {/* Hours Breakdown */}
+                              <div className="grid grid-cols-3 gap-2 xs:gap-3 sm:gap-4 mb-3 xs:mb-4 p-2.5 xs:p-3 bg-gray-50 rounded-lg">
+                                <div>
+                                  <p className="text-xs text-gray-600">Regular</p>
+                                  <p className="text-xs xs:text-sm font-semibold">
+                                    {employee.regularHours.toFixed(1)}h
+                                  </p>
+                                </div>
+                                {employee.overtimeHours > 0 && (
+                                  <div>
+                                    <p className="text-xs text-yellow-700">Overtime</p>
+                                    <p className="text-xs xs:text-sm font-semibold text-yellow-800">
+                                      {employee.overtimeHours.toFixed(1)}h
+                                    </p>
+                                  </div>
+                                )}
+                                {employee.doubleTimeHours > 0 && (
+                                  <div>
+                                    <p className="text-xs text-red-700">Double Time</p>
+                                    <p className="text-xs xs:text-sm font-semibold text-red-800">
+                                      {employee.doubleTimeHours.toFixed(1)}h
+                                    </p>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                            {employee.doubleTimeHours > 0 && (
-                              <div>
-                                <p className="text-xs text-red-700">Double Time</p>
-                                <p className="text-sm font-semibold text-red-800">
-                                  {employee.doubleTimeHours.toFixed(1)}h
-                                </p>
-                              </div>
-                            )}
-                          </div>
 
-                          {/* Individual Entries Table */}
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                              <thead className="border-b bg-gray-50">
-                                <tr>
-                                  <th className="text-left p-2 font-medium">Date</th>
-                                  <th className="text-left p-2 font-medium">Project</th>
-                                  <th className="text-left p-2 font-medium">Hours</th>
-                                  <th className="text-left p-2 font-medium">Amount</th>
-                                  <th className="text-left p-2 font-medium">Status</th>
-                                  <th className="text-center p-2 font-medium">Actions</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {employee.entries.map((entry) => (
-                                  <tr key={entry.id} className="border-b hover:bg-gray-50">
-                                    <td className="p-2">{formatDate(entry.date)}</td>
-                                    <td className="p-2">
-                                      <div className="text-sm">
-                                        {(entry as any).project?.name || 'Unknown'}
-                                      </div>
-                                    </td>
-                                    <td className="p-2">
-                                      <div>
-                                        <p className="font-medium">{(entry.totalHours ?? 0).toFixed(1)}h</p>
-                                        {(entry.overtimeHours ?? 0) > 0 && (
-                                          <p className="text-xs text-yellow-600">
-                                            +{entry.overtimeHours!.toFixed(1)}h OT
+                              {/* Individual Entries Table */}
+                              <div className="overflow-x-auto -mx-3 xs:-mx-4 sm:-mx-6 px-3 xs:px-4 sm:px-6">
+                                <table className="w-full text-xs xs:text-sm">
+                                  <thead className="border-b bg-gray-50">
+                                    <tr>
+                                      <th className="text-left p-1.5 xs:p-2 font-medium whitespace-nowrap">Date</th>
+                                      <th className="text-left p-1.5 xs:p-2 font-medium whitespace-nowrap">Project</th>
+                                      <th className="text-left p-1.5 xs:p-2 font-medium whitespace-nowrap">Hours</th>
+                                      <th className="text-left p-1.5 xs:p-2 font-medium whitespace-nowrap">Amount</th>
+                                      <th className="text-left p-1.5 xs:p-2 font-medium whitespace-nowrap">Status</th>
+                                      <th className="text-center p-1.5 xs:p-2 font-medium whitespace-nowrap">Actions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {employee.entries.map((entry) => (
+                                      <tr key={entry.id} className="border-b hover:bg-gray-50">
+                                        <td className="p-1.5 xs:p-2 whitespace-nowrap">{formatDate(entry.date)}</td>
+                                        <td className="p-1.5 xs:p-2 min-w-[100px] xs:min-w-[120px]">
+                                          <div className="text-xs xs:text-sm truncate max-w-[90px] xs:max-w-[110px]">
+                                            {(entry as any).project?.name || 'Unknown'}
+                                          </div>
+                                        </td>
+                                        <td className="p-1.5 xs:p-2 whitespace-nowrap">
+                                          <div>
+                                            <p className="font-medium">{(entry.totalHours ?? 0).toFixed(1)}h</p>
+                                            {(entry.overtimeHours ?? 0) > 0 && (
+                                              <p className="text-xs text-yellow-600">
+                                                +{entry.overtimeHours!.toFixed(1)}h OT
+                                              </p>
+                                            )}
+                                          </div>
+                                        </td>
+                                        <td className="p-1.5 xs:p-2 whitespace-nowrap">
+                                          <p className="font-semibold text-green-700">
+                                            ${(entry.totalPay ?? 0).toFixed(2)}
                                           </p>
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td className="p-2">
-                                      <p className="font-semibold text-green-700">
-                                        ${(entry.totalPay ?? 0).toFixed(2)}
-                                      </p>
-                                    </td>
-                                    <td className="p-2">
-                                      <Badge
-                                        variant="outline"
-                                        className={
-                                          entry.status === 'approved'
-                                            ? 'bg-green-100 text-green-800 border-green-300'
-                                            : entry.status === 'rejected'
-                                              ? 'bg-red-100 text-red-800 border-red-300'
-                                              : 'bg-yellow-100 text-yellow-800 border-yellow-300'
-                                        }
-                                      >
-                                        {entry.status === 'clocked_out' ? 'Pending' : entry.status}
-                                      </Badge>
-                                    </td>
-                                    <td className="p-2">
-                                      <div className="flex items-center justify-center gap-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleViewDetails(entry)
-                                          }}
-                                        >
-                                          <Eye className="h-4 w-4" />
-                                        </Button>
-                                        {(entry.status === 'pending' || entry.status === 'clocked_out') && (
-                                          <>
+                                        </td>
+                                        <td className="p-1.5 xs:p-2 whitespace-nowrap">
+                                          <Badge
+                                            variant="outline"
+                                            className={cn(
+                                              "text-xs",
+                                              entry.status === 'approved'
+                                                ? 'bg-green-100 text-green-800 border-green-300'
+                                                : entry.status === 'rejected'
+                                                  ? 'bg-red-100 text-red-800 border-red-300'
+                                                  : 'bg-yellow-100 text-yellow-800 border-yellow-300'
+                                            )}
+                                          >
+                                            {entry.status === 'clocked_out' ? 'Pending' : entry.status}
+                                          </Badge>
+                                        </td>
+                                        <td className="p-1.5 xs:p-2">
+                                          <div className="flex items-center justify-center gap-0.5 xs:gap-1">
                                             <Button
                                               variant="ghost"
                                               size="sm"
-                                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
                                               onClick={(e) => {
                                                 e.stopPropagation()
-                                                handleApproveEntry(entry.id)
+                                                handleViewDetails(entry)
                                               }}
-                                              disabled={isApproving === entry.id}
+                                              className="h-7 xs:h-8 w-7 xs:w-8 p-0"
                                             >
-                                              {isApproving === entry.id ? (
-                                                <div className="h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
-                                              ) : (
-                                                <Check className="h-4 w-4" />
-                                              )}
+                                              <Eye className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
                                             </Button>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                              onClick={(e) => {
-                                                e.stopPropagation()
-                                                handleRejectEntry(entry.id)
-                                              }}
-                                              disabled={isRejecting === entry.id}
-                                            >
-                                              {isRejecting === entry.id ? (
-                                                <div className="h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                                              ) : (
-                                                <X className="h-4 w-4" />
-                                              )}
-                                            </Button>
-                                          </>
-                                        )}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                                            {(entry.status === 'pending' || entry.status === 'clocked_out') && (
+                                              <>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  className="text-green-600 hover:text-green-700 hover:bg-green-50 h-7 xs:h-8 w-7 xs:w-8 p-0"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    handleApproveEntry(entry.id)
+                                                  }}
+                                                  disabled={isApproving === entry.id}
+                                                >
+                                                  {isApproving === entry.id ? (
+                                                    <div className="h-3.5 w-3.5 xs:h-4 xs:w-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                                                  ) : (
+                                                    <Check className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
+                                                  )}
+                                                </Button>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 xs:h-8 w-7 xs:w-8 p-0"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    handleRejectEntry(entry.id)
+                                                  }}
+                                                  disabled={isRejecting === entry.id}
+                                                >
+                                                  {isRejecting === entry.id ? (
+                                                    <div className="h-3.5 w-3.5 xs:h-4 xs:w-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                                                  ) : (
+                                                    <X className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
+                                                  )}
+                                                </Button>
+                                              </>
+                                            )}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </CardContent>
                           </div>
-                        </CardContent>
-                      </div>
-                    )}
-                  </Card>
-                )
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                        )}
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Details Dialog */}
-      <TimeEntryDetailsDialog
-        isOpen={isDetailOpen}
-        onClose={() => {
-          setIsDetailOpen(false)
-          setSelectedEntry(null)
-        }}
-        entry={selectedEntry}
-      />
+          {/* Details Dialog */}
+          <TimeEntryDetailsDialog
+            isOpen={isDetailOpen}
+            onClose={() => {
+              setIsDetailOpen(false)
+              setSelectedEntry(null)
+            }}
+            entry={selectedEntry}
+          />
+        </div>
+      </div>
     </div>
   )
 }

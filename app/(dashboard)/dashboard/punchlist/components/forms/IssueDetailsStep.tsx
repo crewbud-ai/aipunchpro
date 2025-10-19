@@ -12,11 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { 
-    ISSUE_TYPE_OPTIONS, 
+import {
+    ISSUE_TYPE_OPTIONS,
     PUNCHLIST_PRIORITY_OPTIONS,
     type CreatePunchlistItemFormData,
-    type UpdatePunchlistItemFormData 
+    type UpdatePunchlistItemFormData
 } from "@/types/punchlist-items"
 
 // ==============================================
@@ -45,7 +45,7 @@ export const IssueDetailsStep = React.memo<IssueDetailsStepProps>(({
     updateFormData,
     clearFieldError,
 }: IssueDetailsStepProps) => {
-    
+
     // Dynamic labels based on mode
     const getLabel = (base: string) => {
         return mode === 'edit' ? `Update ${base}` : base
@@ -54,7 +54,7 @@ export const IssueDetailsStep = React.memo<IssueDetailsStepProps>(({
     // ==============================================
     // EVENT HANDLERS
     // ==============================================
-    
+
     const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value
         updateFormData('title', value)
@@ -81,10 +81,10 @@ export const IssueDetailsStep = React.memo<IssueDetailsStepProps>(({
     // RENDER
     // ==============================================
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 xs:space-y-5 sm:space-y-6">
             {/* Title */}
-            <div className="space-y-2">
-                <Label htmlFor="title" className="text-sm font-medium">
+            <div className="space-y-1.5 xs:space-y-2">
+                <Label htmlFor="title" className="text-sm xs:text-base font-medium">
                     {getLabel('Issue Title')} <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -92,24 +92,27 @@ export const IssueDetailsStep = React.memo<IssueDetailsStepProps>(({
                     placeholder="Brief description of the issue"
                     value={formData.title}
                     onChange={handleTitleChange}
-                    className={cn(errors.title && "border-red-500")}
+                    className={cn(
+                        "mt-1.5 xs:mt-2 text-sm xs:text-base h-10 xs:h-11",
+                        errors.title && "border-red-500"
+                    )}
                 />
                 {errors.title && (
-                    <Alert variant="destructive" className="py-2">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription className="text-sm">
+                    <Alert variant="destructive" className="py-1.5 xs:py-2 mt-1.5 xs:mt-2">
+                        <AlertCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
+                        <AlertDescription className="text-xs xs:text-sm">
                             {errors.title}
                         </AlertDescription>
                     </Alert>
                 )}
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 mt-1 xs:mt-1.5">
                     Enter a clear, concise title that describes the issue
                 </p>
             </div>
 
             {/* Description */}
-            <div className="space-y-2">
-                <Label htmlFor="description" className="text-sm font-medium">
+            <div className="space-y-1.5 xs:space-y-2">
+                <Label htmlFor="description" className="text-sm xs:text-base font-medium">
                     {getLabel('Description')}
                 </Label>
                 <Textarea
@@ -118,36 +121,46 @@ export const IssueDetailsStep = React.memo<IssueDetailsStepProps>(({
                     value={formData.description}
                     onChange={handleDescriptionChange}
                     rows={3}
-                    className={cn(errors.description && "border-red-500")}
+                    className={cn(
+                        "mt-1.5 xs:mt-2 text-sm xs:text-base",
+                        errors.description && "border-red-500"
+                    )}
                 />
                 {errors.description && (
-                    <Alert variant="destructive" className="py-2">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription className="text-sm">
+                    <Alert variant="destructive" className="py-1.5 xs:py-2 mt-1.5 xs:mt-2">
+                        <AlertCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
+                        <AlertDescription className="text-xs xs:text-sm">
                             {errors.description}
                         </AlertDescription>
                     </Alert>
                 )}
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 mt-1 xs:mt-1.5">
                     Optional: Add more context about what needs to be done
                 </p>
             </div>
 
-            {/* Issue Type and Priority Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Issue Type and Priority Row - Mobile Responsive */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 xs:gap-4 sm:gap-6">
                 {/* Issue Type */}
-                <div className="space-y-2">
-                    <Label htmlFor="issueType" className="text-sm font-medium">
+                <div className="space-y-1.5 xs:space-y-2">
+                    <Label htmlFor="issueType" className="text-sm xs:text-base font-medium">
                         {getLabel('Issue Type')} <span className="text-red-500">*</span>
                     </Label>
                     <Select value={formData.issueType} onValueChange={handleIssueTypeChange}>
-                        <SelectTrigger className={cn(errors.issueType && "border-red-500")}>
+                        <SelectTrigger className={cn(
+                            "mt-1.5 xs:mt-2 h-10 xs:h-11 text-sm xs:text-base",
+                            errors.issueType && "border-red-500"
+                        )}>
                             <SelectValue placeholder="Select issue type" />
                         </SelectTrigger>
                         <SelectContent>
                             {ISSUE_TYPE_OPTIONS.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                    <div className="flex items-center gap-2">
+                                <SelectItem
+                                    key={option.value}
+                                    value={option.value}
+                                    className="text-sm xs:text-base"
+                                >
+                                    <div className="flex items-center gap-1.5 xs:gap-2">
                                         <span>{option.label}</span>
                                         {option.description && (
                                             <span className="text-xs text-gray-500">
@@ -160,9 +173,9 @@ export const IssueDetailsStep = React.memo<IssueDetailsStepProps>(({
                         </SelectContent>
                     </Select>
                     {errors.issueType && (
-                        <Alert variant="destructive" className="py-2">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription className="text-sm">
+                        <Alert variant="destructive" className="py-1.5 xs:py-2 mt-1.5 xs:mt-2">
+                            <AlertCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
+                            <AlertDescription className="text-xs xs:text-sm">
                                 {errors.issueType}
                             </AlertDescription>
                         </Alert>
@@ -170,26 +183,33 @@ export const IssueDetailsStep = React.memo<IssueDetailsStepProps>(({
                 </div>
 
                 {/* Priority */}
-                <div className="space-y-2">
-                    <Label htmlFor="priority" className="text-sm font-medium">
+                <div className="space-y-1.5 xs:space-y-2">
+                    <Label htmlFor="priority" className="text-sm xs:text-base font-medium">
                         {getLabel('Priority')} <span className="text-red-500">*</span>
                     </Label>
                     <Select value={formData.priority} onValueChange={handlePriorityChange}>
-                        <SelectTrigger className={cn(errors.priority && "border-red-500")}>
-                            <SelectValue placeholder="Select priority" />
+                        <SelectTrigger className={cn(
+                            "mt-1.5 xs:mt-2 h-10 xs:h-11 text-sm xs:text-base",
+                            errors.priority && "border-red-500"
+                        )}>
+                            <SelectValue className="text-sm xs:text-base" placeholder="Select priority" />
                         </SelectTrigger>
                         <SelectContent>
                             {PUNCHLIST_PRIORITY_OPTIONS.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
+                                <SelectItem
+                                    key={option.value}
+                                    value={option.value}
+                                    className="block text-sm xs:text-base h-10 xs:h-11"
+                                >
                                     <span>{option.label}</span>
                                 </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
                     {errors.priority && (
-                        <Alert variant="destructive" className="py-2">
-                            <AlertCircle className="h-4 w-4" />
-                            <AlertDescription className="text-sm">
+                        <Alert variant="destructive" className="py-1.5 xs:py-2 mt-1.5 xs:mt-2">
+                            <AlertCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
+                            <AlertDescription className="text-xs xs:text-sm">
                                 {errors.priority}
                             </AlertDescription>
                         </Alert>

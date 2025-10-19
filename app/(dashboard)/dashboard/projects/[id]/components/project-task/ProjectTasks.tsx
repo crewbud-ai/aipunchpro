@@ -59,6 +59,7 @@ import { TaskCreateDialog } from "./TaskCreateDialog"
 import { TaskStatusUpdateDialog } from "./TaskStatusUpdateDialog"
 import { hasPermission } from "@/lib/permissions"
 import { MobileTaskCard } from "./MobileTaskCard"
+import { formatDateSmart, getPriorityConfig, getStatusConfig } from "@/utils/format-functions"
 
 // ==============================================
 // INTERFACES
@@ -80,78 +81,6 @@ interface TaskRowProps {
 // ==============================================
 // UTILITY FUNCTIONS
 // ==============================================
-const getStatusConfig = (status: string) => {
-    switch (status) {
-        case 'planned':
-            return {
-                label: 'Planned',
-                variant: 'secondary' as const,
-                color: 'text-blue-600 bg-blue-50 border-blue-200',
-                icon: Calendar,
-            }
-        case 'in_progress':
-            return {
-                label: 'In Progress',
-                variant: 'default' as const,
-                color: 'text-yellow-600 bg-yellow-50 border-yellow-200',
-                icon: Play,
-            }
-        case 'completed':
-            return {
-                label: 'Completed',
-                variant: 'default' as const,
-                color: 'text-green-600 bg-green-50 border-green-200',
-                icon: CheckCircle,
-            }
-        case 'delayed':
-            return {
-                label: 'Delayed',
-                variant: 'destructive' as const,
-                color: 'text-red-600 bg-red-50 border-red-200',
-                icon: AlertTriangle,
-            }
-        case 'cancelled':
-            return {
-                label: 'Cancelled',
-                variant: 'outline' as const,
-                color: 'text-gray-600 bg-gray-50 border-gray-200',
-                icon: XCircle,
-            }
-        default:
-            return {
-                label: 'Unknown',
-                variant: 'outline' as const,
-                color: 'text-gray-600 bg-gray-50 border-gray-200',
-                icon: Clock,
-            }
-    }
-}
-
-const getPriorityConfig = (priority: string) => {
-    switch (priority) {
-        case 'critical':
-            return { label: 'Critical', color: 'text-red-600', dotColor: 'bg-red-500' }
-        case 'high':
-            return { label: 'High', color: 'text-orange-600', dotColor: 'bg-orange-500' }
-        case 'medium':
-            return { label: 'Medium', color: 'text-yellow-600', dotColor: 'bg-yellow-500' }
-        case 'low':
-            return { label: 'Low', color: 'text-green-600', dotColor: 'bg-green-500' }
-        default:
-            return { label: 'Medium', color: 'text-gray-600', dotColor: 'bg-gray-500' }
-    }
-}
-
-const formatDateSmart = (dateString: string) => {
-    const date = new Date(dateString)
-
-    if (isToday(date)) return 'Today'
-    if (isTomorrow(date)) return 'Tomorrow'
-    if (isYesterday(date)) return 'Yesterday'
-
-    return format(date, 'MMM d, yyyy')
-}
-
 const getTaskProgress = (task: ScheduleProjectSummary) => {
     if (task.status === 'completed') return 100
     if (task.status === 'cancelled') return 0
@@ -223,7 +152,7 @@ const TaskRow: React.FC<TaskRowProps> = ({
             {/* Priority */}
             <TableCell>
                 <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${priorityConfig.dotColor}`} />
+                    <div className={`w-2 h-2 rounded-full ${priorityConfig.bgColor}`} />
                     <span className={`text-sm font-medium ${priorityConfig.color}`}>
                         {priorityConfig.label}
                     </span>

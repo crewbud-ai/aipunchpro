@@ -101,21 +101,24 @@ export function ExportPayrollButton({
         disabled={disabled || isExporting}
         variant={variant}
         size={size}
+        className="h-9 xs:h-10 text-sm xs:text-base"
       >
         {isExporting ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Exporting...
+            <Loader2 className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 animate-spin flex-shrink-0" />
+            <span className="hidden xs:inline">Exporting...</span>
+            <span className="xs:hidden">Export...</span>
           </>
         ) : exportSuccess ? (
           <>
-            <CheckCircle className="mr-2 h-4 w-4" />
-            Exported!
+            <CheckCircle className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 flex-shrink-0" />
+            <span>Exported!</span>
           </>
         ) : (
           <>
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
+            <Download className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 flex-shrink-0" />
+            <span className="hidden xs:inline">Export CSV</span>
+            <span className="xs:hidden">Export</span>
           </>
         )}
       </Button>
@@ -132,51 +135,57 @@ export function ExportPayrollButton({
           disabled={disabled || isExporting}
           variant={variant}
           size={size}
+          className="h-9 xs:h-10 text-sm xs:text-base"
         >
           {isExporting ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Exporting...
+              <Loader2 className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 animate-spin flex-shrink-0" />
+              <span className="hidden xs:inline">Exporting...</span>
+              <span className="xs:hidden">Export...</span>
             </>
           ) : exportSuccess ? (
             <>
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Exported!
+              <CheckCircle className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 flex-shrink-0" />
+              <span>Exported!</span>
             </>
           ) : (
             <>
-              <Download className="mr-2 h-4 w-4" />
-              Export Report
+              <Download className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 flex-shrink-0" />
+              <span className="hidden xs:inline">Export Report</span>
+              <span className="xs:hidden">Export</span>
             </>
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Export Format</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-48 xs:w-52">
+        <DropdownMenuLabel className="text-xs xs:text-sm">Export Format</DropdownMenuLabel>
         <DropdownMenuSeparator />
         
         <DropdownMenuItem
           onClick={() => handleExport('csv')}
           disabled={isExporting}
+          className="text-xs xs:text-sm"
         >
-          <FileSpreadsheet className="mr-2 h-4 w-4" />
-          CSV (Recommended)
+          <FileSpreadsheet className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 flex-shrink-0" />
+          <span>CSV (Recommended)</span>
         </DropdownMenuItem>
         
         <DropdownMenuItem
           onClick={() => handleExport('pdf')}
           disabled={isExporting}
+          className="text-xs xs:text-sm"
         >
-          <FileText className="mr-2 h-4 w-4" />
-          PDF (Coming Soon)
+          <FileText className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 flex-shrink-0" />
+          <span>PDF (Coming Soon)</span>
         </DropdownMenuItem>
         
         <DropdownMenuItem
           onClick={() => handleExport('excel')}
           disabled={true}
+          className="text-xs xs:text-sm"
         >
-          <FileSpreadsheet className="mr-2 h-4 w-4" />
-          Excel (Coming Soon)
+          <FileSpreadsheet className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 flex-shrink-0" />
+          <span>Excel (Coming Soon)</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

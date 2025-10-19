@@ -152,7 +152,7 @@ export function ProjectReports({ projectId, projectName, projectStatus }: Projec
                   onClick={() => handleQuickExport('this-week')}
                   disabled={isExporting}
                   variant="outline"
-                  className="h-auto py-3 sm:py-4 flex-col items-start"
+                  className="!h-auto py-3 sm:py-4 flex-col items-start"
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -167,7 +167,7 @@ export function ProjectReports({ projectId, projectName, projectStatus }: Projec
                   onClick={() => handleQuickExport('this-month')}
                   disabled={isExporting}
                   variant="outline"
-                  className="h-auto py-3 sm:py-4 flex-col items-start"
+                  className="!h-auto py-3 sm:py-4 flex-col items-start"
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -182,7 +182,7 @@ export function ProjectReports({ projectId, projectName, projectStatus }: Projec
                   onClick={() => handleQuickExport('this-quarter')}
                   disabled={isExporting}
                   variant="outline"
-                  className="h-auto py-3 sm:py-4 flex-col items-start"
+                  className="!h-auto py-3 sm:py-4 flex-col items-start"
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -197,7 +197,7 @@ export function ProjectReports({ projectId, projectName, projectStatus }: Projec
                   onClick={() => handleQuickExport('all-time')}
                   disabled={isExporting}
                   variant="outline"
-                  className="h-auto py-3 sm:py-4 flex-col items-start"
+                  className="!h-auto py-3 sm:py-4 flex-col items-start"
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <Activity className="h-3 w-3 sm:h-4 sm:w-4" />

@@ -77,7 +77,7 @@ import { AddTeamMemberDialog } from "./components/team-member/AddTeamMemberDialo
 
 // ADDED: Import the notification component
 import { ProjectStartNotification } from "./components/notification/ProjectStartNotification"
-import { formatStatus, formatToUpperCase, getStatusColor } from "@/utils/format-functions"
+import { formatCurrency, formatDate, formatStatus, formatToUpperCase, getStatusColor } from "@/utils/format-functions"
 import { useScheduleProjects, useScheduleProjectStats } from "@/hooks/schedule-projects"
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -104,15 +104,11 @@ export default function ProjectPage() {
 
 
   // ADDED: Permission checks
-  const canEditProject = canUseFeature('editProject')
   const canDeleteProject = canUseFeature('deleteProject')
-  const canViewFinancials = hasPermission('financials', 'view')
   const canAddTeam = hasPermission('team', 'add')
   const canViewTasks = hasPermission('tasks', 'view')
   const canViewFiles = hasPermission('files', 'view')
-  const canViewFilesUpload = hasPermission('files', 'upload')
   const canViewReports = hasPermission('reports', 'view')
-  const canManageUsers = hasPermission('admin', 'manageUsers')
 
 
   const availableTabs = [
@@ -307,23 +303,6 @@ export default function ProjectPage() {
     }
   }
 
-  const formatCurrency = (amount?: number) => {
-    if (amount === undefined || amount === null) return '$0'
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount)
-  }
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'Not set'
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
-
   const handleDeleteProject = async () => {
     try {
       await deleteProject(projectId)
@@ -400,7 +379,7 @@ export default function ProjectPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-5xl">
 
         {/* Header - Mobile Responsive */}
         <div className="flex flex-col md:flex-row  xs:items-start xs:justify-between gap-3 xs:gap-4">

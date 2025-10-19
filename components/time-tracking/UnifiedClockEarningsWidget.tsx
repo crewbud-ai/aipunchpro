@@ -6,6 +6,7 @@ import { Clock, DollarSign, Play, Square, Timer, TrendingUp } from 'lucide-react
 import { useClockInOut, useClockSession } from '@/hooks/time-tracking'
 import { ProjectSelectionModal } from './ProjectSelectionModal'
 import { ClockOutModal } from './ClockOutModal'
+import { formatTime12Hour } from '@/utils/format-functions'
 
 // ==============================================
 // UNIFIED CLOCK & EARNINGS WIDGET
@@ -49,7 +50,7 @@ export function UnifiedClockEarningsWidget() {
 
     // Calculate total hours worked
     const totalHours = sessionDuration / 60 // Convert minutes to hours
-    
+
     // Get rates (with fallback to 0)
     const regularRate = (currentSession as any).regularRate || 0
     const overtimeRate = (currentSession as any).overtimeRate || regularRate * 1.5
@@ -67,21 +68,6 @@ export function UnifiedClockEarningsWidget() {
     setOvertimeHours(otHours)
     setCurrentEarnings(total)
   }, [hasActiveSession, currentSession, sessionDuration, currentTime])
-
-  // Format time duration
-  const formatDuration = (minutes: number): string => {
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-    const secs = Math.floor((Date.now() % 60000) / 1000)
-    
-    if (hours > 0) {
-      return `${hours}h ${mins}m ${secs}s`
-    } else if (mins > 0) {
-      return `${mins}m ${secs}s`
-    } else {
-      return `${secs}s`
-    }
-  }
 
   const handleClockInSuccess = () => {
     setShowClockIn(false)
@@ -104,16 +90,16 @@ export function UnifiedClockEarningsWidget() {
   return (
     <>
       <Card className={`${hasActiveSession ? statusBg : ''} ${hasActiveSession ? statusBorder : 'border-gray-200'} transition-colors`}>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Clock className="h-5 w-5" />
+        <CardHeader className="pb-2.5 xs:pb-3 p-4 xs:p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-sm xs:text-base flex items-center gap-1.5 xs:gap-2">
+              <Clock className="h-4 w-4 xs:h-5 xs:w-5 shrink-0" />
               Time Clock
             </CardTitle>
             {hasActiveSession && (
-              <Badge 
-                variant="outline" 
-                className={`${statusText} ${statusBg} ${statusBorder}`}
+              <Badge
+                variant="outline"
+                className={`${statusText} ${statusBg} ${statusBorder} text-xs shrink-0`}
               >
                 {hasOvertime ? '⚡ OVERTIME' : '● WORKING'}
               </Badge>
@@ -121,69 +107,69 @@ export function UnifiedClockEarningsWidget() {
           </div>
         </CardHeader>
 
-        <CardContent className="space-y-4">
-          {/* CLOCKED OUT STATE */}
+        <CardContent className="space-y-3 xs:space-y-4 p-4 xs:p-5 sm:p-6 pt-0">
+          {/* CLOCKED OUT STATE - Mobile Responsive */}
           {!hasActiveSession && (
-            <div className="text-center py-8">
-              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                <Timer className="h-8 w-8 text-gray-400" />
+            <div className="text-center py-6 xs:py-8">
+              <div className="w-14 h-14 xs:w-16 xs:h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3 xs:mb-4">
+                <Timer className="h-7 w-7 xs:h-8 xs:w-8 text-gray-400" />
               </div>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-xs xs:text-sm text-gray-600 mb-3 xs:mb-4 leading-snug">
                 Ready to start working?
               </p>
-              <Button 
+              <Button
                 onClick={() => setShowClockIn(true)}
-                className="w-full bg-green-600 hover:bg-green-700"
+                className="w-full bg-green-600 hover:bg-green-700 h-9 xs:h-10 text-sm xs:text-base"
                 disabled={isLoading}
               >
-                <Play className="mr-2 h-4 w-4" />
+                <Play className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4" />
                 Clock In
               </Button>
             </div>
           )}
 
-          {/* CLOCKED IN STATE */}
+          {/* CLOCKED IN STATE - Mobile Responsive */}
           {hasActiveSession && currentSession && (
-            <div className="space-y-4">
+            <div className="space-y-3 xs:space-y-4">
               {/* Project Info */}
-              <div className="p-3 bg-white rounded-lg border border-gray-200">
-                <p className="text-xs text-gray-500 mb-1">Working on</p>
-                <p className="font-semibold text-gray-900">
+              <div className="p-2.5 xs:p-3 bg-white rounded-lg border border-gray-200">
+                <p className="text-xs text-gray-500 mb-0.5 xs:mb-1">Working on</p>
+                <p className="font-semibold text-sm xs:text-base text-gray-900 leading-snug">
                   {(currentSession as any).projectName || 'Unknown Project'}
                 </p>
                 {(currentSession as any).scheduleProjectTitle && (
-                  <p className="text-xs text-gray-600 mt-1">
+                  <p className="text-xs text-gray-600 mt-1 leading-snug">
                     → {(currentSession as any).scheduleProjectTitle}
                   </p>
                 )}
               </div>
 
               {/* Time Worked */}
-              <div className="p-3 bg-white rounded-lg border border-gray-200">
-                <div className="flex items-center justify-between mb-2">
+              <div className="p-2.5 xs:p-3 bg-white rounded-lg border border-gray-200">
+                <div className="flex items-center justify-between mb-1.5 xs:mb-2">
                   <span className="text-xs text-gray-500">Time Worked</span>
-                  <Clock className="h-4 w-4 text-blue-600" />
+                  <Clock className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-blue-600 shrink-0" />
                 </div>
-                <p className="text-2xl font-bold text-gray-900 font-mono">
-                  {formatDuration(sessionDuration)}
+                <p className="text-xl xs:text-2xl font-bold text-gray-900 font-mono">
+                  {formatTime12Hour(sessionDuration.toString())}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-0.5 xs:mt-1">
                   {(sessionDuration / 60).toFixed(2)} hours
                 </p>
               </div>
 
               {/* Earnings */}
-              <div className="p-4 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border-2 border-green-300">
-                <div className="flex items-center justify-between mb-2">
+              <div className="p-3 xs:p-4 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border-2 border-green-300">
+                <div className="flex items-center justify-between mb-1.5 xs:mb-2">
                   <span className="text-xs text-gray-700">Earned So Far</span>
-                  <DollarSign className="h-4 w-4 text-green-700" />
+                  <DollarSign className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-green-700 shrink-0" />
                 </div>
-                <p className="text-3xl font-bold text-green-700">
+                <p className="text-2xl xs:text-3xl font-bold text-green-700">
                   ${currentEarnings.toFixed(2)}
                 </p>
-                
+
                 {/* Breakdown */}
-                <div className="mt-3 pt-3 border-t border-green-300 space-y-1">
+                <div className="mt-2.5 xs:mt-3 pt-2.5 xs:pt-3 border-t border-green-300 space-y-1">
                   <div className="flex justify-between text-xs text-gray-700">
                     <span>Regular: {regularHours.toFixed(2)}h</span>
                     <span className="font-semibold">
@@ -200,19 +186,19 @@ export function UnifiedClockEarningsWidget() {
                   )}
                 </div>
 
-                <p className="text-xs text-gray-600 mt-2 text-center">
+                <p className="text-xs text-gray-600 mt-1.5 xs:mt-2 text-center leading-snug">
                   💡 Pending approval
                 </p>
               </div>
 
               {/* Clock Out Button */}
-              <Button 
+              <Button
                 onClick={() => setShowClockOut(true)}
                 variant="destructive"
-                className="w-full"
+                className="w-full h-9 xs:h-10 text-sm xs:text-base"
                 disabled={isLoading}
               >
-                <Square className="mr-2 h-4 w-4" />
+                <Square className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4" />
                 Clock Out
               </Button>
             </div>
@@ -221,15 +207,15 @@ export function UnifiedClockEarningsWidget() {
       </Card>
 
       {/* Use Existing Dialogs */}
-      <ProjectSelectionModal 
+      <ProjectSelectionModal
         isOpen={showClockIn}
         onClose={() => setShowClockIn(false)}
         onSuccess={handleClockInSuccess}
         projects={projects} // Will be loaded by the modal itself via useClockInOut hook
         isLoading={isClockingIn}
       />
-      
-      <ClockOutModal 
+
+      <ClockOutModal
         isOpen={showClockOut}
         onClose={() => setShowClockOut(false)}
         onSuccess={handleClockOutSuccess}

@@ -39,22 +39,22 @@ export function EarningsSummaryCards() {
     const fetchEarnings = async () => {
       try {
         setIsLoading(true)
-        
+
         // Fetch time entries
         const response = await fetch('/api/time-entries')
         if (!response.ok) throw new Error('Failed to fetch')
-        
+
         const result = await response.json()
         const timeEntries = result.data?.timeEntries || []
 
         // Get date ranges
         const now = new Date()
         const today = now.toISOString().split('T')[0]
-        
+
         const startOfWeek = new Date(now)
         startOfWeek.setDate(now.getDate() - now.getDay())
         const weekStart = startOfWeek.toISOString().split('T')[0]
-        
+
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
         const monthStart = startOfMonth.toISOString().split('T')[0]
 
@@ -67,11 +67,11 @@ export function EarningsSummaryCards() {
           const approved = entries
             .filter((e: any) => e.status === 'approved')
             .reduce((sum: number, e: any) => sum + (parseFloat(e.totalPay) || 0), 0)
-          
+
           const pending = entries
             .filter((e: any) => e.status === 'pending' || e.status === 'clocked_out')
             .reduce((sum: number, e: any) => sum + (parseFloat(e.totalPay) || 0), 0)
-          
+
           return {
             total: approved + pending,
             approved,
@@ -92,7 +92,7 @@ export function EarningsSummaryCards() {
     }
 
     fetchEarnings()
-    
+
     // Refresh every 5 minutes
     const interval = setInterval(fetchEarnings, 5 * 60 * 1000)
     return () => clearInterval(interval)
@@ -100,15 +100,15 @@ export function EarningsSummaryCards() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
         {[1, 2, 3].map((i) => (
           <Card key={i} className="animate-pulse">
-            <CardHeader className="pb-2">
-              <div className="h-4 bg-gray-200 rounded w-20"></div>
+            <CardHeader className="pb-1.5 xs:pb-2 p-4 xs:p-5 sm:p-6">
+              <div className="h-3.5 xs:h-4 bg-gray-200 rounded w-16 xs:w-20"></div>
             </CardHeader>
-            <CardContent>
-              <div className="h-8 bg-gray-200 rounded w-24 mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-32"></div>
+            <CardContent className="p-4 xs:p-5 sm:p-6 pt-0">
+              <div className="h-7 xs:h-8 bg-gray-200 rounded w-20 xs:w-24 mb-1.5 xs:mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-28 xs:w-32"></div>
             </CardContent>
           </Card>
         ))}
@@ -117,26 +117,26 @@ export function EarningsSummaryCards() {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
-      {/* Today's Earnings */}
+    <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+      {/* Today's Earnings - Mobile Responsive */}
       <Card className="border-blue-200 bg-blue-50">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium text-gray-700">
+        <CardHeader className="pb-1.5 xs:pb-2 p-4 xs:p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-xs xs:text-sm font-medium text-gray-700">
               Today's Earnings
             </CardTitle>
-            <DollarSign className="h-4 w-4 text-blue-600" />
+            <DollarSign className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-blue-600 shrink-0" />
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-gray-900">
+        <CardContent className="p-4 xs:p-5 sm:p-6 pt-0">
+          <div className="text-xl xs:text-2xl font-bold text-gray-900">
             ${earnings.today.total.toFixed(2)}
           </div>
-          <div className="mt-2 space-y-1">
+          <div className="mt-1.5 xs:mt-2 space-y-1">
             {earnings.today.approved > 0 && (
               <div className="flex items-center justify-between text-xs">
                 <span className="text-green-700 flex items-center gap-1">
-                  <CheckCircle className="h-3 w-3" />
+                  <CheckCircle className="h-3 w-3 shrink-0" />
                   Approved
                 </span>
                 <span className="font-semibold text-green-700">
@@ -156,21 +156,21 @@ export function EarningsSummaryCards() {
         </CardContent>
       </Card>
 
-      {/* This Week's Earnings */}
+      {/* This Week's Earnings - Mobile Responsive */}
       <Card className="border-purple-200 bg-purple-50">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium text-gray-700">
+        <CardHeader className="pb-1.5 xs:pb-2 p-4 xs:p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-xs xs:text-sm font-medium text-gray-700">
               This Week
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-purple-600" />
+            <TrendingUp className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-purple-600 shrink-0" />
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-gray-900">
+        <CardContent className="p-4 xs:p-5 sm:p-6 pt-0">
+          <div className="text-xl xs:text-2xl font-bold text-gray-900">
             ${earnings.thisWeek.approved.toFixed(2)}
           </div>
-          <div className="mt-2">
+          <div className="mt-1.5 xs:mt-2">
             {earnings.thisWeek.pending > 0 && (
               <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300">
                 ${earnings.thisWeek.pending.toFixed(2)} pending
@@ -183,21 +183,21 @@ export function EarningsSummaryCards() {
         </CardContent>
       </Card>
 
-      {/* This Month's Earnings */}
+      {/* This Month's Earnings - Mobile Responsive */}
       <Card className="border-green-200 bg-green-50">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium text-gray-700">
+        <CardHeader className="pb-1.5 xs:pb-2 p-4 xs:p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-xs xs:text-sm font-medium text-gray-700">
               This Month
             </CardTitle>
-            <Calendar className="h-4 w-4 text-green-600" />
+            <Calendar className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-green-600 shrink-0" />
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-gray-900">
+        <CardContent className="p-4 xs:p-5 sm:p-6 pt-0">
+          <div className="text-xl xs:text-2xl font-bold text-gray-900">
             ${earnings.thisMonth.approved.toFixed(2)}
           </div>
-          <div className="mt-2">
+          <div className="mt-1.5 xs:mt-2">
             {earnings.thisMonth.pending > 0 && (
               <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-300">
                 ${earnings.thisMonth.pending.toFixed(2)} pending

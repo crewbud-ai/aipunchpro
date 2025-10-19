@@ -209,49 +209,49 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
     // RENDER FORM SUMMARY
     // ==============================================
     const renderFormSummary = () => (
-        <div className="space-y-4">
-            <Label className="text-lg font-semibold">Review Your Punchlist Item</Label>
+        <div className="space-y-3 xs:space-y-4">
+            <Label className="text-base xs:text-lg font-semibold">Review Your Punchlist Item</Label>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 xs:gap-4 p-3 xs:p-4 bg-gray-50 rounded-lg">
                 <div>
-                    <Label className="text-sm font-medium text-gray-600">Title</Label>
-                    <p className="text-sm">{formData.title || 'Not specified'}</p>
+                    <Label className="text-xs xs:text-sm font-medium text-gray-600">Title</Label>
+                    <p className="text-xs xs:text-sm mt-0.5 xs:mt-1">{formData.title || 'Not specified'}</p>
                 </div>
 
                 <div>
-                    <Label className="text-sm font-medium text-gray-600">Issue Type</Label>
-                    <p className="text-sm">{formData.issueType || 'Not specified'}</p>
+                    <Label className="text-xs xs:text-sm font-medium text-gray-600">Issue Type</Label>
+                    <p className="text-xs xs:text-sm mt-0.5 xs:mt-1">{formData.issueType || 'Not specified'}</p>
                 </div>
 
                 <div>
-                    <Label className="text-sm font-medium text-gray-600">Priority</Label>
-                    <p className="text-sm">{formData.priority || 'Not specified'}</p>
+                    <Label className="text-xs xs:text-sm font-medium text-gray-600">Priority</Label>
+                    <p className="text-xs xs:text-sm mt-0.5 xs:mt-1">{formData.priority || 'Not specified'}</p>
                 </div>
 
                 <div>
-                    <Label className="text-sm font-medium text-gray-600">Location</Label>
-                    <p className="text-sm">{formData.location || 'Not specified'}</p>
+                    <Label className="text-xs xs:text-sm font-medium text-gray-600">Location</Label>
+                    <p className="text-xs xs:text-sm mt-0.5 xs:mt-1">{formData.location || 'Not specified'}</p>
                 </div>
 
                 {formData.roomArea && (
                     <div>
-                        <Label className="text-sm font-medium text-gray-600">Room/Area</Label>
-                        <p className="text-sm">{formData.roomArea}</p>
+                        <Label className="text-xs xs:text-sm font-medium text-gray-600">Room/Area</Label>
+                        <p className="text-xs xs:text-sm mt-0.5 xs:mt-1">{formData.roomArea}</p>
                     </div>
                 )}
 
                 {formData.dueDate && (
                     <div>
-                        <Label className="text-sm font-medium text-gray-600">Due Date</Label>
-                        <p className="text-sm">{formData.dueDate}</p>
+                        <Label className="text-xs xs:text-sm font-medium text-gray-600">Due Date</Label>
+                        <p className="text-xs xs:text-sm mt-0.5 xs:mt-1">{formData.dueDate}</p>
                     </div>
                 )}
             </div>
 
             {formData.resolutionNotes && (
                 <div>
-                    <Label className="text-sm font-medium text-gray-600">Resolution Notes</Label>
-                    <p className="text-sm p-3 bg-gray-50 rounded border">
+                    <Label className="text-xs xs:text-sm font-medium text-gray-600">Resolution Notes</Label>
+                    <p className="text-xs xs:text-sm p-2 xs:p-3 bg-gray-50 rounded border mt-1 xs:mt-1.5">
                         {formData.resolutionNotes}
                     </p>
                 </div>
@@ -263,19 +263,20 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
     // RENDER DROP ZONE
     // ==============================================
     const renderDropZone = () => (
-        <div className="space-y-4">
-            {/* Upload Type Selector */}
-            <div className="flex items-center gap-4">
-                <Label className="text-sm font-medium">Upload Type:</Label>
-                <div className="flex gap-2">
+        <div className="space-y-3 xs:space-y-4">
+            {/* Upload Type Selector - Mobile Responsive */}
+            <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-4">
+                <Label className="text-sm xs:text-base font-medium">Upload Type:</Label>
+                <div className="flex gap-1.5 xs:gap-2">
                     <Button
                         type="button"
                         variant={uploadType === 'photos' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => setUploadType('photos')}
                         disabled={isUploadingFiles}
+                        className="flex-1 xs:flex-none h-9 xs:h-10 text-xs xs:text-sm"
                     >
-                        <Camera className="mr-2 h-4 w-4" />
+                        <Camera className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
                         Photos
                     </Button>
                     <Button
@@ -284,17 +285,18 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
                         size="sm"
                         onClick={() => setUploadType('attachments')}
                         disabled={isUploadingFiles}
+                        className="flex-1 xs:flex-none h-9 xs:h-10 text-xs xs:text-sm"
                     >
-                        <Paperclip className="mr-2 h-4 w-4" />
+                        <Paperclip className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
                         Attachments
                     </Button>
                 </div>
             </div>
 
-            {/* Universal Drop Zone */}
+            {/* Universal Drop Zone - Mobile Responsive */}
             <div
                 className={cn(
-                    "border-2 border-dashed rounded-lg p-8 text-center transition-all",
+                    "border-2 border-dashed rounded-lg p-4 xs:p-6 sm:p-8 text-center transition-all",
                     dragActive
                         ? "border-blue-500 bg-blue-50"
                         : "border-gray-300 hover:border-gray-400",
@@ -306,21 +308,21 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
             >
                 {uploadType === 'photos' ? (
                     <>
-                        <Camera className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        <Camera className="mx-auto h-8 w-8 xs:h-10 xs:w-10 sm:h-12 sm:w-12 text-gray-400 mb-2 xs:mb-3 sm:mb-4" />
+                        <h3 className="text-sm xs:text-base sm:text-lg font-medium text-gray-900 mb-1 xs:mb-1.5 sm:mb-2">
                             Add Photos to Document the Issue
                         </h3>
-                        <p className="text-gray-600 mb-4">
+                        <p className="text-xs xs:text-sm text-gray-600 mb-2 xs:mb-3 sm:mb-4 px-2">
                             Drag and drop image files here, or click to select
                         </p>
                     </>
                 ) : (
                     <>
-                        <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        <FileText className="mx-auto h-8 w-8 xs:h-10 xs:w-10 sm:h-12 sm:w-12 text-gray-400 mb-2 xs:mb-3 sm:mb-4" />
+                        <h3 className="text-sm xs:text-base sm:text-lg font-medium text-gray-900 mb-1 xs:mb-1.5 sm:mb-2">
                             Add Supporting Documents
                         </h3>
-                        <p className="text-gray-600 mb-4">
+                        <p className="text-xs xs:text-sm text-gray-600 mb-2 xs:mb-3 sm:mb-4 px-2">
                             Drag and drop any files here, or click to select
                         </p>
                     </>
@@ -338,14 +340,14 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
                 <label
                     htmlFor="file-upload"
                     className={cn(
-                        "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer",
+                        "inline-flex items-center px-3 xs:px-4 py-1.5 xs:py-2 border border-gray-300 rounded-md shadow-sm text-xs xs:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer",
                         isUploadingFiles && "cursor-not-allowed opacity-50"
                     )}
                 >
-                    <Upload className="mr-2 h-4 w-4" />
+                    <Upload className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
                     Select {uploadType === 'photos' ? 'Photos' : 'Files'}
                 </label>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-gray-500 mt-1.5 xs:mt-2 px-2">
                     {uploadType === 'photos'
                         ? 'Supports: JPG, PNG, GIF, WebP (Max 10MB per file)'
                         : 'Supports: All file types (Max 10MB per file)'
@@ -368,9 +370,9 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
         if (relevantFiles.length === 0) return null
 
         return (
-            <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">
+            <div className="space-y-2 xs:space-y-3">
+                <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 xs:gap-4">
+                    <Label className="text-sm xs:text-base font-medium">
                         {uploadType === 'photos' ? 'Photos' : 'Files'} Ready to Upload ({relevantFiles.length})
                     </Label>
                     <Button
@@ -378,16 +380,16 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
                         onClick={handleUploadPendingFiles}
                         disabled={isUploadingFiles}
                         size="sm"
-                        className="bg-orange-600 hover:bg-orange-700"
+                        className="bg-orange-600 hover:bg-orange-700 w-full xs:w-auto h-9 xs:h-10 text-xs xs:text-sm"
                     >
                         {isUploadingFiles ? (
                             <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <Loader2 className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 animate-spin shrink-0" />
                                 Uploading...
                             </>
                         ) : (
                             <>
-                                <Upload className="mr-2 h-4 w-4" />
+                                <Upload className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
                                 Upload All
                             </>
                         )}
@@ -395,13 +397,13 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
                 </div>
 
                 {isUploadingFiles && (
-                    <div className="space-y-2">
+                    <div className="space-y-1.5 xs:space-y-2">
                         <Progress value={uploadProgress} className="w-full" />
-                        <p className="text-sm text-gray-600">Uploading files... {uploadProgress}%</p>
+                        <p className="text-xs xs:text-sm text-gray-600">Uploading files... {uploadProgress}%</p>
                     </div>
                 )}
 
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-2 xs:gap-3 sm:gap-4">
                     {relevantFiles.map((file, index) => {
                         const globalIndex = pendingFiles.indexOf(file)
                         return (
@@ -416,9 +418,9 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
                                             className="w-full h-full object-cover"
                                         />
                                     ) : (
-                                        <div className="text-center p-4">
-                                            <FileText className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                                            <p className="text-xs text-gray-600 truncate">{file.name}</p>
+                                        <div className="text-center p-2 xs:p-3 sm:p-4">
+                                            <FileText className="h-6 w-6 xs:h-7 xs:w-7 sm:h-8 sm:w-8 text-gray-400 mx-auto mb-1 xs:mb-1.5 sm:mb-2" />
+                                            <p className="text-xs text-gray-600 truncate px-1">{file.name}</p>
                                         </div>
                                     )}
                                 </div>
@@ -426,15 +428,14 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
                                     type="button"
                                     variant="destructive"
                                     size="sm"
-                                    className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    // ✅ FIXED: Use handleRemovePendingFile instead of handleRemoveUploadedAttachment
+                                    className="absolute  top-1 xs:top-1.5 sm:top-2 right-1 xs:right-1.5 sm:right-2 !h-5 !w-5 xs:!h-6 xs:!w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                                     onClick={() => handleRemovePendingFile(globalIndex)}
                                     disabled={isUploadingFiles}
                                 >
-                                    <X className="h-3 w-3" />
+                                    <X className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                                 </Button>
                                 {!file.type.startsWith('image/') && (
-                                    <div className="absolute bottom-1 left-1 right-1">
+                                    <div className="absolute bottom-0.5 xs:bottom-1 left-0.5 xs:left-1 right-0.5 xs:right-1">
                                         <p className="text-xs text-white bg-black bg-opacity-60 px-1 py-0.5 rounded truncate">
                                             {file.name}
                                         </p>
@@ -455,9 +456,11 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
         if (!formData.photos || formData.photos.length === 0) return null
 
         return (
-            <div className="space-y-3">
-                <Label className="text-sm font-medium">Uploaded Photos ({formData.photos.length})</Label>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="space-y-2 xs:space-y-3">
+                <Label className="text-sm xs:text-base font-medium">
+                    Uploaded Photos ({formData.photos.length})
+                </Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-2 xs:gap-3 sm:gap-4">
                     {formData.photos.map((photoUrl, index) => {
                         const isDeleting = deletingFiles.has(photoUrl)
 
@@ -479,14 +482,14 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
                                     type="button"
                                     variant="destructive"
                                     size="sm"
-                                    className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="absolute  top-1 xs:top-1.5 sm:top-2 right-1 xs:right-1.5 sm:right-2 !h-5 !w-5 xs:!h-6 xs:!w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                                     onClick={() => handleRemoveUploadedPhoto(photoUrl)}
                                     disabled={isUploadingFiles || isDeleting}
                                 >
                                     {isDeleting ? (
-                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                        <Loader2 className="h-2.5 w-2.5 xs:h-3 xs:w-3 animate-spin" />
                                     ) : (
-                                        <X className="h-3 w-3" />
+                                        <X className="h-2.5 w-2.5 xs:h-3 xs:w-3" />
                                     )}
                                 </Button>
                             </div>
@@ -504,36 +507,39 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
         if (!formData.attachments || formData.attachments.length === 0) return null
 
         return (
-            <div className="space-y-3">
-                <Label className="text-sm font-medium">Uploaded Attachments ({formData.attachments.length})</Label>
-                <div className="space-y-2">
+            <div className="space-y-2 xs:space-y-3">
+                <Label className="text-sm xs:text-base font-medium">
+                    Uploaded Attachments ({formData.attachments.length})
+                </Label>
+                <div className="space-y-1.5 xs:space-y-2">
                     {formData.attachments.map((attachmentUrl, index) => {
                         const fileName = attachmentUrl.split('/').pop() || `Attachment ${index + 1}`
                         const isDeleting = deletingFiles.has(attachmentUrl)
 
                         return (
                             <div key={index} className={cn(
-                                "flex items-center justify-between p-3 border rounded-lg",
+                                "flex items-center justify-between p-2 xs:p-3 border rounded-lg",
                                 isDeleting && "opacity-50"
                             )}>
-                                <div className="flex items-center gap-2">
-                                    <Paperclip className="h-4 w-4 text-gray-400" />
-                                    <span className="text-sm">{fileName}</span>
+                                <div className="flex items-center gap-1.5 xs:gap-2 min-w-0 flex-1">
+                                    <Paperclip className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 shrink-0" />
+                                    <span className="text-xs xs:text-sm truncate">{fileName}</span>
                                     {isDeleting && (
-                                        <span className="text-xs text-gray-500">(Deleting...)</span>
+                                        <span className="text-xs text-gray-500 shrink-0">(Deleting...)</span>
                                     )}
                                 </div>
                                 <Button
                                     type="button"
                                     variant="ghost"
                                     size="sm"
+                                    className="!h-7 !w-7 xs:!h-8 xs:!w-8 p-0  shrink-0"
                                     onClick={() => handleRemoveUploadedAttachment(attachmentUrl)}
-                                    disabled={isUploadingFiles || isDeleting} // ✅ ADD: || isDeleting
+                                    disabled={isUploadingFiles || isDeleting}
                                 >
-                                    {isDeleting ? ( // ✅ ADD THIS CONDITIONAL
-                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    {isDeleting ? (
+                                        <Loader2 className="h-3.5 w-3.5 xs:h-4 xs:w-4 animate-spin" />
                                     ) : (
-                                        <X className="h-4 w-4" />
+                                        <X className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
                                     )}
                                 </Button>
                             </div>
@@ -548,17 +554,17 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
     // MAIN RENDER
     // ==============================================
     return (
-        <div className="space-y-8">
+        <div className="space-y-6 xs:space-y-7 sm:space-y-8">
             {/* Form Summary */}
             {renderFormSummary()}
 
             <Separator />
 
             {/* File Upload Section */}
-            <div className="space-y-6">
+            <div className="space-y-4 xs:space-y-5 sm:space-y-6">
                 <div>
-                    <Label className="text-lg font-semibold">Files & Documentation</Label>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <Label className="text-base xs:text-lg font-semibold">Files & Documentation</Label>
+                    <p className="text-xs xs:text-sm text-gray-600 mt-0.5 xs:mt-1">
                         Add photos and supporting documents to help resolve this issue effectively.
                     </p>
                 </div>
@@ -568,9 +574,9 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
 
                 {/* Error Display */}
                 {(errors.photos || errors.attachments || uploadError) && (
-                    <Alert variant="destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>
+                    <Alert variant="destructive" className="py-2 xs:py-3">
+                        <AlertCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
+                        <AlertDescription className="text-xs xs:text-sm">
                             {errors.photos || errors.attachments || uploadError}
                         </AlertDescription>
                     </Alert>
@@ -578,10 +584,12 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
 
                 {/* Upload Status */}
                 {isUploadingFiles && (
-                    <Alert>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <AlertDescription>
-                            Uploading files... Please don't close this page.
+                    <Alert className="py-2 xs:py-3">
+                        <AlertDescription className="text-xs xs:text-sm flex gap-2 items-center">
+                            <Loader2 className="h-3.5 w-3.5 xs:h-4 xs:w-4 animate-spin shrink-0" />
+                            <span>
+                                Uploading files... Please don't close this page.
+                            </span>
                         </AlertDescription>
                     </Alert>
                 )}
@@ -595,18 +603,20 @@ export const PhotosReviewStep = React.memo<PhotosReviewStepProps>(({
 
                 {/* Success Message */}
                 {((formData.photos && formData.photos.length > 0) || (formData.attachments && formData.attachments.length > 0)) && (
-                    <Alert>
-                        <CheckCircle className="h-4 w-4" />
-                        <AlertDescription>
-                            {(formData.photos?.length || 0) + (formData.attachments?.length || 0)} file(s) uploaded successfully.
+                    <Alert className="py-2 xs:py-3">
+                        <AlertDescription className="text-xs xs:text-sm flex gap-2 items-center">
+                            <CheckCircle className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
+                            <span>
+                                {(formData.photos?.length || 0) + (formData.attachments?.length || 0)} file(s) uploaded successfully.
+                            </span>
                         </AlertDescription>
                     </Alert>
                 )}
 
                 {/* Guidelines */}
-                <Alert>
-                    <Camera className="h-4 w-4" />
-                    <AlertDescription>
+                <Alert className="py-2 xs:py-3">
+                    <Camera className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
+                    <AlertDescription className="text-xs xs:text-sm">
                         <strong>Tip:</strong> Clear photos and relevant documents help resolve issues faster.
                         Include multiple angles and any supporting documentation like specifications or invoices.
                     </AlertDescription>

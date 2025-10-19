@@ -1,10 +1,12 @@
 // ==============================================
-// hooks/punchlist-items/use-update-punchlist-item.ts - UPDATED for Multiple Assignments
+// hooks/punchlist-items/use-update-punchlist-item.ts - COMPLETE WITH FILE UPLOAD
 // ==============================================
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { punchlistItemsApi } from '@/lib/api/punchlist-items'
+import { usePunchlistFileUpload } from './use-punchlist-file-upload'
+import { toast } from '@/hooks/use-toast'
 import {
   validateUpdatePunchlistItem,
   transformUpdateFormDataToApiData,
@@ -41,11 +43,19 @@ interface UseUpdatePunchlistItemActions {
   resetForm: () => void
   reset: () => void
 
-  // NEW: Assignment management actions
+  // Assignment management actions
   addAssignment: (projectMemberId: string, role?: 'primary' | 'secondary' | 'inspector' | 'supervisor') => void
   removeAssignment: (projectMemberId: string) => void
   updateAssignmentRole: (projectMemberId: string, role: 'primary' | 'secondary' | 'inspector' | 'supervisor') => void
   clearAssignments: () => void
+
+  // File upload actions
+  addPendingFiles: (files: File[]) => void
+  removePendingFile: (index: number) => void
+  uploadPhotos: (files?: File[]) => Promise<string[]>
+  uploadAttachments: (files?: File[]) => Promise<string[]>
+  removePhoto: (photoUrl: string) => void
+  removeAttachment: (attachmentUrl: string) => void
 }
 
 interface UseUpdatePunchlistItemReturn extends UseUpdatePunchlistItemState, UseUpdatePunchlistItemActions {
@@ -58,10 +68,17 @@ interface UseUpdatePunchlistItemReturn extends UseUpdatePunchlistItemState, UseU
   canSubmit: boolean
   isInitialized: boolean
 
-  // NEW: Assignment computed properties
+  // Assignment computed properties
   assignedMemberCount: number
   hasPrimaryAssignee: boolean
   primaryAssignee?: { projectMemberId: string; role: string; projectMemberName?: string }
+
+  // File upload computed properties
+  isUploadingFiles: boolean
+  hasPendingFiles: boolean
+  pendingFiles: File[]
+  uploadProgress: number
+  uploadError: string | null
 }
 
 // ==============================================
@@ -71,20 +88,20 @@ const getDefaultUpdateFormData = (punchlistItemId: string): UpdatePunchlistItemF
   id: punchlistItemId,
   title: '',
   description: '',
-  issueType: '', // FIXED: Empty string for form state
+  issueType: '',
   location: '',
   roomArea: '',
-  assignedMembers: [], // UPDATED: Now an array
-  tradeCategory: '', // FIXED: Empty string for form state
+  assignedMembers: [],
+  tradeCategory: '',
   priority: 'medium',
   status: 'open',
   dueDate: '',
-  estimatedHours: '', // FIXED: Empty string for form state
-  actualHours: '', // FIXED: Empty string for form state
+  estimatedHours: '',
+  actualHours: '',
   resolutionNotes: '',
   rejectionReason: '',
   requiresInspection: false,
-  inspectionPassed: '', // FIXED: Empty string for form state
+  inspectionPassed: '',
   inspectionNotes: '',
   photos: [],
   attachments: [],
@@ -109,6 +126,43 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
   })
 
   // ==============================================
+  // FILE UPLOAD HOOK INTEGRATION
+  // ==============================================
+  const fileUpload = usePunchlistFileUpload(
+    'punchlist',
+    punchlistItemId,
+    {
+      onUploadSuccess: (urls, type) => {
+        setState(prev => {
+          const newFormData = {
+            ...prev.formData,
+            [type]: [...(prev.formData[type] || []), ...urls],
+          }
+          
+          // Check if this creates changes
+          const hasChanges = prev.originalPunchlistItem ? 
+            hasFormChanges(punchlistItemToUpdateFormData(prev.originalPunchlistItem), newFormData) : true
+
+          return {
+            ...prev,
+            formData: newFormData,
+            hasChanges, // ✅ Update hasChanges when files are uploaded
+          }
+        })
+      },
+      onUploadError: (error, type) => {
+        setState(prev => ({
+          ...prev,
+          errors: {
+            ...prev.errors,
+            [type]: [error],
+          },
+        }))
+      },
+    }
+  )
+
+  // ==============================================
   // COMPUTED PROPERTIES
   // ==============================================
   const isLoading = state.state === 'loading'
@@ -117,9 +171,16 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
   const isIdle = state.state === 'idle'
   const hasErrors = Object.keys(state.errors).length > 0
   const isInitialized = !!state.originalPunchlistItem
-  const canSubmit = state.hasChanges && !hasErrors && !isLoading && isInitialized
+  const canSubmit = isInitialized && state.hasChanges && !hasErrors && !isLoading && !fileUpload.isUploading
 
-  // NEW: Assignment computed properties
+  // File upload computed properties
+  const isUploadingFiles = fileUpload.isUploading
+  const hasPendingFiles = fileUpload.hasPendingFiles
+  const pendingFiles = fileUpload.pendingFiles
+  const uploadProgress = fileUpload.uploadProgress
+  const uploadError = fileUpload.error
+
+  // Assignment computed properties
   const assignedMemberCount = state.formData.assignedMembers?.length || 0
   const hasPrimaryAssignee = state.formData.assignedMembers?.some(member => member.role === 'primary') || false
   const primaryAssignee = state.formData.assignedMembers?.find(member => member.role === 'primary')
@@ -128,15 +189,42 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
   // INITIALIZE FORM
   // ==============================================
   const initializeForm = useCallback((punchlistItem: PunchlistItemWithDetails) => {
-    const formData = punchlistItemToUpdateFormData(punchlistItem)
+    // Convert null values to empty strings or appropriate defaults
+    const formData: UpdatePunchlistItemFormData = {
+      id: punchlistItem.id,
+      title: punchlistItem.title || '',
+      description: punchlistItem.description || '',
+      issueType: punchlistItem.issueType || '',
+      location: punchlistItem.location || '',
+      roomArea: punchlistItem.roomArea || '',
+      assignedMembers: punchlistItem.assignedMembers?.map(member => ({
+        projectMemberId: member.projectMemberId,
+        role: member.role,
+        projectMemberName: `${member.user?.firstName || ''} ${member.user?.lastName || ''}`.trim(),
+        projectMemberTrade: member.user?.tradeSpecialty || undefined
+      })) || [],
+      tradeCategory: punchlistItem.tradeCategory || '',
+      priority: punchlistItem.priority || 'medium',
+      status: punchlistItem.status || 'open',
+      dueDate: punchlistItem.dueDate || '',
+      estimatedHours: punchlistItem.estimatedHours || '',
+      actualHours: punchlistItem.actualHours || '',
+      resolutionNotes: punchlistItem.resolutionNotes || '',
+      rejectionReason: punchlistItem.rejectionReason || '',
+      requiresInspection: punchlistItem.requiresInspection || false,
+      inspectionPassed: punchlistItem.inspectionPassed === null ? '' : punchlistItem.inspectionPassed,
+      inspectionNotes: punchlistItem.inspectionNotes || '',
+      photos: punchlistItem.photos || [],
+      attachments: punchlistItem.attachments || []
+    }
     
     setState(prev => ({
       ...prev,
-      state: 'idle',
       formData,
       originalPunchlistItem: punchlistItem,
       hasChanges: false,
       errors: {},
+      state: 'idle',
     }))
   }, [])
 
@@ -145,32 +233,29 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
   // ==============================================
   const updateFormData = useCallback((field: keyof UpdatePunchlistItemFormData, value: any) => {
     setState(prev => {
-      const newFormData = { ...prev.formData, [field]: value }
-      
-      // Check if there are changes compared to original
+      const newFormData = {
+        ...prev.formData,
+        [field]: value,
+      }
+
       const hasChanges = prev.originalPunchlistItem ? 
         hasFormChanges(punchlistItemToUpdateFormData(prev.originalPunchlistItem), newFormData) : false
-
-      // Clear field error when value changes
-      const newErrors = { ...prev.errors }
-      if (newErrors[field as keyof UpdatePunchlistItemFormErrors]) {
-        delete newErrors[field as keyof UpdatePunchlistItemFormErrors]
-      }
 
       return {
         ...prev,
         formData: newFormData,
         hasChanges,
-        errors: newErrors,
       }
     })
   }, [])
 
   const updateFormDataBulk = useCallback((data: Partial<UpdatePunchlistItemFormData>) => {
     setState(prev => {
-      const newFormData = { ...prev.formData, ...data }
-      
-      // Check if there are changes compared to original
+      const newFormData = {
+        ...prev.formData,
+        ...data,
+      }
+
       const hasChanges = prev.originalPunchlistItem ? 
         hasFormChanges(punchlistItemToUpdateFormData(prev.originalPunchlistItem), newFormData) : false
 
@@ -183,19 +268,17 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
   }, [])
 
   // ==============================================
-  // NEW: ASSIGNMENT MANAGEMENT ACTIONS
+  // ASSIGNMENT MANAGEMENT ACTIONS
   // ==============================================
   const addAssignment = useCallback((projectMemberId: string, role: 'primary' | 'secondary' | 'inspector' | 'supervisor' = 'primary') => {
     setState(prev => {
       const currentAssignments = prev.formData.assignedMembers || []
       
-      // Check if member is already assigned
       const existingAssignment = currentAssignments.find(member => member.projectMemberId === projectMemberId)
       if (existingAssignment) {
-        return prev // Don't add duplicate
+        return prev
       }
 
-      // If adding a primary role, remove existing primary
       let updatedAssignments = currentAssignments
       if (role === 'primary') {
         updatedAssignments = currentAssignments.map(member => 
@@ -248,7 +331,6 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
     setState(prev => {
       let updatedAssignments = prev.formData.assignedMembers || []
       
-      // If changing to primary, remove existing primary role from others
       if (role === 'primary') {
         updatedAssignments = updatedAssignments.map(member => 
           member.role === 'primary' && member.projectMemberId !== projectMemberId
@@ -257,7 +339,6 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
         )
       }
 
-      // Update the specific assignment
       updatedAssignments = updatedAssignments.map(member => 
         member.projectMemberId === projectMemberId
           ? { ...member, role }
@@ -345,10 +426,48 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
     try {
       setState(prev => ({ ...prev, state: 'loading', errors: {} }))
 
-      // Use provided data or transform form data
-      const submissionData = data || transformUpdateFormDataToApiData(state.formData)
+      // Upload any pending files before submission
+      if (fileUpload.hasPendingFiles) {
+        const pendingPhotos = fileUpload.pendingFiles.filter(file => file.type.startsWith('image/'))
+        const pendingAttachments = fileUpload.pendingFiles.filter(file => !file.type.startsWith('image/'))
 
-      // Validate before submission
+        if (pendingPhotos.length > 0) {
+          await fileUpload.uploadPhotos(pendingPhotos)
+        }
+
+        if (pendingAttachments.length > 0) {
+          await fileUpload.uploadAttachments(pendingAttachments)
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+
+      // Clean the form data before transformation
+      const cleanedFormData = {
+        ...state.formData,
+        // Convert null/empty strings to undefined for optional enum fields
+        tradeCategory: (state.formData.tradeCategory === '' || !state.formData.tradeCategory) 
+          ? undefined 
+          : state.formData.tradeCategory,
+        issueType: (state.formData.issueType === '' || !state.formData.issueType) 
+          ? undefined 
+          : state.formData.issueType,
+        estimatedHours: (state.formData.estimatedHours === '' || state.formData.estimatedHours === null || state.formData.estimatedHours === undefined) 
+          ? undefined 
+          : state.formData.estimatedHours,
+        actualHours: (state.formData.actualHours === '' || state.formData.actualHours === null || state.formData.actualHours === undefined) 
+          ? undefined 
+          : state.formData.actualHours,
+        dueDate: (state.formData.dueDate === '' || !state.formData.dueDate) 
+          ? undefined 
+          : state.formData.dueDate,
+        inspectionPassed: (state.formData.inspectionPassed === '' || state.formData.inspectionPassed === null || state.formData.inspectionPassed === undefined)
+          ? undefined 
+          : state.formData.inspectionPassed,
+      }
+
+      const submissionData = data || transformUpdateFormDataToApiData(cleanedFormData as UpdatePunchlistItemFormData)
+
       const validation = validateUpdatePunchlistItem(submissionData)
       if (!validation.success) {
         const newErrors: UpdatePunchlistItemFormErrors = {}
@@ -356,43 +475,60 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
           const field = error.path.join('.')
           newErrors[field as keyof UpdatePunchlistItemFormErrors] = [error.message]
         })
-        setState(prev => ({ ...prev, state: 'error', errors: newErrors }))
-        return
+
+        const errorMessages = Object.values(newErrors).filter(Boolean)
+
+        if (errorMessages.length > 0) {
+          toast({
+            title: "Validation Error",
+            description: errorMessages[0]?.[0] || "Failed to update punchlist item.",
+            variant: "destructive",
+          })
+
+          setState(prev => ({ ...prev, state: 'idle', errors: {} }))
+          return
+        }
       }
 
       const response = await punchlistItemsApi.updatePunchlistItem(submissionData)
 
-      setState(prev => ({ 
-        ...prev, 
-        state: 'success',
-        result: response,
-        hasChanges: false,
-      }))
-
-      // Update the original data with the new data
-      if (response.data?.punchlistItem) {
+      if (response.success) {
         setState(prev => ({
           ...prev,
-          originalPunchlistItem: response.data.punchlistItem,
-          formData: punchlistItemToUpdateFormData(response.data.punchlistItem),
+          state: 'success',
+          result: response,
+          errors: {},
         }))
-      }
 
+        toast({
+          title: "Success",
+          description: response.message || "Punchlist item updated successfully",
+        })
+
+        setTimeout(() => {
+          router.push(`/dashboard/punchlist/${submissionData.id}`)
+        }, 500)
+      } else {
+        throw new Error(response.message || 'Failed to update punchlist item')
+      }
     } catch (error) {
       console.error('Error updating punchlist item:', error)
 
-      let newErrors: UpdatePunchlistItemFormErrors = {}
-      
+      let errorMessage = 'Failed to update punchlist item'
+      const newErrors: UpdatePunchlistItemFormErrors = {}
+
       if (error instanceof Error) {
-        // Try to parse validation errors from API response
-        if (error.message.includes('Validation failed')) {
-          newErrors._form = [error.message]
-        } else {
-          newErrors._form = [error.message]
-        }
+        errorMessage = error.message
+        newErrors._form = [error.message]
       } else {
         newErrors._form = ['An unexpected error occurred']
       }
+
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
 
       setState(prev => ({ 
         ...prev, 
@@ -400,7 +536,7 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
         errors: newErrors,
       }))
     }
-  }, [state.formData])
+  }, [state.formData, router, fileUpload])
 
   // ==============================================
   // RESET FORM
@@ -427,7 +563,119 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
       originalPunchlistItem: null,
       hasChanges: false,
     })
-  }, [punchlistItemId])
+    fileUpload.reset()
+  }, [punchlistItemId, fileUpload])
+
+  // ==============================================
+  // FILE UPLOAD HELPERS
+  // ==============================================
+  const addPendingFiles = useCallback((files: File[]) => {
+    fileUpload.addPendingFiles(files)
+  }, [fileUpload])
+
+  const removePendingFile = useCallback((index: number) => {
+    fileUpload.removePendingFile(index)
+  }, [fileUpload])
+
+  const uploadPhotos = useCallback(async (files?: File[]): Promise<string[]> => {
+    return fileUpload.uploadPhotos(files)
+  }, [fileUpload])
+
+  const uploadAttachments = useCallback(async (files?: File[]): Promise<string[]> => {
+    return fileUpload.uploadAttachments(files)
+  }, [fileUpload])
+
+  const removePhoto = useCallback(async (photoUrl: string) => {
+    try {
+      const deleteResult = await punchlistItemsApi.deleteFile(photoUrl)
+
+      setState(prev => {
+        const newFormData = {
+          ...prev.formData,
+          photos: (prev.formData.photos || []).filter(url => url !== photoUrl),
+        }
+        
+        // Check if this creates changes
+        const hasChanges = prev.originalPunchlistItem ? 
+          hasFormChanges(punchlistItemToUpdateFormData(prev.originalPunchlistItem), newFormData) : true
+
+        return {
+          ...prev,
+          formData: newFormData,
+          hasChanges, // ✅ Update hasChanges when photos are removed
+        }
+      })
+
+      if (!deleteResult.success) {
+        console.warn('Failed to delete file from storage, but removed from UI:', deleteResult.error)
+      }
+
+    } catch (error) {
+      console.error('Error removing photo:', error)
+
+      setState(prev => {
+        const newFormData = {
+          ...prev.formData,
+          photos: (prev.formData.photos || []).filter(url => url !== photoUrl),
+        }
+        
+        const hasChanges = prev.originalPunchlistItem ? 
+          hasFormChanges(punchlistItemToUpdateFormData(prev.originalPunchlistItem), newFormData) : true
+
+        return {
+          ...prev,
+          formData: newFormData,
+          hasChanges,
+        }
+      })
+    }
+  }, [])
+
+  const removeAttachment = useCallback(async (attachmentUrl: string) => {
+    try {
+      const deleteResult = await punchlistItemsApi.deleteFile(attachmentUrl)
+
+      setState(prev => {
+        const newFormData = {
+          ...prev.formData,
+          attachments: (prev.formData.attachments || []).filter(url => url !== attachmentUrl),
+        }
+        
+        // Check if this creates changes
+        const hasChanges = prev.originalPunchlistItem ? 
+          hasFormChanges(punchlistItemToUpdateFormData(prev.originalPunchlistItem), newFormData) : true
+
+        return {
+          ...prev,
+          formData: newFormData,
+          hasChanges, // ✅ Update hasChanges when attachments are removed
+        }
+      })
+
+      if (!deleteResult.success) {
+        console.warn('Failed to delete attachment from storage, but removed from UI:', deleteResult.error)
+      }
+
+    } catch (error) {
+      console.error('Error removing attachment:', error)
+
+      setState(prev => {
+        const newFormData = {
+          ...prev.formData,
+          attachments: (prev.formData.attachments || []).filter(url => url !== attachmentUrl),
+        }
+        
+        const hasChanges = prev.originalPunchlistItem ? 
+          hasFormChanges(punchlistItemToUpdateFormData(prev.originalPunchlistItem), newFormData) : true
+
+        return {
+          ...prev,
+          formData: newFormData,
+          hasChanges,
+        }
+      })
+    }
+  }, [])
 
   // ==============================================
   // RETURN HOOK INTERFACE
@@ -450,10 +698,17 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
     canSubmit,
     isInitialized,
 
-    // NEW: Assignment computed properties
+    // Assignment computed properties
     assignedMemberCount,
     hasPrimaryAssignee,
     primaryAssignee,
+
+    // File upload computed properties
+    isUploadingFiles,
+    hasPendingFiles,
+    pendingFiles,
+    uploadProgress,
+    uploadError,
 
     // Actions
     initializeForm,
@@ -466,11 +721,19 @@ export function useUpdatePunchlistItem(punchlistItemId?: string) {
     resetForm,
     reset,
 
-    // NEW: Assignment management actions
+    // Assignment management actions
     addAssignment,
     removeAssignment,
     updateAssignmentRole,
     clearAssignments,
+
+    // File upload actions
+    addPendingFiles,
+    removePendingFile,
+    uploadPhotos,
+    uploadAttachments,
+    removePhoto,
+    removeAttachment,
   }
 }
 

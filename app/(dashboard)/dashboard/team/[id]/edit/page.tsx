@@ -23,6 +23,9 @@ import { useTeamMember } from "@/hooks/team-members"
 import { useUpdateTeamMember } from "@/hooks/team-members"
 import { TEAM_MEMBER_ROLES, TRADE_SPECIALTIES } from "@/types/team-members"
 import { useProjects } from "@/hooks/projects"
+import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
+import { Separator } from "@/components/ui/separator"
 
 // Extend the UpdateTeamMemberFormData to include project assignment fields
 interface ExtendedUpdateTeamMemberFormData {
@@ -245,7 +248,7 @@ export default function EditTeamMemberPage() {
     if (isLoadingTeamMember) {
         return (
             <div className="min-h-screen bg-gray-50">
-                <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+                <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
                     <div className="animate-pulse">
                         <div className="flex items-center gap-4 mb-8">
                             <div className="h-10 w-10 bg-gray-200 rounded-md"></div>
@@ -265,30 +268,38 @@ export default function EditTeamMemberPage() {
     if (hasTeamMemberError || isNotFound) {
         return (
             <div className="min-h-screen bg-gray-50">
-                <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-                    <div className="flex items-center gap-4 mb-8">
+                <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-4 xs:py-5 sm:py-6 lg:py-8">
+                    {/* Header - Mobile Responsive */}
+                    <div className="flex items-start gap-2.5 xs:gap-3 sm:gap-4 mb-6 xs:mb-7 sm:mb-8">
                         <Link href="/dashboard/team">
-                            <Button variant="outline" size="icon">
-                                <ArrowLeft className="h-4 w-4" />
+                            <Button variant="outline" size="icon" className="shrink-0 h-9 w-9 xs:h-10 xs:w-10">
+                                <ArrowLeft className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
                             </Button>
                         </Link>
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900">Edit Team Member</h1>
-                            <p className="text-gray-600 mt-1">Team member not found</p>
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-gray-900 leading-tight">
+                                Edit Team Member
+                            </h1>
+                            <p className="text-sm xs:text-base text-gray-600 mt-0.5 xs:mt-1 leading-snug">
+                                Team member not found
+                            </p>
                         </div>
                     </div>
 
-                    <Alert className="border-red-200 bg-red-50">
-                        <AlertCircle className="h-4 w-4 text-red-600" />
-                        <AlertDescription className="text-red-800">
+                    {/* Error Alert - Mobile Responsive */}
+                    <Alert className="border-red-200 bg-red-50 mb-4 xs:mb-5 sm:mb-6">
+                        <AlertCircle className="h-4 w-4 xs:h-5 xs:w-5 text-red-600" />
+                        <AlertDescription className="text-red-800 text-sm xs:text-base leading-snug xs:leading-normal">
                             {teamMemberError || "The requested team member could not be found or you don't have access to edit it."}
                         </AlertDescription>
                     </Alert>
 
-                    <div className="mt-6">
+                    {/* Back Button - Mobile Responsive */}
+                    <div className="mt-4 xs:mt-5 sm:mt-6">
                         <Link href="/dashboard/team">
-                            <Button variant="outline">
-                                ← Back to Team
+                            <Button variant="outline" className="h-9 xs:h-10 text-sm xs:text-base">
+                                <ArrowLeft className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-1.5 xs:mr-2" />
+                                Back to Team
                             </Button>
                         </Link>
                     </div>
@@ -301,9 +312,10 @@ export default function EditTeamMemberPage() {
     if (!teamMember || !isInitialized) {
         return (
             <div className="min-h-screen bg-gray-50">
-                <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+                <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-4 xs:py-5 sm:py-6 lg:py-8">
                     <div className="animate-pulse">
-                        <div className="h-96 bg-gray-200 rounded-lg"></div>
+                        {/* Simple loading skeleton - Mobile Responsive */}
+                        <Skeleton className="h-[600px] xs:h-[700px] sm:h-[800px] w-full rounded-lg" />
                     </div>
                 </div>
             </div>
@@ -312,18 +324,20 @@ export default function EditTeamMemberPage() {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+            <div className="mx-auto max-w-3xl">
                 {/* Header */}
-                <div className="mb-8">
-                    <div className="flex items-center gap-4 mb-4">
+                <div className="mb-6 sm:mb-8">
+                    <div className="flex items-start xs:items-center gap-2 xs:gap-3 sm:gap-4 mb-3 xs:mb-4">
                         <Link href={`/dashboard/team/${teamMemberId}`}>
-                            <Button variant="outline" size="icon" className="shrink-0">
-                                <ArrowLeft className="h-4 w-4" />
+                            <Button variant="outline" size="icon" className="shrink-0 h-8 w-8 xs:h-9 xs:w-9 sm:h-10 sm:w-10">
+                                <ArrowLeft className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
                             </Button>
                         </Link>
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900">Edit Team Member</h1>
-                            <p className="text-gray-600 mt-1">
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-gray-900 leading-tight xs:leading-normal truncate">
+                                Edit Team Member
+                            </h1>
+                            <p className="text-xs xs:text-sm sm:text-base text-gray-600 mt-0.5 xs:mt-0.5 sm:mt-1 line-clamp-2 leading-snug xs:leading-normal">
                                 Update {teamMember.firstName} {teamMember.lastName}'s information
                             </p>
                         </div>
@@ -374,77 +388,104 @@ export default function EditTeamMemberPage() {
 
                 {/* Main Form Card */}
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Team Member Information</CardTitle>
-                        <CardDescription>Update the details for this team member</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-4 xs:p-5 sm:p-6 pt-0">
                         <form onSubmit={handleSubmit} className="space-y-8">
                             {/* Personal Information */}
-                            <div className="space-y-4">
-                                <h3 className="text-lg font-medium">Personal Information</h3>
-
+                            <div className="space-y-3.5 xs:space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {/* First Name */}
                                     <div>
-                                        <Label htmlFor="firstName">First Name *</Label>
+                                        <Label htmlFor="firstName" className="text-sm xs:text-base font-medium">
+                                            First Name <span className="text-red-500">*</span>
+                                        </Label>
                                         <Input
                                             id="firstName"
                                             value={formData.firstName}
                                             onChange={(e) => handleInputChange("firstName", e.target.value)}
-                                            className={errors.firstName ? "border-red-500" : ""}
+                                            placeholder="Enter First Name..."
+                                            className={cn(
+                                                "mt-1.5 xs:mt-2 text-sm xs:text-base resize-none",
+                                                errors.firstName && "border-red-500 focus:border-red-500 focus:ring-red-500"
+                                            )}
                                             required
                                         />
                                         {errors.firstName && (
-                                            <p className="text-sm text-red-500 mt-1">{errors.firstName}</p>
+                                            <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+                                                <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                                <span className="leading-tight">{errors.firstName}</span>
+                                            </p>
                                         )}
                                     </div>
 
                                     {/* Last Name */}
                                     <div>
-                                        <Label htmlFor="lastName">Last Name *</Label>
+                                        <Label htmlFor="lastName" className="text-sm xs:text-base font-medium">
+                                            Last Name <span className="text-red-500">*</span>
+                                        </Label>
                                         <Input
                                             id="lastName"
                                             value={formData.lastName}
                                             onChange={(e) => handleInputChange("lastName", e.target.value)}
-                                            className={errors.lastName ? "border-red-500" : ""}
+                                            placeholder="Enter Last Name..."
+                                            className={cn(
+                                                "mt-1.5 xs:mt-2 text-sm xs:text-base resize-none",
+                                                errors.lastName && "border-red-500 focus:border-red-500 focus:ring-red-500"
+                                            )}
                                             required
                                         />
                                         {errors.lastName && (
-                                            <p className="text-sm text-red-500 mt-1">{errors.lastName}</p>
+                                            <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+                                                <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                                <span className="leading-tight">{errors.lastName}</span>
+                                            </p>
                                         )}
                                     </div>
                                 </div>
 
                                 {/* Email */}
                                 <div>
-                                    <Label htmlFor="email">Email Address *</Label>
+                                    <Label htmlFor="email" className="text-sm xs:text-base font-medium">
+                                        Email Address <span className="text-red-500">*</span>
+                                    </Label>
                                     <Input
                                         id="email"
                                         type="email"
                                         value={formData.email}
+                                        placeholder="john@company.com"
                                         onChange={(e) => handleInputChange("email", e.target.value)}
-                                        className={errors.email ? "border-red-500" : ""}
+                                        className={cn(
+                                            "mt-1.5 xs:mt-2 text-sm xs:text-base resize-none",
+                                            errors.email && "border-red-500 focus:border-red-500 focus:ring-red-500"
+                                        )}
                                         required
                                     />
                                     {errors.email && (
-                                        <p className="text-sm text-red-500 mt-1">{errors.email}</p>
+                                        <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+                                            <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                            <span className="leading-tight">{errors.email}</span>
+                                        </p>
                                     )}
                                 </div>
 
                                 {/* Phone - Using PhoneInputComponent */}
                                 <div>
-                                    <Label htmlFor="phone">Phone Number</Label>
+                                    <Label htmlFor="phone" className="text-sm xs:text-base font-medium">Phone Number</Label>
                                     <PhoneInputComponent
                                         id="phone"
                                         value={formData.phone}
                                         onChange={(value) => handleInputChange("phone", value)}
                                         placeholder="(555) 123-4567"
                                         error={!!errors.phone}
-                                        className={errors.phone ? "border-red-500" : ""}
+                                        className={cn(
+                                            "mt-1.5 xs:mt-2 text-sm xs:text-base resize-none",
+                                            errors.phone && "border-red-500 focus:border-red-500 focus:ring-red-500"
+                                        )}
                                     />
                                     {errors.phone && (
-                                        <p className="text-sm text-red-500 mt-1">{errors.phone}</p>
+                                        <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+                                            <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                            <span className="leading-tight">{errors.phone}</span>
+                                        </p>
                                     )}
                                 </div>
                             </div>
@@ -456,7 +497,7 @@ export default function EditTeamMemberPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {/* Role - Fixed to current role, but disabled for members */}
                                     <div>
-                                        <Label htmlFor="role">Role</Label>
+                                        <Label htmlFor="role" className="text-sm xs:text-base font-medium">Role</Label>
                                         <Select
                                             value={formData.role}
                                             onValueChange={(value) => handleInputChange("role", value)}
@@ -479,13 +520,18 @@ export default function EditTeamMemberPage() {
                                             </p>
                                         )}
                                         {errors.role && (
-                                            <p className="text-sm text-red-500 mt-1">{errors.role}</p>
+                                            <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+                                                <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                                <span className="leading-tight">{errors.role}</span>
+                                            </p>
                                         )}
                                     </div>
 
                                     {/* Trade Specialty */}
                                     <div>
-                                        <Label htmlFor="tradeSpecialty">Trade/Specialty</Label>
+                                        <Label htmlFor="tradeSpecialty" className="text-sm xs:text-base font-medium">
+                                            Trade/Specialty <span className="text-red-500">*</span>
+                                        </Label>
                                         <Select
                                             value={formData.tradeSpecialty || "none"}
                                             onValueChange={(value) => updateFormData("tradeSpecialty", value === "none" ? undefined : value)}
@@ -503,38 +549,55 @@ export default function EditTeamMemberPage() {
                                             </SelectContent>
                                         </Select>
                                         {errors.tradeSpecialty && (
-                                            <p className="text-sm text-red-500 mt-1">{errors.tradeSpecialty}</p>
+                                            <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+                                                <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                                <span className="leading-tight">{errors.tradeSpecialty}</span>
+                                            </p>
                                         )}
                                     </div>
                                 </div>
 
                                 {/* Job Title */}
                                 <div>
-                                    <Label htmlFor="jobTitle">Job Title</Label>
+                                    <Label htmlFor="jobTitle" className="text-sm xs:text-base font-medium">
+                                        Job Title <span className="text-red-500">*</span>
+                                    </Label>
                                     <Input
                                         id="jobTitle"
                                         value={formData.jobTitle}
                                         onChange={(e) => handleInputChange("jobTitle", e.target.value)}
                                         placeholder="e.g., Senior Electrician, Site Supervisor"
-                                        className={errors.jobTitle ? "border-red-500" : ""}
+                                        className={cn(
+                                            "mt-1.5 xs:mt-2 text-sm xs:text-base resize-none",
+                                            errors.jobTitle && "border-red-500 focus:border-red-500 focus:ring-red-500"
+                                        )}
                                     />
                                     {errors.jobTitle && (
-                                        <p className="text-sm text-red-500 mt-1">{errors.jobTitle}</p>
+                                        <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+                                            <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                            <span className="leading-tight">{errors.jobTitle}</span>
+                                        </p>
                                     )}
                                 </div>
 
                                 {/* Start Date */}
                                 <div>
-                                    <Label htmlFor="startDate">Start Date</Label>
+                                    <Label htmlFor="startDate" className="text-sm xs:text-base font-medium">Start Date</Label>
                                     <Input
                                         id="startDate"
                                         type="date"
                                         value={formData.startDate}
                                         onChange={(e) => handleInputChange("startDate", e.target.value)}
-                                        className={errors.startDate ? "border-red-500" : ""}
+                                        className={cn(
+                                            "mt-1.5 xs:mt-2 text-sm xs:text-base resize-none",
+                                            errors.startDate && "border-red-500 focus:border-red-500 focus:ring-red-500"
+                                        )}
                                     />
                                     {errors.startDate && (
-                                        <p className="text-sm text-red-500 mt-1">{errors.startDate}</p>
+                                        <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+                                            <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                            <span className="leading-tight">{errors.startDate}</span>
+                                        </p>
                                     )}
                                 </div>
 
@@ -542,7 +605,9 @@ export default function EditTeamMemberPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {/* Hourly Rate */}
                                     <div>
-                                        <Label htmlFor="hourlyRate">Hourly Rate ($)</Label>
+                                        <Label htmlFor="hourlyRate" className="text-sm xs:text-base font-medium">
+                                            Hourly Rate ($) <span className="text-red-500">*</span>
+                                        </Label>
                                         <Input
                                             id="hourlyRate"
                                             type="number"
@@ -551,16 +616,22 @@ export default function EditTeamMemberPage() {
                                             value={formData.hourlyRate || ""}
                                             onChange={(e) => handleInputChange("hourlyRate", parseFloat(e.target.value) || undefined)}
                                             placeholder="25.00"
-                                            className={errors.hourlyRate ? "border-red-500" : ""}
+                                            className={cn(
+                                                "mt-1.5 xs:mt-2 text-sm xs:text-base resize-none",
+                                                errors.hourlyRate && "border-red-500 focus:border-red-500 focus:ring-red-500"
+                                            )}
                                         />
                                         {errors.hourlyRate && (
-                                            <p className="text-sm text-red-500 mt-1">{errors.hourlyRate}</p>
+                                            <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+                                                <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                                <span className="leading-tight">{errors.hourlyRate}</span>
+                                            </p>
                                         )}
                                     </div>
 
                                     {/* Overtime Rate - Auto-calculated but editable */}
                                     <div>
-                                        <Label htmlFor="overtimeRate">Overtime Rate ($)</Label>
+                                        <Label htmlFor="overtimeRate" className="text-sm xs:text-base font-medium">Overtime Rate ($)</Label>
                                         <Input
                                             id="overtimeRate"
                                             type="number"
@@ -569,17 +640,22 @@ export default function EditTeamMemberPage() {
                                             value={formData.overtimeRate || ""}
                                             onChange={(e) => handleInputChange("overtimeRate", parseFloat(e.target.value) || undefined)}
                                             placeholder="Auto-calculated as 1.5x hourly rate"
-                                            className={errors.overtimeRate ? "border-red-500" : ""}
+                                            className={cn(
+                                                "mt-1.5 xs:mt-2 text-sm xs:text-base resize-none",
+                                                errors.overtimeRate && "border-red-500 focus:border-red-500 focus:ring-red-500"
+                                            )}
                                         />
                                         <p className="text-xs text-gray-500 mt-1">
                                             Auto-calculated as 1.5x hourly rate, but you can adjust if needed
                                         </p>
                                         {errors.overtimeRate && (
-                                            <p className="text-sm text-red-500 mt-1">{errors.overtimeRate}</p>
+                                            <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+                                                <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                                <span className="leading-tight">{errors.overtimeRate}</span>
+                                            </p>
                                         )}
                                     </div>
                                 </div>
-
                             </div>
 
                             {/* Project Assignment */}
@@ -596,7 +672,7 @@ export default function EditTeamMemberPage() {
                                             onChange={(e) => updateFormData("assignToProject", e.target.checked)}
                                             className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                                         />
-                                        <Label htmlFor="assignToProject" className="text-sm font-medium">
+                                        <Label htmlFor="assignToProject" className="text-sm xs:text-base font-medium">
                                             Assign to a project immediately
                                         </Label>
                                     </div>
@@ -605,16 +681,16 @@ export default function EditTeamMemberPage() {
                                     {projectAssignmentData.assignToProject && (
                                         <div className="space-y-4 pl-6 border-l-2 border-orange-100">
                                             <div>
-                                                <Label htmlFor="projectId">Select Project *</Label>
+                                                <Label htmlFor="projectId" className="text-sm xs:text-base font-medium">Select Project *</Label>
                                                 <Select
                                                     value={projectAssignmentData.projectId || "none"}
                                                     onValueChange={(value) => updateFormData("projectId", value === "none" ? undefined : value)}
                                                 >
                                                     <SelectTrigger className={errors.projectId ? "border-red-500" : ""}>
-                                                        <SelectValue placeholder="Choose a project" />
+                                                        <SelectValue className="text-sm xs:text-base font-medium" placeholder="Choose a project" />
                                                     </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="none">Choose a project</SelectItem>
+                                                    <SelectContent className="text-sm xs:text-base font-medium">
+                                                        <SelectItem className="text-sm xs:text-base font-medium" value="none">Choose a project</SelectItem>
                                                         {isProjectsLoading ? (
                                                             <SelectItem value="loading" disabled>Loading projects...</SelectItem>
                                                         ) : hasProjectsError ? (
@@ -631,22 +707,31 @@ export default function EditTeamMemberPage() {
                                                     </SelectContent>
                                                 </Select>
                                                 {errors.projectId && (
-                                                    <p className="text-sm text-red-500 mt-1">{errors.projectId}</p>
+                                                    <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+                                                        <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                                        <span className="leading-tight">{errors.projectId}</span>
+                                                    </p>
                                                 )}
                                             </div>
 
                                             {/* Project Assignment Notes */}
                                             <div>
-                                                <Label htmlFor="projectNotes">Assignment Notes</Label>
+                                                <Label htmlFor="projectNotes" className="text-sm xs:text-base font-medium">Assignment Notes</Label>
                                                 <Input
                                                     id="projectNotes"
                                                     value={projectAssignmentData.projectNotes}
                                                     onChange={(e) => updateFormData("projectNotes", e.target.value)}
                                                     placeholder="Any special notes about this assignment..."
-                                                    className={errors.projectNotes ? "border-red-500" : ""}
+                                                    className={cn(
+                                                        "mt-1.5 xs:mt-2 text-sm xs:text-base resize-none",
+                                                        errors.projectNotes && "border-red-500 focus:border-red-500 focus:ring-red-500"
+                                                    )}
                                                 />
                                                 {errors.projectNotes && (
-                                                    <p className="text-sm text-red-500 mt-1">{errors.projectNotes}</p>
+                                                    <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+                                                        <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                                        <span className="leading-tight">{errors.projectNotes}</span>
+                                                    </p>
                                                 )}
                                             </div>
                                         </div>
@@ -661,22 +746,28 @@ export default function EditTeamMemberPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {/* Emergency Contact Name */}
                                     <div>
-                                        <Label htmlFor="emergencyContactName">Contact Name</Label>
+                                        <Label htmlFor="emergencyContactName" className="text-sm xs:text-base font-medium">Contact Name</Label>
                                         <Input
                                             id="emergencyContactName"
                                             value={formData.emergencyContactName}
                                             onChange={(e) => handleInputChange("emergencyContactName", e.target.value)}
                                             placeholder="Emergency contact full name"
-                                            className={errors.emergencyContactName ? "border-red-500" : ""}
+                                            className={cn(
+                                                "mt-1.5 xs:mt-2 text-sm xs:text-base resize-none",
+                                                errors.emergencyContactName && "border-red-500 focus:border-red-500 focus:ring-red-500"
+                                            )}
                                         />
                                         {errors.emergencyContactName && (
-                                            <p className="text-sm text-red-500 mt-1">{errors.emergencyContactName}</p>
+                                            <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+                                                <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                                <span className="leading-tight">{errors.emergencyContactName}</span>
+                                            </p>
                                         )}
                                     </div>
 
                                     {/* Emergency Contact Phone - Using PhoneInputComponent */}
                                     <div>
-                                        <Label htmlFor="emergencyContactPhone">Contact Phone</Label>
+                                        <Label htmlFor="emergencyContactPhone" className="text-sm xs:text-base font-medium">Contact Phone</Label>
                                         <PhoneInputComponent
                                             id="emergencyContactPhone"
                                             value={formData.emergencyContactPhone}
@@ -687,39 +778,47 @@ export default function EditTeamMemberPage() {
                                             }}
                                             placeholder="(555) 123-4567"
                                             error={!!errors.emergencyContactPhone}
-                                            className={errors.emergencyContactPhone ? "border-red-500" : ""}
+                                            className={cn(
+                                                "mt-1.5 xs:mt-2 text-sm xs:text-base resize-none",
+                                                errors.emergencyContactPhone && "border-red-500 focus:border-red-500 focus:ring-red-500"
+                                            )}
                                         />
                                         {errors.emergencyContactPhone && (
-                                            <p className="text-sm text-red-500 mt-1">{errors.emergencyContactPhone}</p>
+                                            <p className="text-xs xs:text-sm text-red-600 mt-1 xs:mt-1.5 flex items-center gap-1">
+                                                <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                                <span className="leading-tight">{errors.emergencyContactPhone}</span>
+                                            </p>
                                         )}
                                     </div>
                                 </div>
                             </div>
 
+                            <Separator />
+
                             {/* Submit Buttons */}
-                            <div className="flex justify-end gap-4 pt-6 border-t">
+                            <div className="flex flex-col md:flex-row md:justify-end justify-between items-stretch md:items-center gap-3 pt-4 sm:pt-6">
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={handleCancel}
                                     disabled={isUpdating}
+                                    className="w-full md:w-auto h-10 sm:h-11"
                                 >
-                                    Cancel
+                                    <span className="text-sm sm:text-base">Cancel</span>
                                 </Button>
                                 <Button
                                     type="submit"
-                                    //   disabled={!canActuallySubmit}
-                                    className="bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
+                                    className="w-full md:w-auto h-10 sm:h-11 bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
                                 >
                                     {isUpdating ? (
                                         <>
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            Updating...
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            <span className="text-sm sm:text-base">Updating...</span>
                                         </>
                                     ) : (
                                         <>
-                                            <Save className="h-4 w-4 mr-2" />
-                                            Update Team Member
+                                            <Save className="mr-2 h-4 w-4" />
+                                            <span className="text-sm sm:text-base">Update Team Member</span>
                                         </>
                                     )}
                                 </Button>

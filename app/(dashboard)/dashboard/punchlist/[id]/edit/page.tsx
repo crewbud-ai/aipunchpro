@@ -1,37 +1,46 @@
 // ==============================================
-// app/(dashboard)/dashboard/punchlist/[id]/edit/page.tsx - Punchlist Item Edit Page (COMPLETE)
+// app/(dashboard)/dashboard/punchlist/[id]/edit/page.tsx - MULTI-STEP RESPONSIVE EDIT
 // ==============================================
 
 "use client"
 
-import React, { useEffect } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Progress } from "@/components/ui/progress"
+import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
     ArrowLeft,
     Save,
-    AlertCircle,
     Loader2,
+    AlertCircle,
+    FileText,
+    MapPin,
+    Users,
+    Camera,
+    ChevronRight,
+    ChevronLeft,
+    X,
     Eye
 } from "lucide-react"
-import Link from "next/link"
+import { cn } from "@/lib/utils"
 
 // Import hooks and types
-import { usePunchlistItem } from "@/hooks/punchlist-items"
-import { useUpdatePunchlistItem } from "@/hooks/punchlist-items"
+import { usePunchlistItem, useUpdatePunchlistItem } from "@/hooks/punchlist-items"
 import { useProjects } from "@/hooks/projects"
 import { useTeamMembers } from "@/hooks/team-members"
-import { withPermission } from "@/lib/permissions"
+import { UpdatePunchlistItemFormData } from "@/types/punchlist-items"
 
-// Import form components (reuse from create flow)
-import { 
-    IssueDetailsStep, 
-    ProjectLocationStep, 
-    AssignmentStep, 
-    PhotosReviewStep 
+// Import form components
+import {
+    IssueDetailsStep,
+    ProjectLocationStep,
+    AssignmentStep,
+    PhotosReviewStep
 } from "../../components/forms"
 
 export default function EditPunchlistItemPage() {
@@ -39,9 +48,15 @@ export default function EditPunchlistItemPage() {
     const router = useRouter()
     const punchlistItemId = params.id as string
 
+    // Local state for multi-step navigation
+    const [activeStep, setActiveStep] = useState(1)
+    const totalSteps = 4
+
     // ==============================================
     // HOOKS
     // ==============================================
+
+    // Load existing punchlist item
     const {
         punchlistItem,
         isLoading: isLoadingItem,
@@ -49,13 +64,13 @@ export default function EditPunchlistItemPage() {
         isNotFound,
         error,
         loadPunchlistItem,
-    } = usePunchlistItem(punchlistItemId)
+    } = usePunchlistItem()
 
+    // Update punchlist item hook
     const {
         formData,
         errors,
         isLoading: isUpdating,
-        isSuccess,
         canSubmit,
         hasChanges,
         isInitialized,
@@ -64,7 +79,7 @@ export default function EditPunchlistItemPage() {
         updatePunchlistItem,
         initializeForm,
         resetForm,
-        
+
         // File upload functionality
         isUploadingFiles,
         hasPendingFiles,
@@ -77,118 +92,253 @@ export default function EditPunchlistItemPage() {
         uploadAttachments,
         removePhoto,
         removeAttachment,
+
+        // Assignment management
+        addAssignment,
+        removeAssignment,
+        updateAssignmentRole,
     } = useUpdatePunchlistItem(punchlistItemId)
 
-    const { projects, isLoading: isProjectsLoading } = useProjects()
-    const { teamMembers, isLoading: isTeamMembersLoading } = useTeamMembers()
+    const {
+        projects: activeProjects,
+        isLoading: isProjectsLoading,
+        hasError: hasProjectsError,
+        refreshProjects,
+    } = useProjects()
+
+    const {
+        teamMembers: availableTeamMembers,
+        isLoading: isTeamMembersLoading,
+        hasError: hasTeamMembersError,
+        refreshTeamMembers,
+    } = useTeamMembers()
 
     // ==============================================
-    // PERMISSIONS
-    // ==============================================
-    const canEdit = withPermission('punchlist', 'edit', false)
-
-    // ==============================================
-    // EFFECTS
+    // LOAD PUNCHLIST ITEM
     // ==============================================
     useEffect(() => {
-        if (punchlistItemId && !punchlistItem) {
+        if (punchlistItemId) {
             loadPunchlistItem(punchlistItemId)
         }
-    }, [punchlistItemId, punchlistItem, loadPunchlistItem])
+    }, [punchlistItemId, loadPunchlistItem])
 
+    // ==============================================
+    // INITIALIZE FORM WITH PUNCHLIST ITEM DATA
+    // ==============================================
     useEffect(() => {
         if (punchlistItem && !isInitialized) {
             initializeForm(punchlistItem)
         }
     }, [punchlistItem, isInitialized, initializeForm])
 
-    // Redirect if no permission
-    useEffect(() => {
-        if (!canEdit) {
-            router.push(`/dashboard/punchlist/${punchlistItemId}`)
-        }
-    }, [canEdit, router, punchlistItemId])
+    // ==============================================
+    // FIND SELECTED PROJECT
+    // ==============================================
+    const selectedProject = useMemo(() => {
+        if (!punchlistItem?.projectId || !activeProjects) return undefined
+        return activeProjects.find(p => p.id === punchlistItem.projectId)
+    }, [punchlistItem?.projectId, activeProjects])
 
     // ==============================================
     // COMPUTED VALUES
     // ==============================================
-    const activeProjects = projects.filter(project =>
-        project.status === 'in_progress' ||
-        project.status === 'not_started' ||
-        project.status === 'on_track'
-    )
+    const progressPercentage = (activeStep / totalSteps) * 100
 
-    const availableTeamMembers = teamMembers.filter(member => {
-        if (!formData.projectId) return []
-        
-        const isAssignedToProject = member.currentProjects?.some(project =>
-            project.id === formData.projectId
+    // Step validation
+    const stepValidation = useMemo(() => {
+        const step1Valid = Boolean(
+            formData.title?.trim() &&
+            formData.issueType &&
+            !errors.title &&
+            !errors.description &&
+            !errors.issueType
         )
 
-        return member.isActive &&
-            member.assignmentStatus === 'assigned' &&
-            isAssignedToProject
-    })
+        const step2Valid = Boolean(
+            formData.location?.trim() &&
+            !errors.location &&
+            !errors.roomArea
+        )
 
-    const selectedProject = projects.find(p => p.id === formData.projectId)
+        const step3Valid = Boolean(
+            !errors.assignedMembers &&
+            !errors.dueDate &&
+            !errors.resolutionNotes
+        )
+
+        const step4Valid = Boolean(
+            !errors.photos &&
+            !errors.attachments &&
+            !isUploadingFiles
+        )
+
+        return {
+            1: step1Valid,
+            2: step2Valid,
+            3: step3Valid,
+            4: step4Valid
+        }
+    }, [formData, errors, isUploadingFiles])
+
+    const canProceedToNext = stepValidation[activeStep as keyof typeof stepValidation]
 
     // ==============================================
     // EVENT HANDLERS
     // ==============================================
-    const handleSubmit = async () => {
-        if (!canSubmit || !hasChanges) return
-        
-        try {
-            await updatePunchlistItem()
-            // Redirect to view page after successful update
-            router.push(`/dashboard/punchlist/${punchlistItemId}`)
-        } catch (error) {
-            console.error('Failed to update punchlist item:', error)
+
+    // Project change handler (disabled in edit mode)
+    const handleProjectChange = React.useCallback((projectId: string) => {
+        console.log('Project change not allowed in edit mode:', projectId)
+    }, [])
+
+    // Team member assignment handlers
+    const handleAddAssignment = React.useCallback((projectMemberId: string) => {
+        addAssignment(projectMemberId, 'primary')
+    }, [addAssignment])
+
+    const handleRemoveAssignment = React.useCallback((projectMemberId: string) => {
+        removeAssignment(projectMemberId)
+    }, [removeAssignment])
+
+    // Navigation handlers
+    const handleNext = React.useCallback(() => {
+        if (activeStep < totalSteps && canProceedToNext) {
+            setActiveStep(activeStep + 1)
         }
-    }
+    }, [activeStep, totalSteps, canProceedToNext])
+
+    const handlePrevious = React.useCallback(() => {
+        if (activeStep > 1) {
+            setActiveStep(activeStep - 1)
+        }
+    }, [activeStep])
 
     const handleCancel = () => {
         if (hasChanges) {
-            const confirmLeave = window.confirm(
-                'You have unsaved changes. Are you sure you want to leave?'
-            )
-            if (!confirmLeave) return
+            const confirmed = window.confirm('You have unsaved changes. Are you sure you want to cancel?')
+            if (!confirmed) return
         }
         router.push(`/dashboard/punchlist/${punchlistItemId}`)
     }
 
-    const handleProjectChange = (projectId: string) => {
-        updateFormData('projectId', projectId)
-        // Reset team member selection when project changes
-        updateFormData('assignedProjectMemberId', '')
+    // Form submission
+    const handleSubmit = React.useCallback(async () => {
+        if (canSubmit) {
+            await updatePunchlistItem()
+        }
+    }, [canSubmit, updatePunchlistItem])
+
+    // ==============================================
+    // STEP PROPS
+    // ==============================================
+    const step1Props = {
+        mode: 'edit' as const,
+        formData: {
+            title: formData.title || '',
+            description: formData.description || '',
+            issueType: (formData.issueType || '') as '' | 'safety' | 'defect' | 'incomplete' | 'change_request' | 'quality' | 'rework',
+            priority: formData.priority || 'medium',
+        },
+        errors,
+        updateFormData: updateFormData as (field: string, value: any) => void,
+        clearFieldError: clearFieldError as (field: string) => void,
+    }
+
+    const step2Props = {
+        mode: 'edit' as const,
+        formData: {
+            location: formData.location || '',
+            roomArea: formData.roomArea || '',
+        },
+        errors,
+        updateFormData: updateFormData as (field: string, value: any) => void,
+        clearFieldError: clearFieldError as (field: string) => void,
+        activeProjects: activeProjects || [],
+        isProjectsLoading,
+        hasProjectsError,
+        refreshProjects,
+        handleProjectChange,
+        selectedProject,
+    }
+
+    const step3Props = {
+        mode: 'edit' as const,
+        formData: {
+            assignedMembers: formData.assignedMembers || [],
+            dueDate: formData.dueDate || '',
+            resolutionNotes: formData.resolutionNotes || '',
+        },
+        errors,
+        updateFormData: updateFormData as (field: string, value: any) => void,
+        clearFieldError: clearFieldError as (field: string) => void,
+        selectedProject,
+        isTeamMembersLoading,
+        hasTeamMembersError,
+        availableTeamMembers: availableTeamMembers || [],
+        refreshTeamMembers,
+        addAssignment: handleAddAssignment,
+        removeAssignment: handleRemoveAssignment,
+        updateAssignmentRole,
+    }
+
+    const step4Props = {
+        mode: 'edit' as const,
+        formData: formData as UpdatePunchlistItemFormData,
+        errors,
+        updateFormData: updateFormData as (field: string, value: any) => void,
+        clearFieldError: clearFieldError as (field: string) => void,
+        isUploadingFiles,
+        hasPendingFiles,
+        pendingFiles,
+        uploadProgress,
+        uploadError,
+        addPendingFiles,
+        removePendingFile,
+        uploadPhotos,
+        uploadAttachments,
+        removePhoto,
+        removeAttachment,
     }
 
     // ==============================================
-    // LOADING STATE
+    // RENDER STEP CONTENT
     // ==============================================
-    if (isLoadingItem || isProjectsLoading || isTeamMembersLoading || !isInitialized) {
+    const renderStepContent = () => {
+        switch (activeStep) {
+            case 1:
+                return <IssueDetailsStep {...step1Props} />
+            case 2:
+                return <ProjectLocationStep {...step2Props} />
+            case 3:
+                return <AssignmentStep {...step3Props} />
+            case 4:
+                return <PhotosReviewStep {...step4Props} />
+            default:
+                return null
+        }
+    }
+
+    // ==============================================
+    // RENDER LOADING STATE
+    // ==============================================
+    if (isLoadingItem || !isInitialized) {
         return (
             <div className="min-h-screen bg-gray-50">
-                <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+                <div className="mx-auto max-w-3xl p-4 xs:p-6 sm:p-8">
                     <div className="space-y-6">
                         <div className="flex items-center gap-4">
                             <Skeleton className="h-10 w-10" />
-                            <div className="space-y-2">
-                                <Skeleton className="h-6 w-48" />
-                                <Skeleton className="h-4 w-32" />
+                            <div className="space-y-2 flex-1">
+                                <Skeleton className="h-8 w-64" />
+                                <Skeleton className="h-4 w-48" />
                             </div>
                         </div>
+                        <Skeleton className="h-2 w-full" />
                         <Card>
-                            <CardHeader>
-                                <Skeleton className="h-6 w-64" />
-                                <Skeleton className="h-4 w-96" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-4">
-                                    <Skeleton className="h-10 w-full" />
-                                    <Skeleton className="h-10 w-full" />
-                                    <Skeleton className="h-20 w-full" />
-                                </div>
+                            <CardContent className="space-y-6 p-6">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-32 w-full" />
+                                <Skeleton className="h-10 w-full" />
                             </CardContent>
                         </Card>
                     </div>
@@ -198,38 +348,36 @@ export default function EditPunchlistItemPage() {
     }
 
     // ==============================================
-    // ERROR STATE
+    // RENDER ERROR STATE
     // ==============================================
-    if (isError || isNotFound || !canEdit) {
+    if (isError || isNotFound) {
         return (
             <div className="min-h-screen bg-gray-50">
-                <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-                    <div className="flex items-center gap-4 mb-6">
-                        <Link href={`/dashboard/punchlist/${punchlistItemId}`}>
-                            <Button variant="outline" size="icon">
-                                <ArrowLeft className="h-4 w-4" />
-                            </Button>
-                        </Link>
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900">Edit Punchlist Item</h1>
+                <div className="mx-auto max-w-3xl p-4 xs:p-6 sm:p-8">
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-4">
+                            <Link href="/dashboard/punchlist">
+                                <Button variant="outline" size="icon">
+                                    <ArrowLeft className="h-4 w-4" />
+                                </Button>
+                            </Link>
+                            <div>
+                                <h1 className="text-2xl font-bold">Error Loading Punchlist Item</h1>
+                                <p className="text-sm text-muted-foreground">
+                                    {isNotFound ? 'Punchlist item not found' : 'Unable to load punchlist item'}
+                                </p>
+                            </div>
                         </div>
-                    </div>
 
-                    <Alert variant="destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>
-                            {isNotFound 
-                                ? "Punchlist item not found. It may have been deleted or you don't have permission to view it."
-                                : !canEdit
-                                ? "You don't have permission to edit this punchlist item."
-                                : error || "Failed to load punchlist item. Please try again."
-                            }
-                        </AlertDescription>
-                    </Alert>
+                        <Alert variant="destructive">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription>
+                                {error || 'Failed to load punchlist item. Please try again.'}
+                            </AlertDescription>
+                        </Alert>
 
-                    <div className="mt-6">
-                        <Button onClick={() => router.back()} variant="outline">
-                            Go Back
+                        <Button onClick={() => router.push('/dashboard/punchlist')}>
+                            Back to Punchlist
                         </Button>
                     </div>
                 </div>
@@ -240,228 +388,157 @@ export default function EditPunchlistItemPage() {
     // ==============================================
     // MAIN RENDER
     // ==============================================
-    if (!punchlistItem || !isInitialized) return null
-
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-4">
+            <div className="mx-auto max-w-3xl">
+                {/* Header - Mobile Responsive */}
+                <div className="mb-6 sm:mb-8">
+                    <div className="flex items-start xs:items-center gap-2 xs:gap-3 sm:gap-4 mb-3 xs:mb-4">
                         <Link href={`/dashboard/punchlist/${punchlistItemId}`}>
-                            <Button variant="outline" size="icon">
-                                <ArrowLeft className="h-4 w-4" />
+                            <Button variant="outline" size="icon" className="shrink-0 h-8 w-8 xs:h-9 xs:w-9 sm:h-10 sm:w-10">
+                                <ArrowLeft className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
                             </Button>
                         </Link>
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900">Edit Punchlist Item</h1>
-                            <p className="text-gray-600">
-                                {punchlistItem.title}
-                                {selectedProject && ` • ${selectedProject.name}`}
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-gray-900 leading-tight xs:leading-normal truncate">
+                                Edit Punchlist Item
+                            </h1>
+                            <p className="text-xs xs:text-sm sm:text-base text-gray-600 mt-0.5 xs:mt-0.5 sm:mt-1 line-clamp-2 leading-snug xs:leading-normal">
+                                Update punchlist item details
                             </p>
                         </div>
+
+                        <div className="hidden md:block">
+                            <Button asChild variant="ghost" size="sm">
+                                <Link href={`/dashboard/punchlist/${punchlistItemId}`}>
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    View
+                                </Link>
+                            </Button>
+                        </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <Link href={`/dashboard/punchlist/${punchlistItemId}`}>
-                            <Button variant="outline">
-                                <Eye className="mr-2 h-4 w-4" />
-                                View
-                            </Button>
-                        </Link>
+                    {/* Progress Bar - Mobile Responsive */}
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-xs sm:text-sm font-medium text-gray-700">
+                            <span>Step {activeStep} of {totalSteps}</span>
+                            <span className="hidden xs:inline">{Math.round(progressPercentage)}% Complete</span>
+                            <span className="xs:hidden">{Math.round(progressPercentage)}%</span>
+                        </div>
+                        <Progress value={progressPercentage} className="h-1.5 sm:h-2" />
                     </div>
+
+                    {/* Unsaved changes warning */}
+                    {hasChanges && (
+                        <Alert className="mt-4 border-yellow-200 bg-yellow-50">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription className="text-xs xs:text-sm">
+                                You have unsaved changes. Make sure to save before leaving this page.
+                            </AlertDescription>
+                        </Alert>
+                    )}
                 </div>
 
-                {/* Form */}
+                {/* Upload Progress */}
+                {isUploadingFiles && (
+                    <Alert className="mb-4">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <AlertDescription className="text-xs xs:text-sm">
+                            Uploading files... {uploadProgress}%
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {/* Main Content Card */}
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Update Punchlist Item</CardTitle>
-                        <CardDescription>
-                            Make changes to the punchlist item details below.
-                            {hasChanges && (
-                                <span className="text-orange-600 font-medium ml-2">
-                                    • You have unsaved changes
-                                </span>
-                            )}
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-8">
-                        {/* Issue Details Step */}
-                        <div className="space-y-6">
-                            <div className="flex items-center gap-3">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-orange-600 text-sm font-semibold">
-                                    1
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-900">Issue Information</h3>
-                            </div>
+                    <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6 py-4 sm:py-6">
+                        {renderStepContent()}
 
-                            <IssueDetailsStep
-                                mode="edit"
-                                formData={formData}
-                                errors={errors}
-                                updateFormData={updateFormData}
-                                clearFieldError={clearFieldError}
-                                projects={activeProjects}
-                                isProjectsLoading={isProjectsLoading}
-                                selectedProject={selectedProject}
-                                onProjectChange={handleProjectChange}
-                            />
-                        </div>
+                        <Separator />
 
-                        <div className="border-t border-gray-200 pt-8">
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-orange-600 text-sm font-semibold">
-                                    2
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-900">Location & Assignment</h3>
-                            </div>
-
-                            <ProjectLocationStep
-                                mode="edit"
-                                formData={formData}
-                                errors={errors}
-                                updateFormData={updateFormData}
-                                clearFieldError={clearFieldError}
-                                selectedProject={selectedProject}
-                            />
-                        </div>
-
-                        <div className="border-t border-gray-200 pt-8">
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-orange-600 text-sm font-semibold">
-                                    3
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-900">Assignment & Timeline</h3>
-                            </div>
-
-                            <AssignmentStep
-                                mode="edit"
-                                formData={formData}
-                                errors={errors}
-                                updateFormData={updateFormData}
-                                clearFieldError={clearFieldError}
-                                selectedProject={selectedProject}
-                                isTeamMembersLoading={isTeamMembersLoading}
-                                hasTeamMembersError={false}
-                                availableTeamMembers={availableTeamMembers}
-                                refreshTeamMembers={async () => {}}
-                            />
-                        </div>
-
-                        <div className="border-t border-gray-200 pt-8">
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-orange-600 text-sm font-semibold">
-                                    4
-                                </div>
-                                <h3 className="text-lg font-semibold text-gray-900">Photos & Documentation</h3>
-                            </div>
-
-                            <PhotosReviewStep
-                                mode="edit"
-                                formData={formData}
-                                errors={errors}
-                                updateFormData={updateFormData}
-                                clearFieldError={clearFieldError}
-                                
-                                // File upload props
-                                isUploadingFiles={isUploadingFiles}
-                                hasPendingFiles={hasPendingFiles}
-                                pendingFiles={pendingFiles}
-                                uploadProgress={uploadProgress}
-                                uploadError={uploadError}
-                                addPendingFiles={addPendingFiles}
-                                removePendingFile={removePendingFile}
-                                uploadPhotos={uploadPhotos}
-                                uploadAttachments={uploadAttachments}
-                                removePhoto={removePhoto}
-                                removeAttachment={removeAttachment}
-                            />
-                        </div>
-
-                        {/* General Error Display */}
-                        {errors.general && (
-                            <Alert variant="destructive">
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertDescription>{errors.general}</AlertDescription>
-                            </Alert>
-                        )}
-
-                        {errors.submit && (
-                            <Alert variant="destructive">
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertDescription>{errors.submit}</AlertDescription>
-                            </Alert>
-                        )}
-
-                        {/* Action Buttons */}
-                        <div className="flex items-center justify-between pt-6 border-t border-gray-200">
-                            <Button 
-                                type="button" 
-                                variant="outline" 
-                                onClick={handleCancel}
-                                disabled={isUpdating}
-                            >
-                                Cancel
-                            </Button>
-
-                            <div className="flex items-center gap-3">
-                                {hasChanges && (
-                                    <span className="text-sm text-gray-600">
-                                        You have unsaved changes
-                                    </span>
+                        {/* Navigation - Mobile Responsive */}
+                        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-4 sm:pt-6">
+                            <div className="flex gap-2 sm:gap-3 order-1 md:order-2">
+                                {activeStep > 1 && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={handlePrevious}
+                                        disabled={isUpdating || isUploadingFiles}
+                                        className="flex items-center gap-2 text-xs xs:text-sm "
+                                    >
+                                        <ChevronLeft className="mr-1 sm:mr-2 h-4 w-4" />
+                                        <span className="text-sm sm:text-base">Previous</span>
+                                    </Button>
                                 )}
-                                
-                                <Button
-                                    type="submit"
-                                    onClick={handleSubmit}
-                                    disabled={!canSubmit || !hasChanges || isUpdating}
-                                    className="min-w-[120px]"
-                                >
-                                    {isUpdating ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Updating...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Save className="mr-2 h-4 w-4" />
-                                            Update Item
-                                        </>
-                                    )}
-                                </Button>
+
+                                <Link href={`/dashboard/punchlist/${punchlistItemId}`} >
+                                    <Button
+                                        variant="outline"
+                                        disabled={isUpdating || isUploadingFiles}
+                                        className=" text-sm sm:text-base"
+                                    >
+                                        Cancel
+                                    </Button>
+                                </Link>
+                            </div>
+
+                            <div className="flex items-center gap-3 order-1 md:order-2">
+                                {hasChanges && activeStep === totalSteps && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={resetForm}
+                                        disabled={isUpdating || isUploadingFiles}
+                                        className=" text-sm sm:text-base"
+                                    >
+                                        Reset
+                                    </Button>
+                                )}
+
+                                {activeStep < totalSteps ? (
+                                    <Button
+                                        onClick={handleNext}
+                                        disabled={!canProceedToNext || isUpdating || isUploadingFiles}
+                                        className="order-1 md:order-2 w-full  md:w-auto bg-orange-600 hover:bg-orange-700 text-white h-11 sm:h-12 text-base"
+                                    >
+                                        <span className="text-sm sm:text-base">Next</span>
+                                        <ChevronRight className="ml-1 sm:ml-2 h-4 w-4" />
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        onClick={handleSubmit}
+                                        disabled={!canSubmit || isUpdating || isUploadingFiles}
+                                        className="order-1 md:order-2 w-full md:w-auto  bg-orange-600 hover:bg-orange-700"
+                                    >
+                                        {isUpdating || isUploadingFiles ? (
+                                            <>
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                <span className="text-sm sm:text-base">
+                                                    {isUploadingFiles ? 'Uploading...' : 'Saving...'}
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="mr-2 h-4 w-4" />
+                                                <span className="text-sm sm:text-base">
+                                                    Save Changes
+                                                </span>
+                                            </>
+                                        )}
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Upload Progress */}
-                {(isUploadingFiles || hasPendingFiles) && (
-                    <Card className="mt-6">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                                Uploading Files
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-2">
-                                {Object.entries(uploadProgress).map(([fileName, progress]) => (
-                                    <div key={fileName} className="space-y-1">
-                                        <div className="flex justify-between text-sm">
-                                            <span className="truncate">{fileName}</span>
-                                            <span>{progress}%</span>
-                                        </div>
-                                        <div className="w-full bg-gray-200 rounded-full h-2">
-                                            <div 
-                                                className="bg-orange-600 h-2 rounded-full transition-all"
-                                                style={{ width: `${progress}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
+                {/* Form Errors */}
+                {errors._form && errors._form.length > 0 && (
+                    <Alert variant="destructive" className="mt-4">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription className="text-xs xs:text-sm">
+                            {errors._form[0]}
+                        </AlertDescription>
+                    </Alert>
                 )}
             </div>
         </div>

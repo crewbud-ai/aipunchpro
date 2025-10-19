@@ -141,12 +141,13 @@ export function PersonalTimesheetExport({ userId, userName }: PersonalTimesheetE
     // RENDER
     // ==============================================
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
             {/* Simple Button Version */}
             <Button
                 onClick={() => handleExport('this-month')}
                 disabled={isExporting}
                 variant="outline"
+                className='w-full sm:w-auto'
                 size="sm"
             >
                 {isExporting ? (
@@ -170,7 +171,7 @@ export function PersonalTimesheetExport({ userId, userName }: PersonalTimesheetE
             {/* Dropdown with Options */}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={isExporting}>
+                    <Button className='w-full sm:w-auto' variant="outline" size="sm" disabled={isExporting}>
                         <Calendar className="mr-2 h-4 w-4" />
                         More Options
                     </Button>

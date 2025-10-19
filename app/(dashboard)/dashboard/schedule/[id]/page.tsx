@@ -38,6 +38,7 @@ import {
 // Import real hooks following the existing pattern
 import { useScheduleProject } from "@/hooks/schedule-projects"
 import { cn } from "@/lib/utils"
+import { formatDate, formatDateTime, formatTime12Hour, getPriorityConfig, getStatusConfig } from "@/utils/format-functions"
 
 export default function ScheduleProjectDetailPage() {
   const params = useParams()
@@ -131,101 +132,6 @@ export default function ScheduleProjectDetailPage() {
 
     return actions
   }, [scheduleProject])
-
-  // ==============================================
-  // UTILITY FUNCTIONS
-  // ==============================================
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "planned":
-        return "bg-blue-100 text-blue-800"
-      case "in_progress":
-        return "bg-orange-100 text-orange-800"
-      case "completed":
-        return "bg-green-100 text-green-800"
-      case "delayed":
-        return "bg-red-100 text-red-800"
-      case "cancelled":
-        return "bg-gray-100 text-gray-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-      case "critical":
-        return "bg-red-100 text-red-800"
-      case "medium":
-        return "bg-yellow-100 text-yellow-800"
-      case "low":
-        return "bg-green-100 text-green-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const formatStatusLabel = (status: string) => {
-    switch (status) {
-      case "planned":
-        return "Planned"
-      case "in_progress":
-        return "In Progress"
-      case "completed":
-        return "Completed"
-      case "delayed":
-        return "Delayed"
-      case "cancelled":
-        return "Cancelled"
-      default:
-        return status
-    }
-  }
-
-  const formatPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "High"
-      case "critical":
-        return "Critical"
-      case "medium":
-        return "Medium"
-      case "low":
-        return "Low"
-      default:
-        return priority
-    }
-  }
-
-  const formatTime = (time: string) => {
-    if (!time) return ""
-    return new Date(`1970-01-01T${time}`).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    })
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
-  }
-
-  const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    })
-  }
 
   // ==============================================
   // EVENT HANDLERS
@@ -363,11 +269,11 @@ export default function ScheduleProjectDetailPage() {
                   <span className="truncate">{scheduleProject.project.name}</span>
                 </div>
               )}
-              <Badge className={getStatusColor(scheduleProject.status)}>
-                {formatStatusLabel(scheduleProject.status)}
+              <Badge className={getStatusConfig(scheduleProject.status).color}>
+                {getStatusConfig(scheduleProject.status).label}
               </Badge>
-              <Badge className={getPriorityColor(scheduleProject.priority)}>
-                {formatPriorityLabel(scheduleProject.priority)}
+              <Badge className={`${getPriorityConfig(scheduleProject.priority).color} ${getPriorityConfig(scheduleProject.priority).bgColor}`}>
+                {getPriorityConfig(scheduleProject.priority).label}
               </Badge>
             </div>
           </div>
@@ -510,8 +416,8 @@ export default function ScheduleProjectDetailPage() {
                             <p className="font-medium text-sm xs:text-base truncate">{dep.title}</p>
                             <p className="text-xs xs:text-sm text-gray-600 truncate">{dep.project.name}</p>
                           </div>
-                          <Badge className={cn("self-start xs:self-auto shrink-0", getStatusColor(dep.status))}>
-                            {formatStatusLabel(dep.status)}
+                          <Badge className={cn("self-start xs:self-auto shrink-0", getStatusConfig(dep.status).color)}>
+                            {getStatusConfig(dep.status).label}
                           </Badge>
                         </div>
                       ))}
@@ -611,9 +517,9 @@ export default function ScheduleProjectDetailPage() {
                   <div className="flex items-center gap-1.5 xs:gap-2">
                     <Clock className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 shrink-0" />
                     <span className="font-medium text-sm xs:text-base">
-                      {scheduleProject.startTime && formatTime(scheduleProject.startTime)}
+                      {scheduleProject.startTime && formatTime12Hour(scheduleProject.startTime)}
                       {scheduleProject.startTime && scheduleProject.endTime && " - "}
-                      {scheduleProject.endTime && formatTime(scheduleProject.endTime)}
+                      {scheduleProject.endTime && formatTime12Hour(scheduleProject.endTime)}
                     </span>
                   </div>
                 </div>
@@ -666,14 +572,14 @@ export default function ScheduleProjectDetailPage() {
             <CardContent className="space-y-2.5 xs:space-y-3 p-4 xs:p-5 sm:p-6 pt-0">
               <div className="flex justify-between items-center text-xs xs:text-sm">
                 <span className="text-gray-600">Status</span>
-                <Badge className={getStatusColor(scheduleProject.status)}>
-                  {formatStatusLabel(scheduleProject.status)}
+                <Badge className={getStatusConfig(scheduleProject.status).color}>
+                  {getStatusConfig(scheduleProject.status).label}
                 </Badge>
               </div>
               <div className="flex justify-between items-center text-xs xs:text-sm">
                 <span className="text-gray-600">Priority</span>
-                <Badge className={getPriorityColor(scheduleProject.priority)}>
-                  {formatPriorityLabel(scheduleProject.priority)}
+                <Badge className={`${getPriorityConfig(scheduleProject.priority).color} ${getPriorityConfig(scheduleProject.priority).bgColor}`}>
+                  {getPriorityConfig(scheduleProject.priority).label}
                 </Badge>
               </div>
               <div className="flex justify-between items-center text-xs xs:text-sm">

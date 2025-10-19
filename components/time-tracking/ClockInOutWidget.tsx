@@ -21,20 +21,20 @@ interface ClockInOutWidgetProps {
   compact?: boolean
 }
 
-export function ClockInOutWidget({ 
-  className, 
+export function ClockInOutWidget({
+  className,
   showTodaysSummary = true,
-  compact = false 
+  compact = false
 }: ClockInOutWidgetProps) {
   // ==============================================
   // CONTEXT - Get shared time tracking state
   // ==============================================
-  const { 
-    isClocked, 
-    currentSession, 
+  const {
+    isClocked,
+    currentSession,
     sessionLoading,
     refreshSession,
-    refreshDashboard 
+    refreshDashboard
   } = useTimeTracking()
 
   // ==============================================
@@ -69,12 +69,12 @@ export function ClockInOutWidget({
   // CALCULATE TODAY'S TOTAL & DURATION STRING
   // ==============================================
   const [durationString, setDurationString] = React.useState('0h 0m')
-  
+
   useEffect(() => {
     if (currentSession && isClocked) {
       const minutes = currentSession.duration || 0
       setTodaysTotal(minutes)
-      
+
       const hours = Math.floor(minutes / 60)
       const mins = minutes % 60
       setDurationString(`${hours}h ${mins}m`)
@@ -89,10 +89,10 @@ export function ClockInOutWidget({
   // ==============================================
   const handleClockInSuccess = async () => {
     setShowClockInModal(false)
-    
+
     // Refresh session first (updates context)
     await refreshSession()
-    
+
     // Then trigger dashboard-wide refresh
     refreshDashboard()
   }
@@ -102,10 +102,10 @@ export function ClockInOutWidget({
   // ==============================================
   const handleClockOutSuccess = async () => {
     setShowClockOutModal(false)
-    
+
     // Refresh session first (updates context)
     await refreshSession()
-    
+
     // Then trigger dashboard-wide refresh
     refreshDashboard()
   }
@@ -140,46 +140,46 @@ export function ClockInOutWidget({
   return (
     <>
       <Card className={className}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-orange-600" />
+        <CardHeader className="p-4 xs:p-5 sm:p-6">
+          <CardTitle className="flex items-center gap-1.5 xs:gap-2 text-base xs:text-lg">
+            <Clock className="h-4 w-4 xs:h-5 xs:w-5 text-orange-600 shrink-0" />
             Time Tracking
           </CardTitle>
           {!compact && (
-            <CardDescription>
+            <CardDescription className="text-xs xs:text-sm leading-snug xs:leading-normal mt-1 xs:mt-1.5">
               {isClocked ? 'Currently clocked in' : 'Start tracking your time'}
             </CardDescription>
           )}
         </CardHeader>
 
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="p-4 xs:p-5 sm:p-6 pt-0">
+          <div className="space-y-3 xs:space-y-4">
             {/* Current Session Display */}
             {isClocked && currentSession && (
-              <CurrentSessionDisplay 
-                session={currentSession} 
+              <CurrentSessionDisplay
+                session={currentSession}
                 duration={durationString}
-                compact={compact} 
+                compact={compact}
               />
             )}
 
-            {/* Clock In/Out Button */}
+            {/* Clock In/Out Button - Mobile Responsive */}
             {!isClocked ? (
               <Button
                 onClick={handleClockInClick}
                 disabled={!hasProjects || isProcessing}
-                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                className="w-full bg-green-600 hover:bg-green-700 text-white h-9 xs:h-10 sm:h-11 text-sm xs:text-base"
                 size={compact ? "sm" : "default"}
               >
                 {isProcessing ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
+                    <Loader2 className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 animate-spin" />
+                    <span>Processing...</span>
                   </>
                 ) : (
                   <>
-                    <Play className="mr-2 h-4 w-4" />
-                    Clock In
+                    <Play className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4" />
+                    <span>Clock In</span>
                   </>
                 )}
               </Button>
@@ -188,43 +188,43 @@ export function ClockInOutWidget({
                 onClick={handleClockOutClick}
                 disabled={isProcessing}
                 variant="destructive"
-                className="w-full"
+                className="w-full h-9 xs:h-10 sm:h-11 text-sm xs:text-base"
                 size={compact ? "sm" : "default"}
               >
                 {isProcessing ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
+                    <Loader2 className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 animate-spin" />
+                    <span>Processing...</span>
                   </>
                 ) : (
                   <>
-                    <Square className="mr-2 h-4 w-4" />
-                    Clock Out
+                    <Square className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4" />
+                    <span>Clock Out</span>
                   </>
                 )}
               </Button>
             )}
 
-            {/* No Projects Warning */}
+            {/* No Projects Warning - Mobile Responsive */}
             {!hasProjects && !isLoading && (
-              <p className="text-sm text-muted-foreground text-center">
+              <p className="text-xs xs:text-sm text-muted-foreground text-center leading-snug">
                 No projects assigned. Contact your supervisor.
               </p>
             )}
 
-            {/* Today's Summary */}
+            {/* Today's Summary - Mobile Responsive */}
             {showTodaysSummary && (
-              <div className="pt-4 border-t text-center">
-                <div className="text-sm text-gray-500">Today's Total</div>
-                <div className="text-2xl font-semibold text-gray-900">
+              <div className="pt-3 xs:pt-4 border-t text-center">
+                <div className="text-xs xs:text-sm text-gray-500 mb-1 xs:mb-1.5">Today's Total</div>
+                <div className="text-xl xs:text-2xl font-semibold text-gray-900">
                   {Math.floor(todaysTotal / 60)}h {todaysTotal % 60}m
                 </div>
               </div>
             )}
 
-            {/* Error Display */}
+            {/* Error Display - Mobile Responsive */}
             {clockError && (
-              <p className="text-sm text-red-500 text-center">{clockError}</p>
+              <p className="text-xs xs:text-sm text-red-500 text-center leading-snug">{clockError}</p>
             )}
           </div>
         </CardContent>

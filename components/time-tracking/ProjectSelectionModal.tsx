@@ -190,24 +190,24 @@ export function ProjectSelectionModal({
   // ==============================================
   // RENDER
   // ==============================================
-  return (
+  return ( 
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-[425px] max-w-[calc(100vw-2rem)]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Play className="h-5 w-5 text-green-600" />
+          <DialogTitle className="flex items-center gap-1.5 xs:gap-2 text-base xs:text-lg">
+            <Play className="h-4 w-4 xs:h-5 xs:w-5 text-green-600 shrink-0" />
             Clock In to Project
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs xs:text-sm leading-snug xs:leading-normal">
             Select a project and optional task to start tracking your time.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 xs:space-y-4">
           {/* Project Selection - REQUIRED */}
-          <div className="space-y-2">
-            <Label htmlFor="project" className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
+          <div className="space-y-1.5 xs:space-y-2">
+            <Label htmlFor="project" className="flex items-center gap-1.5 xs:gap-2 text-sm xs:text-base">
+              <Building2 className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
               Project *
             </Label>
             <Select
@@ -215,16 +215,16 @@ export function ProjectSelectionModal({
               onValueChange={(value) => handleInputChange('projectId', value)}
               disabled={isSubmitting}
             >
-              <SelectTrigger>
+              <SelectTrigger className="h-9 xs:h-10 text-sm xs:text-base">
                 <SelectValue placeholder="Select a project" />
               </SelectTrigger>
               <SelectContent>
                 {projects.map((project) => (
                   <SelectItem key={project.id} value={project.id}>
-                    <div className="flex items-center gap-2">
-                      <span>{project.name}</span>
+                    <div className="flex items-center gap-1.5 xs:gap-2">
+                      <span className="text-sm xs:text-base">{project.name}</span>
                       {project.status === 'in_progress' && (
-                        <CheckCircle className="h-3 w-3 text-green-500" />
+                        <CheckCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 text-green-500 shrink-0" />
                       )}
                     </div>
                   </SelectItem>
@@ -235,9 +235,9 @@ export function ProjectSelectionModal({
 
           {/* Schedule Project Selection - ONLY SHOW IF THERE ARE SCHEDULE PROJECTS */}
           {formData.projectId && filteredScheduleProjects.length > 0 && (
-            <div className="space-y-2">
-              <Label htmlFor="scheduleProject" className="flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
+            <div className="space-y-1.5 xs:space-y-2">
+              <Label htmlFor="scheduleProject" className="flex items-center gap-1.5 xs:gap-2 text-sm xs:text-base">
+                <Calendar className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
                 Scheduled Task (Optional)
               </Label>
               <Select
@@ -245,18 +245,18 @@ export function ProjectSelectionModal({
                 onValueChange={(value) => handleInputChange('scheduleProjectId', value)}
                 disabled={isSubmitting}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-9 xs:h-10 text-sm xs:text-base">
                   <SelectValue placeholder="Select a scheduled task or skip for general work" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">
-                    <span className="text-gray-500">General project work (no specific task)</span>
+                    <span className="text-gray-500 text-sm xs:text-base">General project work (no specific task)</span>
                   </SelectItem>
                   {filteredScheduleProjects.map((scheduleProject) => (
                     <SelectItem key={scheduleProject.id} value={scheduleProject.id}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{scheduleProject.title}</span>
-                        <div className="flex gap-2 text-xs text-gray-500">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-medium text-sm xs:text-base">{scheduleProject.title}</span>
+                        <div className="flex gap-1.5 xs:gap-2 text-xs text-gray-500 flex-wrap">
                           {scheduleProject.trade && <span>Trade: {scheduleProject.trade}</span>}
                           {scheduleProject.priority && <span>• Priority: {scheduleProject.priority}</span>}
                           <span>• {scheduleProject.status}</span>
@@ -266,8 +266,8 @@ export function ProjectSelectionModal({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500 flex items-center gap-1">
-                <Info className="h-3 w-3" />
+              <p className="text-xs text-gray-500 flex items-center gap-1 leading-snug">
+                <Info className="h-3 w-3 shrink-0" />
                 {filteredScheduleProjects.length} task(s) assigned to you in this project
               </p>
             </div>
@@ -275,20 +275,20 @@ export function ProjectSelectionModal({
 
           {/* Info message when project selected but no schedule projects */}
           {formData.projectId && filteredScheduleProjects.length === 0 && (
-            <div className="text-sm text-gray-600 p-3 bg-gray-50 rounded border border-gray-200">
-              <p className="font-medium flex items-center gap-2">
-                <Info className="h-4 w-4" />
+            <div className="text-sm text-gray-600 p-2.5 xs:p-3 bg-gray-50 rounded border border-gray-200">
+              <p className="font-medium flex items-center gap-1.5 xs:gap-2 text-xs xs:text-sm">
+                <Info className="h-3.5 w-3.5 xs:h-4 xs:w-4 shrink-0" />
                 No scheduled tasks assigned
               </p>
-              <p className="text-xs mt-1">
+              <p className="text-xs mt-1 leading-snug">
                 You'll be working on general project activities.
               </p>
             </div>
           )}
 
           {/* Description - OPTIONAL */}
-          <div className="space-y-2">
-            <Label htmlFor="description">Work Description (Optional)</Label>
+          <div className="space-y-1.5 xs:space-y-2">
+            <Label htmlFor="description" className="text-sm xs:text-base">Work Description (Optional)</Label>
             <Textarea
               id="description"
               value={formData.description}
@@ -297,8 +297,9 @@ export function ProjectSelectionModal({
               disabled={isSubmitting}
               rows={2}
               maxLength={500}
+              className="text-sm xs:text-base resize-none"
             />
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 leading-snug">
               {formData.description.length}/500 characters
             </p>
           </div>
@@ -306,26 +307,26 @@ export function ProjectSelectionModal({
           {/* Selected Project Summary */}
           {selectedProject && (
             <Card className="bg-blue-50 border-blue-200">
-              <CardContent className="pt-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-blue-600" />
-                    <span className="font-medium text-blue-900">{selectedProject.name}</span>
+              <CardContent className="p-3 xs:p-4">
+                <div className="space-y-1.5 xs:space-y-2">
+                  <div className="flex items-center gap-1.5 xs:gap-2">
+                    <Building2 className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-blue-600 shrink-0" />
+                    <span className="font-medium text-blue-900 text-sm xs:text-base leading-snug">{selectedProject.name}</span>
                   </div>
                   {selectedScheduleProject && (
-                    <div className="flex items-center gap-2 text-sm text-blue-700">
-                      <Calendar className="h-3 w-3" />
-                      <span>{selectedScheduleProject.title}</span>
+                    <div className="flex items-center gap-1.5 xs:gap-2 text-xs xs:text-sm text-blue-700">
+                      <Calendar className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                      <span className="leading-snug">{selectedScheduleProject.title}</span>
                     </div>
                   )}
                   {!selectedScheduleProject && formData.projectId && (
-                    <div className="text-sm text-blue-700 flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3" />
+                    <div className="text-xs xs:text-sm text-blue-700 flex items-center gap-1 leading-snug">
+                      <CheckCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
                       <span>Working on general project activities</span>
                     </div>
                   )}
                   {formData.description && (
-                    <p className="text-sm text-blue-700 mt-2 pt-2 border-t border-blue-300">
+                    <p className="text-xs xs:text-sm text-blue-700 mt-1.5 xs:mt-2 pt-1.5 xs:pt-2 border-t border-blue-300 leading-snug">
                       {formData.description}
                     </p>
                   )}
@@ -338,34 +339,35 @@ export function ProjectSelectionModal({
           {error && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription className="text-sm xs:text-base leading-snug">{error}</AlertDescription>
             </Alert>
           )}
 
           {/* Dialog Footer */}
-          <DialogFooter>
+          <DialogFooter className="gap-2 flex-col xs:flex-row">
             <Button
               type="button"
               variant="outline"
               onClick={handleClose}
               disabled={isSubmitting}
+              className="w-full xs:w-auto h-9 xs:h-10 text-sm xs:text-base"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={!canSubmit}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-green-600 hover:bg-green-700 w-full xs:w-auto h-9 xs:h-10 text-sm xs:text-base"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Starting...
+                  <Loader2 className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4 animate-spin" />
+                  <span>Starting...</span>
                 </>
               ) : (
                 <>
-                  <Play className="mr-2 h-4 w-4" />
-                  Start Work
+                  <Play className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4" />
+                  <span>Start Work</span>
                 </>
               )}
             </Button>

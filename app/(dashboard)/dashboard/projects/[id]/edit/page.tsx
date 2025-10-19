@@ -193,7 +193,7 @@ export default function EditProjectPage() {
     if (isLoadingProject) {
         return (
             <div className="min-h-screen bg-gray-50">
-                <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+                <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
                     <div className="flex items-center gap-4">
                         <Skeleton className="h-10 w-10" />
                         <div className="space-y-2">
@@ -219,7 +219,7 @@ export default function EditProjectPage() {
     if (hasProjectError || isNotFound) {
         return (
             <div className="min-h-screen bg-gray-50">
-                <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+                <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
                     <Alert variant="destructive">
                         <AlertCircle className="h-4 w-4" />
                         <AlertDescription>
@@ -409,7 +409,7 @@ export default function EditProjectPage() {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <div className="mx-auto max-w-4xl">
+            <div className="mx-auto max-w-3xl">
                 {/* Header */}
                 <div className="mb-6 sm:mb-8">
                     <div className="flex items-start xs:items-center gap-2 xs:gap-3 sm:gap-4 mb-3 xs:mb-4">

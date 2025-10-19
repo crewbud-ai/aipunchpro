@@ -5,7 +5,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { MapPin, Crosshair, RotateCcw } from 'lucide-react'
+import { MapPin, Crosshair, RotateCcw, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { SelectedLocation } from '@/hooks/places'
@@ -121,7 +121,7 @@ export const LocationMap = ({
 
     try {
       const L = window.L
-      
+
       // Initialize map
       const map = L.map(mapRef.current, {
         center: value?.coordinates ? [value.coordinates.lat, value.coordinates.lng] : [DEFAULT_CENTER.lat, DEFAULT_CENTER.lng],
@@ -210,23 +210,23 @@ export const LocationMap = ({
     if (disabled || isProcessingLocation) return
 
     const { lat, lng } = e.latlng
-    
+
     // Add temporary marker immediately for better UX
     addMarker(lat, lng, 'Getting address...')
 
     try {
       // Use the reverse geocoding hook
       const location = await reverseGeocode(lat, lng)
-      
+
       // Update marker with the actual location info
       addMarker(lat, lng, location.displayName)
-      
+
       // Notify parent component
       onLocationSelect(location)
 
     } catch (error) {
       console.error('Map click geocoding failed:', error)
-      
+
       // The hook already handles fallbacks, but just in case
       const fallbackLocation: SelectedLocation = {
         address: `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
@@ -234,7 +234,7 @@ export const LocationMap = ({
         coordinates: { lat, lng },
         placeId: `manual_${Date.now()}`,
       }
-      
+
       addMarker(lat, lng, fallbackLocation.displayName)
       onLocationSelect(fallbackLocation)
     }
@@ -257,14 +257,14 @@ export const LocationMap = ({
 
     try {
       const location = await getCurrentLocation()
-      
+
       if (location && mapInstanceRef.current) {
         // Center map on current location
         mapInstanceRef.current.setView([location.coordinates!.lat, location.coordinates!.lng], SELECTED_ZOOM)
-        
+
         // Add marker
         addMarker(location.coordinates!.lat, location.coordinates!.lng, location.displayName)
-        
+
         // Notify parent component
         onLocationSelect(location)
       }
@@ -291,68 +291,68 @@ export const LocationMap = ({
   return (
     <div className={cn('relative', className)}>
       {/* Map Header */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          <MapPin className="h-4 w-4" />
-          Click on map to select location
+      <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 mb-1.5 xs:mb-2">
+        <div className="flex items-center gap-1.5 xs:gap-2 text-xs xs:text-sm font-medium text-gray-700 min-w-0">
+          <MapPin className="h-3.5 w-3.5 xs:h-4 xs:w-4 flex-shrink-0" />
+          <span className="truncate">Click on map to select location</span>
           {isProcessingLocation && (
-            <span className="text-blue-600 text-xs">
+            <span className="text-blue-600 text-xs whitespace-nowrap flex-shrink-0">
               {isReverseGeocoding && '(Getting address...)'}
               {isGettingCurrentLocation && '(Getting current location...)'}
             </span>
           )}
         </div>
-        
+
         {/* Map Controls */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0">
           {value?.coordinates && (
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleCenterOnLocation}
-              className="h-7 px-2 text-xs"
+              className="h-6 xs:h-7 px-1.5 xs:px-2 text-xs"
               title="Center on selected location"
               disabled={isProcessingLocation}
             >
-              <MapPin className="h-3 w-3" />
+              <MapPin className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
             </Button>
           )}
-          
+
           {isGeolocationSupported && (
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleCurrentLocation}
-              className="h-7 px-2 text-xs"
+              className="h-6 xs:h-7 px-1.5 xs:px-2 text-xs"
               title="Use current location"
               disabled={isProcessingLocation}
             >
               {isGettingCurrentLocation ? (
-                <div className="w-3 h-3 border border-gray-400 border-t-gray-600 rounded-full animate-spin" />
+                <div className="w-3 h-3 xs:w-3.5 xs:h-3.5 border border-gray-400 border-t-gray-600 rounded-full animate-spin" />
               ) : (
-                <Crosshair className="h-3 w-3" />
+                <Crosshair className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
               )}
             </Button>
           )}
-          
+
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={handleResetView}
-            className="h-7 px-2 text-xs"
+            className="h-6 xs:h-7 px-1.5 xs:px-2 text-xs"
             title="Reset view"
             disabled={isProcessingLocation}
           >
-            <RotateCcw className="h-3 w-3" />
+            <RotateCcw className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
           </Button>
         </div>
       </div>
 
       {/* Map Container */}
-      <div 
+      <div
         className={cn(
           'relative border rounded-lg overflow-hidden bg-gray-100',
           error && 'border-red-300',
@@ -361,32 +361,34 @@ export const LocationMap = ({
         )}
         style={{ height }}
       >
-        <div 
-          ref={mapRef} 
+        <div
+          ref={mapRef}
           className="w-full h-full"
-          style={{ 
+          style={{
             filter: disabled ? 'grayscale(1)' : 'none',
             pointerEvents: disabled || isProcessingLocation ? 'none' : 'auto'
           }}
         />
-        
+
         {/* Loading Overlay */}
         {isMapLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-            <div className="flex flex-col items-center gap-2 text-gray-500">
-              <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
-              <p className="text-sm">Loading map...</p>
+            <div className="flex flex-col items-center gap-1.5 xs:gap-2 text-gray-500">
+              <div className="w-5 h-5 xs:w-6 xs:h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+              <p className="text-xs xs:text-sm">Loading map...</p>
             </div>
           </div>
         )}
 
         {/* Processing Overlay */}
         {isProcessingLocation && !isMapLoading && (
-          <div className="absolute inset-0 bg-black bg-opacity-10 flex items-center justify-center">
-            <div className="bg-white px-3 py-2 rounded-lg shadow-md flex items-center gap-2 text-sm">
-              <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
-              {isReverseGeocoding && 'Getting address...'}
-              {isGettingCurrentLocation && 'Getting current location...'}
+          <div className="absolute inset-0 bg-black bg-opacity-10 flex items-center justify-center px-4">
+            <div className="bg-white px-2.5 xs:px-3 py-1.5 xs:py-2 rounded-lg shadow-md flex items-center gap-1.5 xs:gap-2 text-xs xs:text-sm max-w-full">
+              <div className="w-3.5 h-3.5 xs:w-4 xs:h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
+              <span className="truncate">
+                {isReverseGeocoding && 'Getting address...'}
+                {isGettingCurrentLocation && 'Getting current location...'}
+              </span>
             </div>
           </div>
         )}
@@ -394,13 +396,13 @@ export const LocationMap = ({
 
       {/* Selected Location Info */}
       {value && (
-        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-3 w-3 text-green-600" />
-            <span className="font-medium text-green-900">{value.displayName}</span>
+        <div className="mt-1.5 xs:mt-2 p-2 xs:p-2.5 sm:p-3 bg-green-50 border border-green-200 rounded-lg text-xs">
+          <div className="flex items-center gap-1.5 xs:gap-2">
+            <MapPin className="h-3 w-3 xs:h-3.5 xs:w-3.5 text-green-600 flex-shrink-0" />
+            <span className="font-medium text-green-900 truncate">{value.displayName}</span>
           </div>
           {value.coordinates && (
-            <div className="text-green-700 ml-5">
+            <div className="text-green-700 ml-[18px] xs:ml-5 mt-0.5 text-xs break-all leading-snug">
               {value.coordinates.lat.toFixed(6)}, {value.coordinates.lng.toFixed(6)}
             </div>
           )}
@@ -409,20 +411,22 @@ export const LocationMap = ({
 
       {/* Error Messages */}
       {error && (
-        <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
-          <span className="font-medium">Form Error:</span> {error}
+        <p className="text-xs xs:text-sm text-red-600 mt-1.5 xs:mt-2 flex items-start gap-1 leading-snug">
+          <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 mt-0.5 flex-shrink-0" />
+          <span><span className="font-medium">Form Error:</span> {error}</span>
         </p>
       )}
 
       {locationError && (
-        <p className="text-sm text-orange-600 mt-2 flex items-center gap-1">
-          <span className="font-medium">Location Error:</span> {locationError}
+        <p className="text-xs xs:text-sm text-orange-600 mt-1.5 xs:mt-2 flex items-start gap-1 leading-snug">
+          <AlertCircle className="h-3 w-3 xs:h-3.5 xs:w-3.5 mt-0.5 flex-shrink-0" />
+          <span><span className="font-medium">Location Error:</span> {locationError}</span>
         </p>
       )}
 
       {/* Geolocation Not Supported Warning */}
       {!isGeolocationSupported && (
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="text-xs text-gray-500 mt-1.5 xs:mt-2 leading-snug">
           Current location feature is not supported by your browser.
         </p>
       )}
@@ -435,9 +439,16 @@ export const LocationMap = ({
         }
         
         :global(.custom-popup .leaflet-popup-content) {
-          font-size: 12px;
+          font-size: 11px;
           line-height: 1.4;
-          margin: 8px;
+          margin: 6px;
+        }
+
+        @media (min-width: 480px) {
+          :global(.custom-popup .leaflet-popup-content) {
+            font-size: 12px;
+            margin: 8px;
+          }
         }
         
         :global(.custom-popup .leaflet-popup-content-wrapper) {

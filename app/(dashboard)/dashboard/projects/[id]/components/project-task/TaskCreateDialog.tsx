@@ -47,6 +47,7 @@ import {
 import { useCreateScheduleProject } from "@/hooks/schedule-projects"
 import { useTeamMembers } from "@/hooks/team-members"
 import type { CreateScheduleProjectFormData, CreateScheduleProjectData } from "@/types/schedule-projects"
+import { PRIORITY_OPTIONS, TRADE_OPTIONS } from "@/utils/format-functions"
 
 // ==============================================
 // INTERFACES
@@ -62,26 +63,6 @@ interface TaskCreateDialogProps {
 // ==============================================
 // CONSTANTS
 // ==============================================
-const TRADE_OPTIONS = [
-  { value: 'electrical', label: 'Electrical' },
-  { value: 'plumbing', label: 'Plumbing' },
-  { value: 'framing', label: 'Framing' },
-  { value: 'drywall', label: 'Drywall' },
-  { value: 'roofing', label: 'Roofing' },
-  { value: 'concrete', label: 'Concrete' },
-  { value: 'hvac', label: 'HVAC' },
-  { value: 'general', label: 'General' },
-  { value: 'management', label: 'Management' },
-  { value: 'safety', label: 'Safety' },
-]
-
-const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Low', color: 'text-green-600' },
-  { value: 'medium', label: 'Medium', color: 'text-yellow-600' },
-  { value: 'high', label: 'High', color: 'text-orange-600' },
-  { value: 'critical', label: 'Critical', color: 'text-red-600' },
-]
-
 const STATUS_OPTIONS = [
   { value: 'planned', label: 'Planned' },
   { value: 'in_progress', label: 'In Progress' },

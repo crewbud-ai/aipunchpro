@@ -39,6 +39,7 @@ import Link from "next/link"
 import { format, formatDistanceToNow, isPast } from "date-fns"
 
 import type { ScheduleProjectSummary } from "@/types/schedule-projects"
+import { formatDateSmart, getPriorityConfig, getStatusConfig } from "@/utils/format-functions"
 
 // ==============================================
 // INTERFACES
@@ -54,67 +55,6 @@ interface TaskDetailsDialogProps {
 // ==============================================
 // UTILITY FUNCTIONS
 // ==============================================
-const getStatusConfig = (status: string) => {
-  switch (status) {
-    case 'planned':
-      return {
-        label: 'Planned',
-        color: 'bg-blue-100 text-blue-800 border-blue-200',
-        icon: Calendar,
-      }
-    case 'in_progress':
-      return {
-        label: 'In Progress',
-        color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-        icon: Play,
-      }
-    case 'completed':
-      return {
-        label: 'Completed',
-        color: 'bg-green-100 text-green-800 border-green-200',
-        icon: CheckCircle,
-      }
-    case 'delayed':
-      return {
-        label: 'Delayed',
-        color: 'bg-red-100 text-red-800 border-red-200',
-        icon: AlertTriangle,
-      }
-    case 'cancelled':
-      return {
-        label: 'Cancelled',
-        color: 'bg-gray-100 text-gray-800 border-gray-200',
-        icon: XCircle,
-      }
-    default:
-      return {
-        label: 'Unknown',
-        color: 'bg-gray-100 text-gray-800 border-gray-200',
-        icon: Clock,
-      }
-  }
-}
-
-const getPriorityConfig = (priority: string) => {
-  switch (priority) {
-    case 'critical':
-      return { label: 'Critical', color: 'text-red-600', bgColor: 'bg-red-100' }
-    case 'high':
-      return { label: 'High', color: 'text-orange-600', bgColor: 'bg-orange-100' }
-    case 'medium':
-      return { label: 'Medium', color: 'text-yellow-600', bgColor: 'bg-yellow-100' }
-    case 'low':
-      return { label: 'Low', color: 'text-green-600', bgColor: 'bg-green-100' }
-    default:
-      return { label: 'Medium', color: 'text-gray-600', bgColor: 'bg-gray-100' }
-  }
-}
-
-const formatDateSmart = (dateString: string) => {
-  const date = new Date(dateString)
-  return format(date, 'MMM d, yyyy')
-}
-
 const getTaskProgress = (task: ScheduleProjectSummary) => {
   if (task.status === 'completed') return 100
   if (task.status === 'cancelled') return 0

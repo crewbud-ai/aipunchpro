@@ -44,9 +44,9 @@ interface LiveEarningsDisplayProps {
   updateInterval?: number // milliseconds, default 60000 (1 minute)
 }
 
-export function LiveEarningsDisplay({ 
-  activeSession, 
-  updateInterval = 60000 
+export function LiveEarningsDisplay({
+  activeSession,
+  updateInterval = 60000
 }: LiveEarningsDisplayProps) {
   const [earnings, setEarnings] = useState<EarningsBreakdown | null>(null)
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -65,7 +65,7 @@ export function LiveEarningsDisplay({
     const elapsedMs = now.getTime() - startDate.getTime()
     const elapsedSeconds = Math.floor(elapsedMs / 1000)
     const elapsedMinutes = Math.floor(elapsedSeconds / 60)
-    
+
     // Subtract break minutes
     const breakMinutes = session.breakMinutes || 0
     const workingMinutes = Math.max(0, elapsedMinutes - breakMinutes)
@@ -166,53 +166,53 @@ export function LiveEarningsDisplay({
 
   return (
     <Card className="border-green-200 bg-green-50">
-      <CardContent className="p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+      <CardContent className="p-4 xs:p-5 sm:p-6">
+        {/* Header - Mobile Responsive */}
+        <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2 xs:gap-3 mb-3 xs:mb-4">
+          <div className="flex items-center gap-1.5 xs:gap-2">
             {earnings.hasDoubleTime ? (
               <>
-                <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-                <Badge variant="destructive">DOUBLE TIME</Badge>
+                <div className="w-2.5 h-2.5 xs:w-3 xs:h-3 rounded-full bg-red-500 animate-pulse shrink-0" />
+                <Badge variant="destructive" className="text-xs">DOUBLE TIME</Badge>
               </>
             ) : earnings.hasOvertime ? (
               <>
-                <div className="w-3 h-3 rounded-full bg-yellow-500 animate-pulse" />
-                <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+                <div className="w-2.5 h-2.5 xs:w-3 xs:h-3 rounded-full bg-yellow-500 animate-pulse shrink-0" />
+                <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 text-xs">
                   OVERTIME
                 </Badge>
               </>
             ) : (
               <>
-                <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
-                <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                <div className="w-2.5 h-2.5 xs:w-3 xs:h-3 rounded-full bg-green-500 animate-pulse shrink-0" />
+                <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300 text-xs">
                   WORKING
                 </Badge>
               </>
             )}
           </div>
-          
-          <Badge variant="secondary" className="text-xs">
-            <AlertCircle className="w-3 h-3 mr-1" />
+
+          <Badge variant="secondary" className="text-xs self-start xs:self-auto">
+            <AlertCircle className="w-3 h-3 mr-1 shrink-0" />
             Pending Approval
           </Badge>
         </div>
 
-        {/* Project Info */}
-        <div className="mb-4">
-          <p className="text-sm text-gray-600 mb-1">Currently working on</p>
-          <p className="font-semibold text-gray-900">{activeSession.projectName}</p>
+        {/* Project Info - Mobile Responsive */}
+        <div className="mb-3 xs:mb-4">
+          <p className="text-xs xs:text-sm text-gray-600 mb-0.5 xs:mb-1">Currently working on</p>
+          <p className="font-semibold text-sm xs:text-base text-gray-900 leading-snug">{activeSession.projectName}</p>
           {activeSession.scheduleProjectTitle && (
-            <p className="text-sm text-gray-600">→ {activeSession.scheduleProjectTitle}</p>
+            <p className="text-xs xs:text-sm text-gray-600 mt-0.5 leading-snug">→ {activeSession.scheduleProjectTitle}</p>
           )}
         </div>
 
-        {/* Elapsed Time */}
-        <div className="flex items-center gap-3 mb-4 p-3 bg-white rounded-lg">
-          <Clock className="w-5 h-5 text-blue-600" />
-          <div>
+        {/* Elapsed Time - Mobile Responsive */}
+        <div className="flex items-center gap-2.5 xs:gap-3 mb-3 xs:mb-4 p-2.5 xs:p-3 bg-white rounded-lg">
+          <Clock className="w-4 h-4 xs:w-5 xs:h-5 text-blue-600 shrink-0" />
+          <div className="flex-1 min-w-0">
             <p className="text-xs text-gray-600">Time Worked</p>
-            <p className="text-2xl font-bold text-gray-900 font-mono">
+            <p className="text-xl xs:text-2xl font-bold text-gray-900 font-mono">
               {formatElapsedTime(earnings.elapsedSeconds)}
             </p>
             <p className="text-xs text-gray-500">
@@ -221,25 +221,25 @@ export function LiveEarningsDisplay({
           </div>
         </div>
 
-        {/* Earnings */}
-        <div className="flex items-center gap-3 mb-4 p-4 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border-2 border-green-300">
-          <DollarSign className="w-6 h-6 text-green-700" />
-          <div className="flex-1">
+        {/* Earnings - Mobile Responsive */}
+        <div className="flex items-center gap-2.5 xs:gap-3 mb-3 xs:mb-4 p-3 xs:p-4 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border-2 border-green-300">
+          <DollarSign className="w-5 h-5 xs:w-6 xs:h-6 text-green-700 shrink-0" />
+          <div className="flex-1 min-w-0">
             <p className="text-xs text-gray-700 mb-1">Earned So Far</p>
-            <p className="text-3xl font-bold text-green-700">
+            <p className="text-2xl xs:text-3xl font-bold text-green-700">
               ${earnings.totalEarnings.toFixed(2)}
             </p>
           </div>
-          <TrendingUp className="w-8 h-8 text-green-600 opacity-50" />
+          <TrendingUp className="w-6 h-6 xs:w-8 xs:h-8 text-green-600 opacity-50 shrink-0" />
         </div>
 
-        {/* Earnings Breakdown */}
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-700 mb-2">Breakdown:</p>
-          
+        {/* Earnings Breakdown - Mobile Responsive */}
+        <div className="space-y-1.5 xs:space-y-2">
+          <p className="text-xs font-semibold text-gray-700 mb-1.5 xs:mb-2">Breakdown:</p>
+
           {/* Regular Pay */}
-          <div className="flex items-center justify-between text-sm p-2 bg-white rounded">
-            <span className="text-gray-600">
+          <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2 text-xs xs:text-sm p-2 bg-white rounded">
+            <span className="text-gray-600 leading-snug">
               Regular: {earnings.regularHours.toFixed(2)}h × ${activeSession.regularRate.toFixed(2)}
             </span>
             <span className="font-semibold text-gray-900">
@@ -249,8 +249,8 @@ export function LiveEarningsDisplay({
 
           {/* Overtime Pay */}
           {earnings.hasOvertime && (
-            <div className="flex items-center justify-between text-sm p-2 bg-yellow-50 rounded border border-yellow-200">
-              <span className="text-gray-700">
+            <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2 text-xs xs:text-sm p-2 bg-yellow-50 rounded border border-yellow-200">
+              <span className="text-gray-700 leading-snug">
                 Overtime: {earnings.overtimeHours.toFixed(2)}h × ${activeSession.overtimeRate.toFixed(2)}
               </span>
               <span className="font-semibold text-yellow-800">
@@ -261,8 +261,8 @@ export function LiveEarningsDisplay({
 
           {/* Double Time Pay */}
           {earnings.hasDoubleTime && (
-            <div className="flex items-center justify-between text-sm p-2 bg-red-50 rounded border border-red-200">
-              <span className="text-gray-700">
+            <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-1 xs:gap-2 text-xs xs:text-sm p-2 bg-red-50 rounded border border-red-200">
+              <span className="text-gray-700 leading-snug">
                 Double Time: {earnings.doubleTimeHours.toFixed(2)}h × ${(activeSession.doubleTimeRate || activeSession.regularRate * 2).toFixed(2)}
               </span>
               <span className="font-semibold text-red-800">
@@ -272,10 +272,10 @@ export function LiveEarningsDisplay({
           )}
         </div>
 
-        {/* Overtime Warning */}
+        {/* Overtime Warning - Mobile Responsive */}
         {earnings.hasOvertime && (
-          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-xs text-yellow-800">
+          <div className="mt-3 xs:mt-4 p-2.5 xs:p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-xs text-yellow-800 leading-snug">
               {earnings.hasDoubleTime ? (
                 <>⚠️ You've exceeded 12 hours. Double time rate is now active.</>
               ) : (
@@ -285,9 +285,9 @@ export function LiveEarningsDisplay({
           </div>
         )}
 
-        {/* Footer Note */}
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <p className="text-xs text-gray-500 text-center">
+        {/* Footer Note - Mobile Responsive */}
+        <div className="mt-3 xs:mt-4 pt-3 xs:pt-4 border-t border-gray-200">
+          <p className="text-xs text-gray-500 text-center leading-snug">
             💡 Earnings will be finalized when you clock out and approved by admin
           </p>
         </div>

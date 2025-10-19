@@ -146,7 +146,6 @@ export const createTeamMemberSchema = z.object({
     .max(255, 'Email must be less than 255 characters'),
   
   phone: z.string()
-    .optional()
     .refine(val => !val || val.length >= 10, 'Phone number must be at least 10 digits'),
   
   role: z.enum(['admin', 'supervisor', 'member'], {
@@ -157,13 +156,13 @@ export const createTeamMemberSchema = z.object({
     .max(100, 'Job title must be less than 100 characters')
     .optional(),
   
-  tradeSpecialty: z.enum(['electrical', 'plumbing', 'framing', 'drywall', 'roofing', 'concrete', 'hvac', 'general', 'management', 'safety'])
-    .optional(),
+  tradeSpecialty: z.enum(['electrical', 'plumbing', 'framing', 'drywall', 'roofing', 'concrete', 'hvac', 'general', 'management', 'safety'], {
+    errorMap: () => ({ message: 'Please select a trade specialty' })
+  }),
   
   hourlyRate: z.number()
     .min(0, 'Hourly rate must be positive')
-    .max(999.99, 'Hourly rate must be less than $1000')
-    .optional(),
+    .max(999.99, 'Hourly rate must be less than $1000'),
   
   overtimeRate: z.number()
     .min(0, 'Overtime rate must be positive')

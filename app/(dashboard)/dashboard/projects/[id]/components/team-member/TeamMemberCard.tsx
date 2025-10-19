@@ -25,6 +25,7 @@ import {
     Loader2
 } from 'lucide-react'
 import { useRemoveTeamMember } from '@/hooks/team-members/use-remove-team-member'
+import { formatDate, formatRate, formatRoleLabel } from '@/utils/format-functions'
 
 interface TeamMemberCardProps {
     member: any // Using your TeamMember type
@@ -70,29 +71,6 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
         return 'bg-yellow-100 text-yellow-800'
     }
 
-    // Get role display
-    const getRoleDisplay = () => {
-        switch (member.role) {
-            case 'admin': return 'Administrator'
-            case 'manager': return 'Project Manager'
-            case 'supervisor': return 'Supervisor'
-            case 'member': return 'Team Member'
-            default: return member.role || 'Member'
-        }
-    }
-
-    // Format rates
-    const formatRate = (rate: number | null | undefined) => {
-        if (!rate) return 'Not set'
-        return `$${rate}/hr`
-    }
-
-    // Format date
-    const formatDate = (date: string | null | undefined) => {
-        if (!date) return 'Not set'
-        return new Date(date).toLocaleDateString()
-    }
-
     const handleRemoveFromProject = async () => {
         await removeFromProject({
             userId: member.id,
@@ -129,7 +107,7 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
                     </Badge>
                     {member.role && (
                         <Badge variant="secondary" className="text-xs">
-                            {getRoleDisplay()}
+                            {formatRoleLabel(member.role)}
                         </Badge>
                     )}
                 </div>
