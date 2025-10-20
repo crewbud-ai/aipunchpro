@@ -4,9 +4,10 @@
 // ==============================================
 
 import { NextRequest, NextResponse } from 'next/server'
-import { headers } from 'next/headers'
 import { AuthDatabaseService } from '@/lib/database/services'
 import { createUserSession } from '@/utils/auth-helpers'
+import { authEmailService } from '@/lib/email/index'
+import { generateVerificationToken, generateVerificationUrl } from '@/lib/email/utils/tokens'
 
 export async function GET(request: NextRequest) {
   try {
@@ -80,7 +81,10 @@ export async function GET(request: NextRequest) {
           new URL('/auth/login?error=EmailAlreadyExists', request.url)
         )
       }
-      console.log('✅ Existing Google user found')
+      console.log('✅ Existing Google user found - logging in')
+      
+      // Update last login
+      await authService.updateUserLastLogin(user.id)
     } else {
       // New user - create account
       console.log('🆕 Creating new Google user')
@@ -113,12 +117,8 @@ export async function GET(request: NextRequest) {
       console.log('✅ New Google user created:', user.id)
     }
 
-    // Create session using YOUR existing method
-    const session = await createUserSession(
-        user.id, 
-        request, 
-        authService
-    )
+    // Create session using shared helper function
+    const session = await createUserSession(user.id, request, authService, false)
 
     // Get company data
     const company = await authService.getCompanyById(user.company_id!)
@@ -171,32 +171,3 @@ export async function GET(request: NextRequest) {
     )
   }
 }
-
-// Helper: Create session (matches your existing pattern in login route)
-// async function createUserSession(
-//   userId: string,
-//   request: NextRequest,
-//   authService: AuthDatabaseService
-// ) {
-//   const headersList = headers()
-//   const userAgent = headersList.get('user-agent') || ''
-//   const forwarded = headersList.get('x-forwarded-for')
-//   const realIp = headersList.get('x-real-ip')
-//   const ipAddress = forwarded?.split(',')[0] || realIp || '127.0.0.1'
-
-//   const token = authService.generateSessionToken()
-//   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
-
-//   await authService.createUserSession({
-//     userId,
-//     token,
-//     ipAddress,
-//     userAgent,
-//     expiresAt,
-//   })
-
-//   return {
-//     token,
-//     expiresAt: expiresAt.toISOString(),
-//   }
-// }

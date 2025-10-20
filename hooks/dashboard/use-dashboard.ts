@@ -1,5 +1,5 @@
 // ==============================================
-// src/hooks/dashboard/use-dashboard.ts - Dashboard Hook
+// hooks/dashboard/use-dashboard.ts - Updated to fetch from API
 // ==============================================
 
 import { useState, useEffect, useCallback } from 'react'
@@ -19,6 +19,7 @@ interface User {
   phone?: string
   emailVerified: boolean
   lastLoginAt?: string
+  permissions?: any
 }
 
 interface Company {
@@ -45,32 +46,73 @@ export const useDashboard = () => {
     isSigningOut: false,
   })
 
-  // Load user data from localStorage or API
-  const loadUserData = useCallback(() => {
+  // Load user data from API (using session cookie)
+  const loadUserData = useCallback(async () => {
     try {
-      const userData = localStorage.getItem('user')
-      const companyData = localStorage.getItem('company')
+      setState(prev => ({ ...prev, isLoading: true }))
 
-      if (userData && companyData) {
-        const user = JSON.parse(userData)
-        const company = JSON.parse(companyData)
+      // Fetch user profile from API
+      // The API reads from session (via middleware headers)
+      const response = await fetch('/api/user/profile', {
+        method: 'GET',
+        credentials: 'include', // Important: send cookies
+      })
 
-        setState(prev => ({
-          ...prev,
-          user: JSON.parse(userData),
-          company: JSON.parse(companyData),
+      if (!response.ok) {
+        // If 401, user not authenticated
+        if (response.status === 401) {
+          setState(prev => ({ ...prev, user: null, company: null, isLoading: false }))
+          return
+        }
+        throw new Error('Failed to fetch user profile')
+      }
+
+      const data = await response.json()
+
+      if (data.success && data.data) {
+        const userData = data.data.user
+        const companyData = data.data.company
+
+        // Transform to match interface
+        const user: User = {
+          id: userData.id,
+          email: userData.email,
+          firstName: userData.first_name || userData.firstName,
+          lastName: userData.last_name || userData.lastName,
+          role: userData.role,
+          phone: userData.phone,
+          emailVerified: userData.email_verified || userData.emailVerified,
+          lastLoginAt: userData.last_login_at || userData.lastLoginAt,
+          permissions: userData.permissions,
+        }
+
+        const company: Company = {
+          id: companyData.id,
+          name: companyData.name,
+          slug: companyData.slug,
+          industry: companyData.industry,
+          size: companyData.size,
+        }
+
+        setState({
+          user,
+          company,
           isLoading: false,
-        }))
+          isSigningOut: false,
+        })
 
+        // Initialize permissions
         initializePermissions({ user, company })
 
+        // Optional: Also save to localStorage for offline access
+        localStorage.setItem('user', JSON.stringify(user))
+        localStorage.setItem('company', JSON.stringify(company))
       } else {
-        // If no data in localStorage, user might need to re-login
-        setState(prev => ({ ...prev, isLoading: false }))
+        setState(prev => ({ ...prev, user: null, company: null, isLoading: false }))
       }
     } catch (error) {
       console.error('Error loading user data:', error)
-      setState(prev => ({ ...prev, isLoading: false }))
+      setState(prev => ({ ...prev, user: null, company: null, isLoading: false }))
     }
   }, [])
 
@@ -84,7 +126,7 @@ export const useDashboard = () => {
 
       clearPermissions()
 
-      // Only clear localStorage after successful API call
+      // Clear localStorage
       localStorage.removeItem('user')
       localStorage.removeItem('company')
 
@@ -104,7 +146,6 @@ export const useDashboard = () => {
       console.error('Logout error:', error)
 
       // Even if API fails, still clear localStorage and redirect
-      // This ensures user is logged out from the frontend
       localStorage.removeItem('user')
       localStorage.removeItem('company')
 
@@ -115,7 +156,6 @@ export const useDashboard = () => {
         isSigningOut: false,
       })
 
-      // Redirect anyway - the API error toast will be shown by authApi
       router.push('/auth/login')
       router.refresh()
     }
