@@ -249,6 +249,7 @@ const publicRoutes = [
   '/auth/forgot-password',
   '/auth/reset-password',
   '/auth/change-password',
+  '/auth/complete-profile',
   '/contact',
   '/about',
   '/api/auth',
@@ -397,6 +398,7 @@ export async function middleware(request: NextRequest) {
     const { user } = sessionValidation.data
     const userRole = user?.role
     const requiresPasswordChange = user?.requires_password_change || false
+    const profileCompleted = user?.profile_completed !== false
 
     // ==============================================
     // PASSWORD CHANGE ENFORCEMENT
@@ -414,6 +416,25 @@ export async function middleware(request: NextRequest) {
 
     if (!requiresPasswordChange && pathname === '/auth/change-password') {
       console.log(`User ${user.id} already changed password, redirecting to dashboard`)
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+
+    // ==============================================
+    // PROFILE COMPLETION ENFORCEMENT (NEW!)
+    // ==============================================
+
+    if (
+      !profileCompleted &&
+      pathname !== '/auth/complete-profile' &&
+      pathname !== '/api/user/complete-profile' &&
+      pathname !== '/api/auth/logout'
+    ) {
+      console.log(`Redirecting user ${user.id} to complete profile`)
+      return NextResponse.redirect(new URL('/auth/complete-profile', request.url))
+    }
+
+    if (profileCompleted && pathname === '/auth/complete-profile') {
+      console.log(`User ${user.id} already completed profile, redirecting to dashboard`)
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
@@ -440,6 +461,7 @@ export async function middleware(request: NextRequest) {
     if (
       pathname.startsWith('/auth/') &&
       pathname !== '/auth/change-password' &&
+      pathname !== '/auth/complete-profile' &&
       !pathname.includes('logout')
     ) {
       return NextResponse.redirect(new URL('/dashboard', request.url))

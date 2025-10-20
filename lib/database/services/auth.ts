@@ -56,6 +56,20 @@ export class AuthDatabaseService {
     return data
   }
 
+
+  async getFirstCompany() {
+    const { data, error } = await this.supabaseClient
+      .from('companies')
+      .select('*')
+      .limit(1)
+      .single()
+
+    if (error && error.code !== 'PGRST116') {
+      throw error
+    }
+    return data
+  }
+
   // ==============================================
   // USER OPERATIONS
   // ==============================================
@@ -92,6 +106,72 @@ export class AuthDatabaseService {
     const { data: user, error } = await this.supabaseClient
       .from('users')
       .insert([userData])
+      .select()
+      .single()
+
+    if (error) throw error
+    return user
+  }
+
+  async createGoogleUser(data: {
+    email: string
+    firstName: string
+    lastName: string
+    googleId: string
+    companyId: string
+    avatarUrl?: string
+  }) {
+    // Get default permissions for member role
+    const permissions = DEFAULT_PERMISSIONS['member']
+
+    const userData = {
+      company_id: data.companyId,
+      email: data.email,
+      first_name: data.firstName,
+      last_name: data.lastName,
+      google_id: data.googleId,
+      auth_provider: 'google' as const,
+      profile_completed: false, // User needs to complete profile
+      role: 'member', // Always member for Google sign-ins
+      permissions: permissions,
+      avatar_url: data.avatarUrl,
+      email_verified: true, // Google emails are pre-verified
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data: user, error } = await this.supabaseClient
+      .from('users')
+      .insert([userData])
+      .select()
+      .single()
+
+    if (error) throw error
+    return user
+  }
+
+  async completeGoogleUserProfile(userId: string, data: {
+    phone?: string
+    tradeSpecialty?: string
+    startDate?: string
+    emergencyContactName?: string
+    emergencyContactPhone?: string
+  }) {
+    const updateData: any = {
+      phone: data.phone,
+      trade_specialty: data.tradeSpecialty,
+      start_date: data.startDate,
+      emergency_contact_name: data.emergencyContactName,
+      emergency_contact_phone: data.emergencyContactPhone,
+      profile_completed: true, // Mark profile as complete
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data: user, error } = await this.supabaseClient
+      .from('users')
+      .update(updateData)
+      .eq('id', userId)
       .select()
       .single()
 
@@ -192,6 +272,22 @@ export class AuthDatabaseService {
       throw error
     }
 
+    return data
+  }
+
+  async getUserByGoogleId(googleId: string) {
+    const { data, error } = await this.supabaseClient
+      .from('users')
+      .select(`
+      *,
+      company:companies(*)
+    `)
+      .eq('google_id', googleId)
+      .single()
+
+    if (error && error.code !== 'PGRST116') {
+      throw error
+    }
     return data
   }
 

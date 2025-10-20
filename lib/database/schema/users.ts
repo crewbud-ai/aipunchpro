@@ -2,17 +2,17 @@
 // src/lib/database/schema/users.ts - Enhanced Users Schema with Permissions
 // ==============================================
 
-import { 
-  pgTable, 
-  uuid, 
-  varchar, 
-  text, 
-  boolean, 
-  timestamp, 
-  decimal, 
-  date, 
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  boolean,
+  timestamp,
+  decimal,
+  date,
   time,
-  jsonb, 
+  jsonb,
   point,
   inet,
   index
@@ -32,7 +32,7 @@ export interface UserPermissions {
     view: boolean
     viewAll: boolean        // Can see all company projects vs just assigned
   }
-  
+
   // Team Management
   team: {
     add: boolean
@@ -41,7 +41,7 @@ export interface UserPermissions {
     view: boolean
     assignToProjects: boolean
   }
-  
+
   // Task Management
   tasks: {
     create: boolean
@@ -51,14 +51,14 @@ export interface UserPermissions {
     complete: boolean
     view: boolean
   }
-  
+
   // Financial
   financials: {
     view: boolean
     edit: boolean
     viewReports: boolean
   }
-  
+
   // Files & Documents
   files: {
     upload: boolean
@@ -66,14 +66,14 @@ export interface UserPermissions {
     view: boolean
     downloadAll: boolean
   }
-  
+
   // Schedule Management
   schedule: {
     create: boolean
     edit: boolean
     view: boolean
   }
-  
+
   // Punchlist
   punchlist: {
     create: boolean
@@ -81,14 +81,14 @@ export interface UserPermissions {
     complete: boolean
     view: boolean
   }
-  
+
   // Reports
   reports: {
     generate: boolean
     view: boolean
     export: boolean
   }
-  
+
   // System Administration
   admin: {
     manageUsers: boolean
@@ -98,45 +98,56 @@ export interface UserPermissions {
 }
 
 // ==============================================
+// AUTH PROVIDER ENUM
+// ==============================================
+export const AUTH_PROVIDERS = ['email', 'google'] as const;
+export type AuthProvider = typeof AUTH_PROVIDERS[number];
+
+// ==============================================
 // USERS TABLE (ENHANCED WITH TEAM MEMBER FIELDS)
 // ==============================================
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   companyId: uuid('company_id').references(() => companies.id, { onDelete: 'cascade' }),
-  
+
   // Authentication
   email: varchar('email', { length: 255 }).unique().notNull(),
   passwordHash: varchar('password_hash', { length: 255 }),
   emailVerified: boolean('email_verified').default(false),
   phone: varchar('phone', { length: 50 }),
-  
+
+  // GOOGLE SIGN-IN FIELDS
+  googleId: text('google_id').unique(), // Google's unique user ID
+  authProvider: varchar('auth_provider', { length: 20 }).notNull().default('email'), // 'email' | 'google'
+  profileCompleted: boolean('profile_completed').notNull().default(true), // false for new Google sign-ins
+
   // Profile Information
   firstName: varchar('first_name', { length: 100 }).notNull(),
   lastName: varchar('last_name', { length: 100 }).notNull(),
   avatarUrl: text('avatar_url'),
-  
+
   // Role & Permissions (Enhanced)
   role: varchar('role', { length: 50 }).notNull().default('member'),
   permissions: jsonb('permissions').$type<UserPermissions>().notNull().default(sql`'{}'`),
-  
+
   // Employment Details (Enhanced)
   jobTitle: varchar('job_title', { length: 100 }),
   tradeSpecialty: varchar('trade_specialty', { length: 100 }), // NEW: carpentry, electrical, etc.
   hourlyRate: decimal('hourly_rate', { precision: 8, scale: 2 }),
   overtimeRate: decimal('overtime_rate', { precision: 8, scale: 2 }),
   startDate: date('start_date'),
-  
+
   // Additional Team Member Information (NEW)
   certifications: text('certifications'), // OSHA, licenses, etc.
   emergencyContactName: varchar('emergency_contact_name', { length: 255 }), // NEW
   emergencyContactPhone: varchar('emergency_contact_phone', { length: 50 }), // NEW
-  
+
   // Status & Activity
   isActive: boolean('is_active').default(true),
   requiresPasswordChange: boolean('requires_password_change').default(false),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
   timezone: varchar('timezone', { length: 50 }).default('UTC'),
-  
+
   // Timestamps
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
@@ -147,6 +158,9 @@ export const users = pgTable('users', {
   activeIdx: index('idx_users_active').on(table.isActive),
   tradeSpecialtyIdx: index('idx_users_trade_specialty').on(table.tradeSpecialty),
   requiresPasswordChangeIdx: index('idx_users_requires_password_change').on(table.requiresPasswordChange),
+  googleIdIdx: index('idx_users_google_id').on(table.googleId),
+  authProviderIdx: index('idx_users_auth_provider').on(table.authProvider),
+  profileCompletedIdx: index('idx_users_profile_completed').on(table.profileCompleted),
 }));
 
 // ==============================================
@@ -155,21 +169,21 @@ export const users = pgTable('users', {
 export const userSessions = pgTable('user_sessions', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
-  
+
   // Session Data
   tokenHash: varchar('token_hash', { length: 255 }).unique().notNull(),
   refreshTokenHash: varchar('refresh_token_hash', { length: 255 }),
-  
+
   // Device & Security Info
   deviceInfo: jsonb('device_info').default({}),
   ipAddress: inet('ip_address'),
   userAgent: text('user_agent'),
-  
+
   // Session Management
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   lastAccessedAt: timestamp('last_accessed_at', { withTimezone: true }).defaultNow(),
   isActive: boolean('is_active').default(true),
-  
+
   // Timestamps
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
@@ -181,14 +195,14 @@ export const userSessions = pgTable('user_sessions', {
 export const emailVerifications = pgTable('email_verifications', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
-  
+
   // Token Data
   tokenHash: varchar('token_hash', { length: 255 }).unique().notNull(),
-  
+
   // Status
   isUsed: boolean('is_used').default(false),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-  
+
   // Timestamps
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
@@ -200,14 +214,14 @@ export const emailVerifications = pgTable('email_verifications', {
 export const passwordResets = pgTable('password_resets', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
-  
+
   // Token Data
   tokenHash: varchar('token_hash', { length: 255 }).unique().notNull(),
-  
+
   // Status
   isUsed: boolean('is_used').default(false),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-  
+
   // Timestamps
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({
@@ -231,7 +245,7 @@ export const DEFAULT_PERMISSIONS: Record<string, UserPermissions> = {
     reports: { generate: true, view: true, export: true },
     admin: { manageUsers: true, systemSettings: true, companySettings: true }
   },
-  
+
   admin: {
     projects: { create: true, edit: true, delete: true, view: true, viewAll: true },
     team: { add: true, edit: true, remove: true, view: true, assignToProjects: true },
@@ -243,7 +257,7 @@ export const DEFAULT_PERMISSIONS: Record<string, UserPermissions> = {
     reports: { generate: true, view: true, export: true },
     admin: { manageUsers: false, systemSettings: false, companySettings: false }
   },
-  
+
   supervisor: {
     projects: { create: false, edit: true, delete: false, view: true, viewAll: true },
     team: { add: true, edit: true, remove: false, view: true, assignToProjects: true },
@@ -255,7 +269,7 @@ export const DEFAULT_PERMISSIONS: Record<string, UserPermissions> = {
     reports: { generate: false, view: true, export: false },
     admin: { manageUsers: false, systemSettings: false, companySettings: false }
   },
-  
+
   member: {
     projects: { create: false, edit: false, delete: false, view: true, viewAll: false },
     team: { add: false, edit: false, remove: false, view: true, assignToProjects: false },

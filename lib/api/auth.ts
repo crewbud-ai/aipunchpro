@@ -9,6 +9,7 @@ import type {
     ChangePasswordFirstLoginRequest,
     ChangePasswordFirstLoginResponse
 } from '@/types/auth/change-password'
+import { CompleteProfileRequest, CompleteProfileResponse } from '@/types/auth/complete-profile'
 
 // ==============================================
 // API CLIENT CONFIGURATION
@@ -461,6 +462,53 @@ export const authApi = {
                 toast({
                     title: 'Logout Error',
                     description: 'Something went wrong during logout.',
+                    variant: 'destructive',
+                })
+            }
+            throw error
+        }
+    },
+
+    // Complete Profile - Complete Google sign-in user profile
+    async completeProfile(data: CompleteProfileRequest): Promise<CompleteProfileResponse> {
+        try {
+            const response = await apiCall<CompleteProfileResponse>('/api/user/complete-profile', {
+                method: 'POST',
+                body: JSON.stringify(data),
+            })
+
+            // Show success toast
+            if (response.success) {
+                toast({
+                    title: 'Profile Completed',
+                    description: response.notifications?.message || 'Your profile has been completed successfully.',
+                })
+            }
+
+            return response
+        } catch (error) {
+            if (error instanceof ApiError) {
+                // Handle validation errors
+                if (error.details && error.details.length > 0) {
+                    error.details.forEach(detail => {
+                        const fieldName = detail.field.charAt(0).toUpperCase() + detail.field.slice(1)
+                        toast({
+                            title: 'Validation Error',
+                            description: `${fieldName}: ${detail.message}`,
+                            variant: 'destructive',
+                        })
+                    })
+                } else {
+                    toast({
+                        title: 'Profile Completion Failed',
+                        description: error.message,
+                        variant: 'destructive',
+                    })
+                }
+            } else {
+                toast({
+                    title: 'Profile Completion Failed',
+                    description: 'Something went wrong while completing your profile.',
                     variant: 'destructive',
                 })
             }

@@ -9,6 +9,7 @@ import {
   validateLogin, 
   formatLoginErrors 
 } from '@/lib/validations/auth/login'
+import { createUserSession } from '@/utils/auth-helpers'
 
 // ==============================================
 // POST /api/auth/login - User Login
@@ -228,43 +229,43 @@ export async function POST(request: NextRequest) {
 // HELPER FUNCTIONS (Your existing functions)
 // ==============================================
 
-async function createUserSession(
-  userId: string, 
-  request: NextRequest, 
-  authDatabaseService: AuthDatabaseService,
-  rememberMe: boolean = false
-) {
-  // Get client IP and User-Agent
-  const headersList = headers()
-  const userAgent = headersList.get('user-agent') || ''
-  const forwarded = headersList.get('x-forwarded-for')
-  const realIp = headersList.get('x-real-ip')
-  const ipAddress = forwarded?.split(',')[0] || realIp || '127.0.0.1'
+// async function createUserSession(
+//   userId: string, 
+//   request: NextRequest, 
+//   authDatabaseService: AuthDatabaseService,
+//   rememberMe: boolean = false
+// ) {
+//   // Get client IP and User-Agent
+//   const headersList = headers()
+//   const userAgent = headersList.get('user-agent') || ''
+//   const forwarded = headersList.get('x-forwarded-for')
+//   const realIp = headersList.get('x-real-ip')
+//   const ipAddress = forwarded?.split(',')[0] || realIp || '127.0.0.1'
 
-  // Generate session token
-  const token = generateSessionToken()
+//   // Generate session token
+//   const token = generateSessionToken()
   
-  // Set session duration based on rememberMe
-  const sessionDuration = rememberMe 
-    ? 30 * 24 * 60 * 60 * 1000  // 30 days
-    : 24 * 60 * 60 * 1000       // 24 hours
+//   // Set session duration based on rememberMe
+//   const sessionDuration = rememberMe 
+//     ? 30 * 24 * 60 * 60 * 1000  // 30 days
+//     : 24 * 60 * 60 * 1000       // 24 hours
     
-  const expiresAt = new Date(Date.now() + sessionDuration)
+//   const expiresAt = new Date(Date.now() + sessionDuration)
 
-  // Save session to database (your existing method)
-  await authDatabaseService.createUserSession({
-    userId,
-    token,
-    ipAddress,
-    userAgent,
-    expiresAt,
-  })
+//   // Save session to database (your existing method)
+//   await authDatabaseService.createUserSession({
+//     userId,
+//     token,
+//     ipAddress,
+//     userAgent,
+//     expiresAt,
+//   })
 
-  return {
-    token,
-    expiresAt: expiresAt.toISOString(),
-  }
-}
+//   return {
+//     token,
+//     expiresAt: expiresAt.toISOString(),
+//   }
+// }
 
 function generateSessionToken(): string {
   // Generate a secure random token
