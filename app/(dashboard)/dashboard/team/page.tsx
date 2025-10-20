@@ -2,7 +2,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -26,7 +26,8 @@ import {
   Eye,
   UserPlus,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  X
 } from "lucide-react"
 import Link from "next/link"
 
@@ -38,10 +39,14 @@ import { formatPhone, getTeamMemberStatusConfig, getTradeLabel } from "@/utils/f
 
 export default function TeamPage() {
   // State for UI controls
-  const [searchTerm, setSearchTerm] = useState("")
   const [selectedTrade, setSelectedTrade] = useState<string>("all")
   const [selectedStatus, setSelectedStatus] = useState<string>("all")
+
+  const [searchTerm, setSearchTerm] = useState("")
+  const [localTradeFilter, setLocalTradeFilter] = useState<string>("all")
+  const [localStatusFilter, setLocalStatusFilter] = useState<string>("all")
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [showFilters, setShowFilters] = useState(false)
 
   // Load team members
   const {
@@ -88,18 +93,71 @@ export default function TeamPage() {
 
 
   // Filter team members locally (in addition to server-side filtering)
-  const filteredTeamMembers = teamMembers.filter((member) => {
-    if (searchTerm && !searchTerm.trim()) return true
+  const filteredTeamMembers = useMemo(() => {
+    let filtered = teamMembers
 
-    const searchLower = searchTerm.toLowerCase()
-    return (
-      member.firstName.toLowerCase().includes(searchLower) ||
-      member.lastName.toLowerCase().includes(searchLower) ||
-      member.email.toLowerCase().includes(searchLower) ||
-      member.jobTitle?.toLowerCase().includes(searchLower) ||
-      getTradeLabel(member.tradeSpecialty).toLowerCase().includes(searchLower)
-    )
-  })
+    // Search filter
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase()
+      filtered = filtered.filter((member) => {
+        const nameMatch = member.firstName.toLowerCase().includes(searchLower) ||
+          member.lastName.toLowerCase().includes(searchLower)
+        const emailMatch = member.email.toLowerCase().includes(searchLower)
+        const jobTitleMatch = member.jobTitle?.toLowerCase().includes(searchLower)
+        const tradeMatch = getTradeLabel(member.tradeSpecialty).toLowerCase().includes(searchLower)
+        const phoneMatch = member.phone?.toLowerCase().includes(searchLower)
+
+        return nameMatch || emailMatch || jobTitleMatch || tradeMatch || phoneMatch
+      })
+    }
+
+    // Trade filter
+    if (localTradeFilter !== "all") {
+      filtered = filtered.filter(member => member.tradeSpecialty === localTradeFilter)
+    }
+
+    // Status filter
+    if (localStatusFilter !== "all") {
+      if (localStatusFilter === "active") {
+        filtered = filtered.filter(member => member.isActive)
+      } else if (localStatusFilter === "inactive") {
+        filtered = filtered.filter(member => !member.isActive)
+      }
+    }
+
+    return filtered
+  }, [teamMembers, searchTerm, localTradeFilter, localStatusFilter])
+
+  const hasActiveFilters = useMemo(() => {
+    return Boolean(searchTerm || localTradeFilter !== "all" || localStatusFilter !== "all")
+  }, [searchTerm, localTradeFilter, localStatusFilter])
+
+  // ==============================================
+  // EVENT HANDLERS
+  // ==============================================
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value)
+  }
+
+  const handleTradeFilterChange = (value: string) => {
+    setLocalTradeFilter(value)
+  }
+
+  const handleStatusFilterChange = (value: string) => {
+    setLocalStatusFilter(value)
+  }
+
+  const handleClearAllFilters = () => {
+    setSearchTerm("")
+    setLocalTradeFilter("all")
+    setLocalStatusFilter("all")
+  }
+
+  // ==============================================
+  // COMPUTED VALUES
+  // ==============================================
+  const displayedTeamMembers = filteredTeamMembers
+  const teamMembersCount = filteredTeamMembers.length
 
   // Loading state
   if (isLoading) {
@@ -228,76 +286,109 @@ export default function TeamPage() {
             )}
           </div>
 
-          {/* Search and Filters - Mobile Responsive */}
-          <div className="flex flex-col space-y-2 xs:space-y-3 sm:space-y-0 sm:flex-row sm:gap-3 md:gap-4">
-            {/* Search */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 xs:h-4 xs:w-4 -translate-y-1/2 text-gray-400" />
-              <Input
-                placeholder="Search team members..."
-                value={searchTerm}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="pl-9 xs:pl-10 h-9 xs:h-10 sm:h-11 text-sm xs:text-base"
-              />
-            </div>
+          {/* Search and Filters */}
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search team members..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  className="pl-10 pr-10 h-11 text-base"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
 
-            {/* Filters Row - Mobile Responsive */}
-            <div className="grid grid-cols-2 gap-2 xs:gap-3 sm:grid-cols-none sm:flex">
-              {/* Trade Filter */}
-              <Select value={selectedTrade} onValueChange={handleTradeFilter}>
-                <SelectTrigger className="w-full sm:w-[160px] md:w-[180px] h-9 xs:h-10 sm:h-11 text-xs xs:text-sm">
-                  <SelectValue placeholder="Filter by trade" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Trades</SelectItem>
-                  {TRADE_SPECIALTIES.map((trade) => (
-                    <SelectItem key={trade.value} value={trade.value}>
-                      {trade.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Status Filter */}
-              <Select value={selectedStatus} onValueChange={handleStatusFilter}>
-                <SelectTrigger className="w-full sm:w-[160px] md:w-[180px] h-9 xs:h-10 sm:h-11 text-xs xs:text-sm">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* View Mode Toggle - Mobile Responsive */}
-            <div className="flex border rounded-md self-end sm:self-auto">
+              {/* Filter Toggle Button - Mobile */}
               <Button
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('grid')}
-                className="rounded-r-none h-9 xs:h-10 px-3 xs:px-4"
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                className="w-full sm:hidden h-10"
               >
-                <Grid3X3 className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
+                <Filter className="mr-2 h-4 w-4" />
+                Filters {hasActiveFilters && `(${[localTradeFilter !== 'all', localStatusFilter !== 'all'].filter(Boolean).length})`}
               </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-                className="rounded-l-none h-9 xs:h-10 px-3 xs:px-4"
-              >
-                <List className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
-              </Button>
-            </div>
-          </div>
+
+              {/* Filters Row - Desktop Always Show, Mobile Toggle */}
+              <div className={`${showFilters ? 'flex' : 'hidden'} sm:flex flex-col sm:flex-row gap-3`}>
+                {/* Trade Filter */}
+                <Select value={localTradeFilter} onValueChange={handleTradeFilterChange}>
+                  <SelectTrigger className="h-10 sm:h-11 text-base">
+                    <SelectValue placeholder="Filter by trade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Trades</SelectItem>
+                    {TRADE_SPECIALTIES.map((trade) => (
+                      <SelectItem key={trade.value} value={trade.value}>
+                        {trade.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Status Filter */}
+                <Select value={localStatusFilter} onValueChange={handleStatusFilterChange}>
+                  <SelectTrigger className="h-10 sm:h-11 text-base">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* View Mode Toggle - Desktop Only */}
+                <div className="hidden md:flex border rounded-md">
+                  <Button
+                    variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('grid')}
+                    className="rounded-r-none h-full"
+                  >
+                    <Grid3X3 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'list' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('list')}
+                    className="rounded-l-none h-full"
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Clear Filters */}
+                {hasActiveFilters && (
+                  <Button
+                    variant="outline"
+                    onClick={handleClearAllFilters}
+                    className="h-10 sm:h-11"
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Team Count - Mobile Responsive */}
           {teamMembers.length > 0 && (
             <div className="flex xs:flex-col flex-row xs:items-center justify-between gap-1.5 xs:gap-2 text-xs xs:text-sm text-gray-600">
               <div className="flex items-center gap-1.5 xs:gap-2">
                 <span className="leading-snug">
-                  Showing {filteredTeamMembers.length} of {teamMembers.length} team members
+                  Showing {teamMembersCount} of {teamMembers.length} team members
                 </span>
               </div>
               {pagination && (
@@ -331,160 +422,207 @@ export default function TeamPage() {
             </div>
           )}
 
-          {/* Team Members Grid - Mobile Responsive */}
-          {filteredTeamMembers.length > 0 && viewMode === 'grid' && (
-            <div className="grid gap-3 xs:gap-4 sm:gap-5 md:gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredTeamMembers.map((member) => (
-                <Card key={member.id} className="hover:shadow-lg transition-shadow group">
-                  <CardHeader className="p-4 xs:p-5 sm:p-6">
-                    <div className="flex items-start gap-3 xs:gap-4">
-                      <Avatar className="h-10 w-10 xs:h-12 xs:w-12 shrink-0">
-                        <AvatarImage src={`/placeholder.svg?height=48&width=48`} />
-                        <AvatarFallback className="bg-orange-100 text-orange-700 font-semibold text-sm xs:text-base">
-                          {getInitials(member.firstName, member.lastName)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-base xs:text-lg truncate leading-tight">
-                          {member.firstName} {member.lastName}
-                        </CardTitle>
-                        <CardDescription className="truncate text-xs xs:text-sm mt-0.5">
-                          {member.jobTitle || member.role}
-                        </CardDescription>
-                        <Badge
-                          className={`${getTeamMemberStatusConfig(member.isActive, member.assignmentStatus).className} mt-1.5 xs:mt-2 text-xs`}
-                          variant="secondary"
-                        >
-                          {getTeamMemberStatusConfig(member.isActive, member.assignmentStatus).label}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3 xs:space-y-4 p-4 xs:p-5 sm:p-6 pt-0">
-                    {/* Contact Info */}
-                    <div className="space-y-1.5 xs:space-y-2 text-xs xs:text-sm">
-                      <div className="flex items-center gap-1.5 xs:gap-2">
-                        <Mail className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 flex-shrink-0" />
-                        <span className="text-gray-600 truncate leading-snug">{member.email}</span>
-                      </div>
-                      {member.phone && (
-                        <div className="flex items-center gap-1.5 xs:gap-2">
-                          <Phone className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 flex-shrink-0" />
-                          <span className="text-gray-600 leading-snug">{formatPhone(member.phone)}</span>
-                        </div>
-                      )}
-                      {member.currentProject && (
-                        <div className="flex items-center gap-1.5 xs:gap-2">
-                          <MapPin className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 flex-shrink-0" />
-                          <span className="text-gray-600 truncate leading-snug">
-                            {member.currentProject.name}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1.5 xs:gap-2">
-                        <Clock className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 flex-shrink-0" />
-                        <span className="text-gray-600 leading-snug">
-                          {member.activeProjectCount || 0} active project{member.activeProjectCount !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Trade and Role */}
-                    <div>
-                      <p className="text-xs xs:text-sm font-medium leading-snug">
-                        Trade: {getTradeLabel(member.tradeSpecialty)}
-                      </p>
-                    </div>
-
-                    {/* Action Buttons - Mobile Responsive */}
-                    <div className="flex gap-1.5 xs:gap-2">
-                      <Link href={`/dashboard/team/${member.id}`} className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full h-8 xs:h-9 text-xs xs:text-sm">
-                          <Eye className="h-3 w-3 xs:h-3.5 xs:w-3.5 mr-1" />
-                          <span className="hidden xs:inline">View Profile</span>
-                          <span className="xs:hidden">View</span>
-                        </Button>
-                      </Link>
-                      {withPermission('team', 'edit',
-                        <Link href={`/dashboard/team/${member.id}/edit`} className="flex-1">
-                          <Button variant="outline" size="sm" className="w-full h-8 xs:h-9 text-xs xs:text-sm">
-                            <Edit className="h-3 w-3 xs:h-3.5 xs:w-3.5 mr-1" />
-                            <span className="hidden xs:inline">Edit</span>
-                            <span className="xs:hidden">Edit</span>
-                          </Button>
-                        </Link>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {/* Team Members List View - Mobile Responsive */}
-          {filteredTeamMembers.length > 0 && viewMode === 'list' && (
-            <div className="space-y-2 xs:space-y-3">
-              {filteredTeamMembers.map((member) => (
-                <Card key={member.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-3 xs:p-4">
-                    <div className="flex items-center justify-between gap-3 xs:gap-4">
-                      <div className="flex items-center gap-2.5 xs:gap-3 sm:gap-4 flex-1 min-w-0">
-                        <Avatar className="h-9 w-9 xs:h-10 xs:w-10 shrink-0">
-                          <AvatarImage src={`/placeholder.svg?height=40&width=40`} />
-                          <AvatarFallback className="bg-orange-100 text-orange-700 font-semibold text-xs xs:text-sm">
-                            {getInitials(member.firstName, member.lastName)}
-                          </AvatarFallback>
-                        </Avatar>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 xs:gap-3 mb-0.5 xs:mb-1 flex-wrap">
-                            <h3 className="font-semibold text-sm xs:text-base text-gray-900 truncate leading-tight">
+          {teamMembersCount > 0 ? (
+            <>
+              {/* Grid View */}
+              {viewMode === 'grid' && (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {displayedTeamMembers.map((member) => (
+                    <Card key={member.id} className="hover:shadow-lg transition-shadow group">
+                      <CardHeader className="p-4 xs:p-5 sm:p-6">
+                        <div className="flex items-start gap-3 xs:gap-4">
+                          <Avatar className="h-10 w-10 xs:h-12 xs:w-12 shrink-0">
+                            <AvatarImage src={`/placeholder.svg?height=48&width=48`} />
+                            <AvatarFallback className="bg-orange-100 text-orange-700 font-semibold text-sm xs:text-base">
+                              {getInitials(member.firstName, member.lastName)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-base xs:text-lg truncate leading-tight">
                               {member.firstName} {member.lastName}
-                            </h3>
+                            </CardTitle>
+                            <CardDescription className="truncate text-xs xs:text-sm mt-0.5">
+                              {member.jobTitle || member.role}
+                            </CardDescription>
                             <Badge
-                              className={`${getTeamMemberStatusConfig(member.isActive, member.assignmentStatus).className} text-xs shrink-0`}
+                              className={`${getTeamMemberStatusConfig(member.isActive, member.assignmentStatus).className} mt-1.5 xs:mt-2 text-xs`}
                               variant="secondary"
                             >
                               {getTeamMemberStatusConfig(member.isActive, member.assignmentStatus).label}
                             </Badge>
                           </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 xs:gap-1.5 sm:gap-2 text-xs xs:text-sm text-gray-600">
-                            <div className="flex items-center gap-1">
-                              <Mail className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
-                              <span className="truncate leading-snug">{member.email}</span>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3 xs:space-y-4 p-4 xs:p-5 sm:p-6 pt-0">
+                        {/* Contact Info */}
+                        <div className="space-y-1.5 xs:space-y-2 text-xs xs:text-sm">
+                          <div className="flex items-center gap-1.5 xs:gap-2">
+                            <Mail className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 flex-shrink-0" />
+                            <span className="text-gray-600 truncate leading-snug">{member.email}</span>
+                          </div>
+                          {member.phone && (
+                            <div className="flex items-center gap-1.5 xs:gap-2">
+                              <Phone className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 flex-shrink-0" />
+                              <span className="text-gray-600 leading-snug">{formatPhone(member.phone)}</span>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <span className="font-medium">Trade:</span>
-                              <span className="truncate leading-snug">{getTradeLabel(member.tradeSpecialty)}</span>
+                          )}
+                          {member.currentProject && (
+                            <div className="flex items-center gap-1.5 xs:gap-2">
+                              <MapPin className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 flex-shrink-0" />
+                              <span className="text-gray-600 truncate leading-snug">
+                                {member.currentProject.name}
+                              </span>
                             </div>
-                            <div className="flex items-center gap-1">
-                              <span className="font-medium">Projects:</span>
-                              <span className="leading-snug">{member.activeProjectCount || 0}</span>
-                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5 xs:gap-2">
+                            <Clock className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 flex-shrink-0" />
+                            <span className="text-gray-600 leading-snug">
+                              {member.activeProjectCount || 0} active project{member.activeProjectCount !== 1 ? 's' : ''}
+                            </span>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 shrink-0">
-                        <Link href={`/dashboard/team/${member.id}`}>
-                          <Button variant="outline" size="sm" className="h-8 w-8 xs:h-9 xs:w-9 p-0">
-                            <Eye className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
-                          </Button>
-                        </Link>
-                        {withPermission('team', 'edit',
-                          <Link href={`/dashboard/team/${member.id}/edit`}>
-                            <Button variant="outline" size="sm" className="h-8 w-8 xs:h-9 xs:w-9 p-0">
-                              <Edit className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
+                        {/* Trade and Role */}
+                        <div>
+                          <p className="text-xs xs:text-sm font-medium leading-snug">
+                            Trade: {getTradeLabel(member.tradeSpecialty)}
+                          </p>
+                        </div>
+
+                        {/* Action Buttons - Mobile Responsive */}
+                        <div className="flex gap-1.5 xs:gap-2">
+                          <Link href={`/dashboard/team/${member.id}`} className="flex-1">
+                            <Button variant="outline" size="sm" className="w-full h-8 xs:h-9 text-xs xs:text-sm">
+                              <Eye className="h-3 w-3 xs:h-3.5 xs:w-3.5 mr-1" />
+                              <span className="hidden xs:inline">View Profile</span>
+                              <span className="xs:hidden">View</span>
                             </Button>
                           </Link>
-                        )}
-                      </div>
+                          {withPermission('team', 'edit',
+                            <Link href={`/dashboard/team/${member.id}/edit`} className="flex-1">
+                              <Button variant="outline" size="sm" className="w-full h-8 xs:h-9 text-xs xs:text-sm">
+                                <Edit className="h-3 w-3 xs:h-3.5 xs:w-3.5 mr-1" />
+                                <span className="hidden xs:inline">Edit</span>
+                                <span className="xs:hidden">Edit</span>
+                              </Button>
+                            </Link>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {/* List View */}
+              {viewMode === 'list' && (
+                <div className="space-y-3">
+                  {displayedTeamMembers.map((member) => (
+                    <Card key={member.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-3 xs:p-4">
+                        <div className="flex items-center justify-between gap-3 xs:gap-4">
+                          <div className="flex items-center gap-2.5 xs:gap-3 sm:gap-4 flex-1 min-w-0">
+                            <Avatar className="h-9 w-9 xs:h-10 xs:w-10 shrink-0">
+                              <AvatarImage src={`/placeholder.svg?height=40&width=40`} />
+                              <AvatarFallback className="bg-orange-100 text-orange-700 font-semibold text-xs xs:text-sm">
+                                {getInitials(member.firstName, member.lastName)}
+                              </AvatarFallback>
+                            </Avatar>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 xs:gap-3 mb-0.5 xs:mb-1 flex-wrap">
+                                <h3 className="font-semibold text-sm xs:text-base text-gray-900 truncate leading-tight">
+                                  {member.firstName} {member.lastName}
+                                </h3>
+                                <Badge
+                                  className={`${getTeamMemberStatusConfig(member.isActive, member.assignmentStatus).className} text-xs shrink-0`}
+                                  variant="secondary"
+                                >
+                                  {getTeamMemberStatusConfig(member.isActive, member.assignmentStatus).label}
+                                </Badge>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 xs:gap-1.5 sm:gap-2 text-xs xs:text-sm text-gray-600">
+                                <div className="flex items-center gap-1">
+                                  <Mail className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                  <span className="truncate leading-snug">{member.email}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="font-medium">Trade:</span>
+                                  <span className="truncate leading-snug">{getTradeLabel(member.tradeSpecialty)}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="font-medium">Projects:</span>
+                                  <span className="leading-snug">{member.activeProjectCount || 0}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 shrink-0">
+                            <Link href={`/dashboard/team/${member.id}`}>
+                              <Button variant="outline" size="sm" className="h-8 w-8 xs:h-9 xs:w-9 p-0">
+                                <Eye className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
+                              </Button>
+                            </Link>
+                            {withPermission('team', 'edit',
+                              <Link href={`/dashboard/team/${member.id}/edit`}>
+                                <Button variant="outline" size="sm" className="h-8 w-8 xs:h-9 xs:w-9 p-0">
+                                  <Edit className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
+                                </Button>
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <Card>
+              <CardContent className="p-12 text-center">
+                {hasActiveFilters ? (
+                  <>
+                    <Filter className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No team members found</h3>
+                    <p className="text-gray-600 mb-4">
+                      No team members match your current filters. Try adjusting your search criteria.
+                    </p>
+                    <div className="flex gap-2 justify-center">
+                      {withPermission('team', 'add',
+                        <Button className="bg-orange-600 hover:bg-orange-700" asChild>
+                          <Link href="/dashboard/team/new">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Team Member
+                          </Link>
+                        </Button>
+                      )}
+                      <Button variant="outline" onClick={handleClearAllFilters}>
+                        Clear Filters
+                      </Button>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  </>
+                ) : (
+                  <>
+                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No team members yet</h3>
+                    <p className="text-gray-600 mb-4">
+                      Get started by adding your first team member.
+                    </p>
+                    {withPermission('team', 'add',
+                      <Button className="bg-orange-600 hover:bg-orange-700" asChild>
+                        <Link href="/dashboard/team/new">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Team Member
+                        </Link>
+                      </Button>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>

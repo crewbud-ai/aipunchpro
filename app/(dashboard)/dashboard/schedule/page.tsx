@@ -27,7 +27,8 @@ import {
   Edit2,
   Play,
   CheckCircle,
-  Building2
+  Building2,
+  X
 } from "lucide-react"
 import Link from "next/link"
 
@@ -89,6 +90,13 @@ export default function SchedulePage() {
     return today.toISOString().split('T')[0]
   })
   const [viewMode, setViewMode] = useState<"list" | "calendar">("calendar")
+  const [localSearchTerm, setLocalSearchTerm] = useState('')
+
+  // Add local filter states (client-side filtering)
+  const [localProjectFilter, setLocalProjectFilter] = useState('all')
+  const [localStatusFilter, setLocalStatusFilter] = useState('all')
+  const [localPriorityFilter, setLocalPriorityFilter] = useState('all')
+  const [showFilters, setShowFilters] = useState(false)
 
   // ==============================================
   // COMPUTED VALUES
@@ -179,12 +187,69 @@ export default function SchedulePage() {
   // EVENT HANDLERS
   // ==============================================
 
-  const handleSearch = (searchTerm: string) => {
-    updateFiltersForm('search', searchTerm)
-    // Apply search with a small delay for better UX
-    setTimeout(() => {
-      applyFiltersForm()
-    }, 300)
+  const filteredScheduleProjects = useMemo(() => {
+    let filtered = scheduleProjects
+
+    // Search filter
+    if (localSearchTerm.trim()) {
+      const searchLower = localSearchTerm.toLowerCase().trim()
+      filtered = filtered.filter(project => {
+        const titleMatch = project.title?.toLowerCase().includes(searchLower)
+        const descriptionMatch = project.description?.toLowerCase().includes(searchLower)
+        const projectNameMatch = project.project?.name.toLowerCase().includes(searchLower)
+        const tradeMatch = project.tradeRequired?.toLowerCase().includes(searchLower)
+        return titleMatch || descriptionMatch || projectNameMatch || tradeMatch
+      })
+    }
+
+    // Project filter
+    if (localProjectFilter !== 'all') {
+      filtered = filtered.filter(project => project.projectId === localProjectFilter)
+    }
+
+    // Status filter
+    if (localStatusFilter !== 'all') {
+      filtered = filtered.filter(project => project.status === localStatusFilter)
+    }
+
+    // Priority filter
+    if (localPriorityFilter !== 'all') {
+      filtered = filtered.filter(project => project.priority === localPriorityFilter)
+    }
+
+    // Date filter for calendar view
+    if (viewMode === 'calendar') {
+      filtered = filtered.filter(project => project.startDate === selectedDate)
+    }
+
+    return filtered
+  }, [scheduleProjects, localSearchTerm, localProjectFilter, localStatusFilter, localPriorityFilter, viewMode, selectedDate])
+
+  // ==============================================
+  // EVENT HANDLERS
+  // ==============================================
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalSearchTerm(e.target.value)
+  }
+
+  const handleProjectFilterChange = (value: string) => {
+    setLocalProjectFilter(value)
+  }
+
+  const handleStatusFilterChange = (value: string) => {
+    setLocalStatusFilter(value)
+  }
+
+  const handlePriorityFilterChange = (value: string) => {
+    setLocalPriorityFilter(value)
+  }
+
+  const handleClearAllFilters = () => {
+    setLocalSearchTerm('')
+    setLocalProjectFilter('all')
+    setLocalStatusFilter('all')
+    setLocalPriorityFilter('all')
   }
 
   const handleFilterChange = (key: string, value: string) => {
@@ -198,9 +263,9 @@ export default function SchedulePage() {
 
   const handleDateSelect = (dateString: string) => {
     setSelectedDate(dateString)
-    if (viewMode === "calendar") {
-      setViewMode("list")
-    }
+    // if (viewMode === "calendar") {
+    //   setViewMode("list")
+    // }
   }
 
   // ==============================================
@@ -211,6 +276,15 @@ export default function SchedulePage() {
   useEffect(() => {
     loadScheduleProjects()
   }, [])
+
+
+  // ==============================================
+  // COMPUTED VALUES
+  // ==============================================
+  const displayedScheduledProjects = filteredScheduleProjects
+  const scheduledProjectsCount = filteredScheduleProjects.length
+  const hasActiveFilters = localSearchTerm || localProjectFilter !== 'all' || localStatusFilter !== 'all' || localPriorityFilter !== 'all'
+
 
   // ==============================================
   // LOADING STATES
@@ -315,7 +389,7 @@ export default function SchedulePage() {
           </div>
 
           {/* Filters Bar */}
-          <Card>
+          {/* <Card>
             <CardContent className="p-3 sm:p-4">
               <div className="flex flex-col space-y-3 sm:space-y-4 md:flex-row md:space-y-0 md:space-x-4">
                 <div className="flex-1">
@@ -323,8 +397,8 @@ export default function SchedulePage() {
                     <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
                       placeholder="Search schedules..."
-                      value={filtersForm.search}
-                      onChange={(e) => handleSearch(e.target.value)}
+                      value={localSearchTerm}
+                      onChange={handleSearchChange}
                       className="pl-10"
                     />
                   </div>
@@ -332,8 +406,8 @@ export default function SchedulePage() {
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-none md:flex gap-2 md:gap-4">
                   <Select
-                    value={filtersForm.projectId || "all"}
-                    onValueChange={(value) => handleFilterChange('projectId', value === "all" ? "" : value)}
+                    value={localProjectFilter}
+                    onValueChange={handleProjectFilterChange}
                   >
                     <SelectTrigger className="w-full md:w-[180px]">
                       <SelectValue placeholder="All Projects" />
@@ -349,8 +423,8 @@ export default function SchedulePage() {
                   </Select>
 
                   <Select
-                    value={filtersForm.status || "all"}
-                    onValueChange={(value) => handleFilterChange('status', value === "all" ? "" : value)}
+                    value={localStatusFilter}
+                    onValueChange={handleStatusFilterChange}
                   >
                     <SelectTrigger className="w-full md:w-[140px]">
                       <SelectValue placeholder="Status" />
@@ -366,8 +440,8 @@ export default function SchedulePage() {
                   </Select>
 
                   <Select
-                    value={filtersForm.priority || "all"}
-                    onValueChange={(value) => handleFilterChange('priority', value === "all" ? "" : value)}
+                    value={localPriorityFilter}
+                    onValueChange={handlePriorityFilterChange}
                   >
                     <SelectTrigger className="w-full md:w-[140px]">
                       <SelectValue placeholder="Priority" />
@@ -397,6 +471,139 @@ export default function SchedulePage() {
                   </div>
                 </div>
               </div>
+
+              {hasActiveFilters && (
+                <div className="mt-3">
+                  <Button variant="outline" size="sm" onClick={handleClearAllFilters}>
+                    Clear All Filters
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card> */}
+
+          {/* Filters Bar */}
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search schedules..."
+                  value={localSearchTerm}
+                  onChange={handleSearchChange}
+                  className="pl-10 pr-10 h-11 text-base"
+                />
+                {localSearchTerm && (
+                  <button
+                    onClick={() => setLocalSearchTerm('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Filter Toggle Button - Mobile */}
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                className="w-full sm:hidden h-10"
+              >
+                <Filter className="mr-2 h-4 w-4" />
+                Filters {hasActiveFilters && `(${[localProjectFilter !== 'all', localStatusFilter !== 'all', localPriorityFilter !== 'all'].filter(Boolean).length})`}
+              </Button>
+
+              {/* Filters Row - Desktop Always Show, Mobile Toggle */}
+              <div className={`${showFilters ? 'flex' : 'hidden'} sm:flex flex-col sm:flex-row gap-3`}>
+                {/* Project Filter */}
+                <Select value={localProjectFilter} onValueChange={handleProjectFilterChange}>
+                  <SelectTrigger className="h-10 sm:h-11 text-base">
+                    <SelectValue placeholder="All Projects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Projects</SelectItem>
+                    {activeProjects.map(project => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Status Filter */}
+                <Select value={localStatusFilter} onValueChange={handleStatusFilterChange}>
+                  <SelectTrigger className="h-10 sm:h-11 text-base">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="planned">Planned</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="delayed">Delayed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Priority Filter */}
+                <Select value={localPriorityFilter} onValueChange={handlePriorityFilterChange}>
+                  <SelectTrigger className="h-10 sm:h-11 text-base">
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priority</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* View Mode Toggle - Desktop Only */}
+                <div className="hidden md:flex col-span-2 sm:col-span-3 md:col-span-1 w-full">
+                  <Tabs value={viewMode} onValueChange={handleViewModeChange}>
+                    <TabsList className="grid w-full grid-cols-2 h-10 sm:h-11">
+                      <TabsTrigger value="calendar">
+                        <CalendarDays className="h-4 w-4 mr-2" />
+                        Calendar
+                      </TabsTrigger>
+                      <TabsTrigger value="list">
+                        <LayoutGrid className="h-4 w-4 mr-2" />
+                        List
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+
+                {/* <div className="col-span-2 sm:col-span-3 md:col-span-1">
+                    <Tabs value={viewMode} onValueChange={handleViewModeChange}>
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="calendar" className="text-xs sm:text-sm">
+                          <CalendarDays className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Calendar</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="list" className="text-xs sm:text-sm">
+                          <LayoutGrid className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">List</span>
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div> */}
+
+                {/* Clear Filters */}
+                {hasActiveFilters && (
+                  <Button
+                    variant="outline"
+                    onClick={handleClearAllFilters}
+                    className="h-10 sm:h-11"
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Clear
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -405,10 +612,10 @@ export default function SchedulePage() {
 
             {/* Calendar View */}
             <TabsContent value="calendar" className="space-y-4 sm:space-y-6">
-              <div className="grid gap-4 sm:gap-6 lg:grid-cols-4">
+              <div className="grid gap-4 sm:gap-6 lg:grid-cols-12">
 
                 {/* Calendar Sidebar */}
-                <Card>
+                <Card className="lg:col-span-4">
                   <CardHeader className="p-4 sm:p-6">
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
@@ -484,7 +691,7 @@ export default function SchedulePage() {
                 </Card>
 
                 {/* Schedule Items for Selected Date */}
-                <div className="lg:col-span-3 space-y-4">
+                <div className="lg:col-span-8 space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <h2 className="text-lg sm:text-xl font-semibold">
                       {new Date(selectedDate).toLocaleDateString("en-US", {
@@ -495,12 +702,12 @@ export default function SchedulePage() {
                       })}
                     </h2>
                     <Badge variant="outline" className="self-start sm:self-auto">
-                      {filteredScheduleForDate.length} tasks scheduled
+                      {scheduledProjectsCount} tasks scheduled
                     </Badge>
                   </div>
 
-                  {filteredScheduleForDate.length > 0 ? (
-                    filteredScheduleForDate.map((item) => (
+                  {displayedScheduledProjects.length > 0 ? (
+                    displayedScheduledProjects.map((item) => (
                       <Card key={item.id} className="hover:shadow-md transition-shadow">
                         <CardContent className="p-4 sm:p-6">
                           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -607,99 +814,143 @@ export default function SchedulePage() {
             <TabsContent value="list" className="space-y-4">
               {hasScheduleProjects ? (
                 <>
-                  {scheduleProjects.map((item) => (
-                    <Card key={item.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-4 sm:p-6">
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <h3 className="text-base sm:text-lg font-semibold break-words">{item.title}</h3>
-                              <Badge className={getStatusConfig(item.status).color}>
-                                {getStatusConfig(item.status).label}
-                              </Badge>
-                              <Badge className={`${getPriorityConfig(item.priority).color} ${getPriorityConfig(item.priority).bgColor}`}>
-                                {getPriorityConfig(item.priority).label}
-                              </Badge>
-                            </div>
-
-                            {item.project && (
-                              <div className="flex items-center gap-2 mb-3">
-                                <Building2 className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                <span className="text-sm sm:text-base text-gray-600 truncate">{item.project.name}</span>
-                              </div>
-                            )}
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-sm">
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                <span>
-                                  {new Date(item.startDate).toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric'
-                                  })}
-                                </span>
+                  {displayedScheduledProjects.length > 0 ? (
+                    displayedScheduledProjects.map((item) => (
+                      <Card key={item.id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-4 sm:p-6">
+                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <h3 className="text-base sm:text-lg font-semibold break-words">{item.title}</h3>
+                                <Badge className={getStatusConfig(item.status).color}>
+                                  {getStatusConfig(item.status).label}
+                                </Badge>
+                                <Badge className={`${getPriorityConfig(item.priority).color} ${getPriorityConfig(item.priority).bgColor}`}>
+                                  {getPriorityConfig(item.priority).label}
+                                </Badge>
                               </div>
 
-                              {(item.startTime || item.endTime) && (
+                              {item.project && (
+                                <div className="flex items-center gap-2 mb-3">
+                                  <Building2 className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                  <span className="text-sm sm:text-base text-gray-600 truncate">{item.project.name}</span>
+                                </div>
+                              )}
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-sm">
                                 <div className="flex items-center gap-2">
-                                  <Clock className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                  <span className="truncate">
-                                    {item.startTime && formatTime12Hour(item.startTime)}
-                                    {item.startTime && item.endTime && " - "}
-                                    {item.endTime && formatTime12Hour(item.endTime)}
+                                  <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                  <span>
+                                    {new Date(item.startDate).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric'
+                                    })}
                                   </span>
                                 </div>
-                              )}
 
-                              {item.location && (
-                                <div className="flex items-center gap-2">
-                                  <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                  <span className="truncate">{item.location}</span>
-                                </div>
-                              )}
-                              {item.assignedMembers && (
-                                <div className="flex items-center gap-2">
-                                  <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                  <span>{item.assignedMembers.length} crew members</span>
+                                {(item.startTime || item.endTime) && (
+                                  <div className="flex items-center gap-2">
+                                    <Clock className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                    <span className="truncate">
+                                      {item.startTime && formatTime12Hour(item.startTime)}
+                                      {item.startTime && item.endTime && " - "}
+                                      {item.endTime && formatTime12Hour(item.endTime)}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {item.location && (
+                                  <div className="flex items-center gap-2">
+                                    <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                    <span className="truncate">{item.location}</span>
+                                  </div>
+                                )}
+                                {item.assignedMembers && (
+                                  <div className="flex items-center gap-2">
+                                    <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                    <span>{item.assignedMembers.length} crew members</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {item.assignedMembers && item.assignedMembers.length > 0 && (
+                                <div className="mt-3">
+                                  <p className="text-sm font-medium mb-1">Assigned Crew:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {item.assignedMembers.map((member, index) => (
+                                      <Badge key={index} variant="outline" className="text-xs">
+                                        {member.user.firstName} {member.user.lastName}
+                                      </Badge>
+                                    ))}
+                                  </div>
                                 </div>
                               )}
                             </div>
 
-                            {item.assignedMembers && item.assignedMembers.length > 0 && (
-                              <div className="mt-3">
-                                <p className="text-sm font-medium mb-1">Assigned Crew:</p>
-                                <div className="flex flex-wrap gap-1">
-                                  {item.assignedMembers.map((member, index) => (
-                                    <Badge key={index} variant="outline" className="text-xs">
-                                      {member.user.firstName} {member.user.lastName}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex sm:flex-col gap-2 sm:ml-4">
-                            <Button variant="outline" size="sm" className="flex-1 sm:flex-none" asChild>
-                              <Link href={`/dashboard/schedule/${item.id}`}>
-                                <Eye className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                            <Button variant="outline" size="sm" className="flex-1 sm:flex-none" asChild>
-                              <Link href={`/dashboard/schedule/${item.id}/edit`}>
-                                <Edit2 className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                            {item.status === "planned" && (
-                              <Button size="sm" className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700">
-                                <Play className="h-4 w-4" />
+                            <div className="flex sm:flex-col gap-2 sm:ml-4">
+                              <Button variant="outline" size="sm" className="flex-1 sm:flex-none" asChild>
+                                <Link href={`/dashboard/schedule/${item.id}`}>
+                                  <Eye className="h-4 w-4" />
+                                </Link>
                               </Button>
-                            )}
+                              <Button variant="outline" size="sm" className="flex-1 sm:flex-none" asChild>
+                                <Link href={`/dashboard/schedule/${item.id}/edit`}>
+                                  <Edit2 className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                              {item.status === "planned" && (
+                                <Button size="sm" className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700">
+                                  <Play className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : (
+                    <Card>
+                      <CardContent className="p-8 sm:p-12 text-center">
+                        {viewMode === 'calendar' && !hasActiveFilters ? (
+                          <>
+                            <Calendar className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-4" />
+                            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No tasks scheduled</h3>
+                            <p className="text-sm sm:text-base text-gray-600 mb-4">No tasks are scheduled for this date.</p>
+                          </>
+                        ) : hasActiveFilters ? (
+                          <>
+                            <Filter className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-4" />
+                            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No schedules found</h3>
+                            <p className="text-sm sm:text-base text-gray-600 mb-4">
+                              No schedules match your current filters. Try adjusting your search criteria.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <CalendarDays className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-4" />
+                            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No schedules yet</h3>
+                            <p className="text-sm sm:text-base text-gray-600 mb-4">
+                              Get started by creating your first schedule.
+                            </p>
+                          </>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                          <Button className="bg-orange-600 hover:bg-orange-700 w-full sm:w-auto" asChild>
+                            <Link href="/dashboard/schedule/new">
+                              <Plus className="mr-2 h-4 w-4" />
+                              {viewMode === 'calendar' ? 'Schedule Task' : 'Create Schedule'}
+                            </Link>
+                          </Button>
+                          {hasActiveFilters && (
+                            <Button variant="outline" className="w-full sm:w-auto" onClick={handleClearAllFilters}>
+                              Clear Filters
+                            </Button>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
-                  ))}
+                  )}
 
                   {/* Pagination */}
                   {totalPages > 1 && (
@@ -734,7 +985,7 @@ export default function SchedulePage() {
                     <CalendarDays className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No schedules found</h3>
                     <p className="text-sm sm:text-base text-gray-600 mb-4">
-                      {Object.values(filters).some(v => v && v !== '')
+                      {hasActiveFilters
                         ? "No schedules match your current filters. Try adjusting your search criteria."
                         : "Get started by creating your first schedule."}
                     </p>
@@ -745,8 +996,8 @@ export default function SchedulePage() {
                           Create Schedule
                         </Link>
                       </Button>
-                      {Object.values(filters).some(v => v && v !== '') && (
-                        <Button variant="outline" className="w-full sm:w-auto" onClick={clearFilters}>
+                      {hasActiveFilters && (
+                        <Button variant="outline" className="w-full sm:w-auto" onClick={handleClearAllFilters}>
                           Clear Filters
                         </Button>
                       )}

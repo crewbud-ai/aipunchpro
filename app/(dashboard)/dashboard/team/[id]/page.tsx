@@ -105,13 +105,10 @@ export default function TeamMemberDetailPage({ }: TeamMemberDetailPageProps) {
     // Delete functionality
     const {
         isDeleting,
-        deleteResult,
         error: deleteError,
         hasError: hasDeleteError,
         isSuccess: isDeleteSuccess,
-        confirmDelete,
-        cancelDelete,
-        executeDelete,
+        deleteTeamMember,
         clearError: clearDeleteError,
     } = useDeleteTeamMember()
 
@@ -124,14 +121,13 @@ export default function TeamMemberDetailPage({ }: TeamMemberDetailPageProps) {
 
     const handleConfirmDelete = async () => {
         if (teamMember) {
-            confirmDelete(teamMember)
-            await executeDelete()
+            // Call deleteTeamMember directly with the ID
+            await deleteTeamMember(teamMember.id)
         }
     }
 
     const handleCancelDelete = () => {
         setIsDeleteDialogOpen(false)
-        cancelDelete()
         clearDeleteError()
     }
 
@@ -277,120 +273,120 @@ export default function TeamMemberDetailPage({ }: TeamMemberDetailPageProps) {
 
                 {/* Header - Mobile Responsive */}
                 {/* <div className="mb-6 xs:mb-7 sm:mb-8"> */}
-                    <div className="flex flex-col sm:flex-row xs:items-start xs:justify-between gap-4 xs:gap-5 sm:gap-6">
-                        {/* Left Side - Profile Info */}
+                <div className="flex flex-col sm:flex-row xs:items-start xs:justify-between gap-4 xs:gap-5 sm:gap-6">
+                    {/* Left Side - Profile Info */}
+                    <div className="flex items-start gap-2.5 xs:gap-3 sm:gap-4 min-w-0 flex-1">
+                        <Link href="/dashboard/team">
+                            <Button variant="outline" size="icon" className="shrink-0 h-9 w-9 xs:h-10 xs:w-10">
+                                <ArrowLeft className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
+                            </Button>
+                        </Link>
+
                         <div className="flex items-start gap-2.5 xs:gap-3 sm:gap-4 min-w-0 flex-1">
-                            <Link href="/dashboard/team">
-                                <Button variant="outline" size="icon" className="shrink-0 h-9 w-9 xs:h-10 xs:w-10">
-                                    <ArrowLeft className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
-                                </Button>
-                            </Link>
+                            <Avatar className="h-10 w-10 xs:h-12 xs:w-12 shrink-0">
+                                <AvatarImage src={`/placeholder.svg?height=48&width=48`} />
+                                <AvatarFallback className="text-base xs:text-lg font-semibold bg-orange-100 text-orange-700">
+                                    {getInitials(teamMember.firstName, teamMember.lastName)}
+                                </AvatarFallback>
+                            </Avatar>
 
-                            <div className="flex items-start gap-2.5 xs:gap-3 sm:gap-4 min-w-0 flex-1">
-                                <Avatar className="h-10 w-10 xs:h-12 xs:w-12 shrink-0">
-                                    <AvatarImage src={`/placeholder.svg?height=48&width=48`} />
-                                    <AvatarFallback className="text-base xs:text-lg font-semibold bg-orange-100 text-orange-700">
-                                        {getInitials(teamMember.firstName, teamMember.lastName)}
-                                    </AvatarFallback>
-                                </Avatar>
-
-                                <div className="min-w-0 flex-1">
-                                    <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-gray-900 truncate leading-tight">{fullName}</h1>
-                                    <div className="flex items-center gap-1.5 xs:gap-2 mt-1 xs:mt-1.5 flex-wrap">
-                                        <Badge {...getStatusBadgeProps()} className="text-xs">
-                                            {displayStatus}
+                            <div className="min-w-0 flex-1">
+                                <h1 className="text-lg xs:text-xl sm:text-2xl font-bold text-gray-900 truncate leading-tight">{fullName}</h1>
+                                <div className="flex items-center gap-1.5 xs:gap-2 mt-1 xs:mt-1.5 flex-wrap">
+                                    <Badge {...getStatusBadgeProps()} className="text-xs">
+                                        {displayStatus}
+                                    </Badge>
+                                    <Badge variant="outline" className="text-gray-600 text-xs">
+                                        {displayRole}
+                                    </Badge>
+                                    {teamMember.tradeSpecialty && (
+                                        <Badge variant="outline" className="text-blue-600 border-blue-200 text-xs">
+                                            {getTradeSpecialtyLabel(teamMember.tradeSpecialty)}
                                         </Badge>
-                                        <Badge variant="outline" className="text-gray-600 text-xs">
-                                            {displayRole}
-                                        </Badge>
-                                        {teamMember.tradeSpecialty && (
-                                            <Badge variant="outline" className="text-blue-600 border-blue-200 text-xs">
-                                                {getTradeSpecialtyLabel(teamMember.tradeSpecialty)}
-                                            </Badge>
-                                        )}
-                                    </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
-                        {/* Actions - Mobile Responsive */}
-                        <div className="flex items-center gap-1.5 xs:gap-2 self-end xs:self-auto sm:w-auto w-full">
-                            {withPermission('team', 'edit',
-                                <Link href={`/dashboard/team/${teamMemberId}/edit`} className="flex-1 xs:flex-initial w-auto sm:w-full">
-                                    <Button
-                                        variant="outline"
-                                        className="w-full xs:w-auto h-9 xs:h-10 text-sm xs:text-base"
-                                    >
-                                        <Edit className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-1.5 xs:mr-2" />
-                                        <span className="hidden xs:inline">Edit</span>
-                                        <span className="xs:hidden">Edit</span>
-                                    </Button>
-                                </Link>
-                            )}
-
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" size="icon" className="h-9 w-9 xs:h-10 xs:w-10">
-                                        <MoreVertical className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-44 xs:w-48">
-                                    <DropdownMenuLabel className="text-xs xs:text-sm">Actions</DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
-
-                                    <DropdownMenuItem className="cursor-pointer text-xs xs:text-sm" onClick={handleCopyEmail}>
-                                        <Copy className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-2" />
-                                        Copy Email
-                                    </DropdownMenuItem>
-
-                                    {hasPhone && (
-                                        <DropdownMenuItem className="cursor-pointer text-xs xs:text-sm" onClick={handleCopyPhone}>
-                                            <Copy className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-2" />
-                                            Copy Phone
-                                        </DropdownMenuItem>
-                                    )}
-
-                                    <DropdownMenuItem className="cursor-pointer text-xs xs:text-sm" asChild>
-                                        <Link href={`mailto:${teamMember.email}`}>
-                                            <Mail className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-2" />
-                                            Send Email
-                                        </Link>
-                                    </DropdownMenuItem>
-
-                                    {withPermission('team', 'edit',
-                                        <>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem className="cursor-pointer text-xs xs:text-sm" onClick={handleStatusToggle}>
-                                                {isActive ? (
-                                                    <>
-                                                        <UserX className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-2" />
-                                                        Deactivate
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <UserCheck className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-2" />
-                                                        Activate
-                                                    </>
-                                                )}
-                                            </DropdownMenuItem>
-                                        </>
-                                    )}
-
-                                    {withPermission('team', 'remove',
-                                        <>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem
-                                                className="text-red-600 hover:text-red-700 cursor-pointer text-xs xs:text-sm"
-                                                onClick={handleDeleteClick}
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-2" />
-                                                Delete Member
-                                            </DropdownMenuItem>
-                                        </>
-                                    )}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
                     </div>
+                    {/* Actions - Mobile Responsive */}
+                    <div className="flex items-center gap-1.5 xs:gap-2 self-end xs:self-auto sm:w-auto w-full">
+                        {withPermission('team', 'edit',
+                            <Link href={`/dashboard/team/${teamMemberId}/edit`} className="flex-1 xs:flex-initial w-auto sm:w-full">
+                                <Button
+                                    variant="outline"
+                                    className="w-full xs:w-auto h-9 xs:h-10 text-sm xs:text-base"
+                                >
+                                    <Edit className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-1.5 xs:mr-2" />
+                                    <span className="hidden xs:inline">Edit</span>
+                                    <span className="xs:hidden">Edit</span>
+                                </Button>
+                            </Link>
+                        )}
+
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon" className="h-9 w-9 xs:h-10 xs:w-10">
+                                    <MoreVertical className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44 xs:w-48">
+                                <DropdownMenuLabel className="text-xs xs:text-sm">Actions</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+
+                                <DropdownMenuItem className="cursor-pointer text-xs xs:text-sm" onClick={handleCopyEmail}>
+                                    <Copy className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-2" />
+                                    Copy Email
+                                </DropdownMenuItem>
+
+                                {hasPhone && (
+                                    <DropdownMenuItem className="cursor-pointer text-xs xs:text-sm" onClick={handleCopyPhone}>
+                                        <Copy className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-2" />
+                                        Copy Phone
+                                    </DropdownMenuItem>
+                                )}
+
+                                <DropdownMenuItem className="cursor-pointer text-xs xs:text-sm" asChild>
+                                    <Link href={`mailto:${teamMember.email}`}>
+                                        <Mail className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-2" />
+                                        Send Email
+                                    </Link>
+                                </DropdownMenuItem>
+
+                                {withPermission('team', 'edit',
+                                    <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem className="cursor-pointer text-xs xs:text-sm" onClick={handleStatusToggle}>
+                                            {isActive ? (
+                                                <>
+                                                    <UserX className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-2" />
+                                                    Deactivate
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <UserCheck className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-2" />
+                                                    Activate
+                                                </>
+                                            )}
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
+
+                                {withPermission('team', 'remove',
+                                    <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            className="text-red-600 hover:text-red-700 cursor-pointer text-xs xs:text-sm"
+                                            onClick={handleDeleteClick}
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-2" />
+                                            Delete Member
+                                        </DropdownMenuItem>
+                                    </>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </div>
                 {/* </div> */}
 
                 {/* Main Content Grid - Mobile Responsive */}

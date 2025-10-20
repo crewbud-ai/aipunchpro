@@ -43,42 +43,42 @@ export const getStatusConfig = (status: string) => {
       return {
         label: 'Planned',
         variant: 'secondary' as const,
-        color: 'text-blue-600 bg-blue-50 border-blue-200',
+        color: 'text-blue-700 bg-blue-50 border-blue-200',
         icon: Calendar,
       }
     case 'in_progress':
       return {
         label: 'In Progress',
         variant: 'default' as const,
-        color: 'text-yellow-600 bg-yellow-50 border-yellow-200',
+        color: 'text-amber-700 bg-amber-50 border-amber-200',
         icon: Play,
       }
     case 'completed':
       return {
         label: 'Completed',
         variant: 'default' as const,
-        color: 'text-green-600 bg-green-50 border-green-200',
+        color: 'text-green-700 bg-green-50 border-green-200',
         icon: CheckCircle,
       }
     case 'delayed':
       return {
         label: 'Delayed',
         variant: 'destructive' as const,
-        color: 'text-red-600 bg-red-50 border-red-200',
+        color: 'text-red-700 bg-red-50 border-red-200',
         icon: AlertTriangle,
       }
     case 'cancelled':
       return {
         label: 'Cancelled',
         variant: 'outline' as const,
-        color: 'text-gray-600 bg-gray-50 border-gray-200',
+        color: 'text-gray-700 bg-gray-50 border-gray-200',
         icon: XCircle,
       }
     default:
       return {
         label: 'Unknown',
         variant: 'outline' as const,
-        color: 'text-gray-600 bg-gray-50 border-gray-200',
+        color: 'text-gray-700 bg-gray-50 border-gray-200',
         icon: Clock,
       }
   }
@@ -87,46 +87,46 @@ export const getStatusConfig = (status: string) => {
 export const getStatusColor = (status: string) => {
   switch (status) {
     case 'not_started':
-      return 'bg-gray-100 text-gray-800 border-gray-200'
+      return 'bg-slate-100 text-slate-700 border-slate-200'
     case 'in_progress':
-      return 'bg-blue-100 text-blue-800 border-blue-200'
+      return 'bg-blue-100 text-blue-700 border-blue-200'
     case 'on_track':
-      return 'bg-green-100 text-green-800 border-green-200'
+      return 'bg-green-100 text-green-700 border-green-200'
     case 'ahead_of_schedule':
-      return 'bg-emerald-100 text-emerald-800 border-emerald-200'
+      return 'bg-emerald-100 text-emerald-700 border-emerald-200'
     case 'behind_schedule':
-      return 'bg-orange-100 text-orange-800 border-orange-200'
+      return 'bg-orange-100 text-orange-700 border-orange-200'
     case 'on_hold':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      return 'bg-amber-100 text-amber-700 border-amber-200'
     case 'completed':
-      return 'bg-green-100 text-green-800 border-green-200'
+      return 'bg-green-100 text-green-700 border-green-200'
     case 'cancelled':
-      return 'bg-red-100 text-red-800 border-red-200'
+      return 'bg-red-100 text-red-700 border-red-200'
     default:
-      return 'bg-gray-100 text-gray-800 border-gray-200'
+      return 'bg-slate-100 text-slate-700 border-slate-200'
   }
 }
 
 export const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Low', color: 'text-green-600' },
-  { value: 'medium', label: 'Medium', color: 'text-yellow-600' },
-  { value: 'high', label: 'High', color: 'text-orange-600' },
-  { value: 'critical', label: 'Critical', color: 'text-red-600' },
+  { value: 'low', label: 'Low', color: 'text-green-700' },
+  { value: 'medium', label: 'Medium', color: 'text-amber-700' },
+  { value: 'high', label: 'High', color: 'text-orange-700' },
+  { value: 'critical', label: 'Critical', color: 'text-red-700' },
 ]
 
 
 export const getPriorityConfig = (priority: string) => {
   switch (priority) {
     case 'critical':
-      return { label: 'Critical', color: 'text-red-600', bgColor: 'bg-red-500' }
+      return { label: 'Critical', color: 'text-red-700', bgColor: 'bg-red-100', className: 'bg-red-100 text-red-700 border-red-200' }
     case 'high':
-      return { label: 'High', color: 'text-orange-600', bgColor: 'bg-orange-500' }
+      return { label: 'High', color: 'text-orange-700', bgColor: 'bg-orange-100', className: 'bg-orange-100 text-orange-700 border-orange-200' }
     case 'medium':
-      return { label: 'Medium', color: 'text-yellow-600', bgColor: 'bg-yellow-500' }
+      return { label: 'Medium', color: 'text-amber-700', bgColor: 'bg-amber-100', className: 'bg-amber-100 text-amber-700 border-amber-200' }
     case 'low':
-      return { label: 'Low', color: 'text-green-600', bgColor: 'bg-green-500' }
+      return { label: 'Low', color: 'text-green-700', bgColor: 'bg-green-100', className: 'bg-green-100 text-green-700 border-green-200' }
     default:
-      return { label: 'Medium', color: 'text-gray-600', bgColor: 'bg-gray-500' }
+      return { label: 'Medium', color: 'text-slate-700', bgColor: 'bg-slate-100', className: 'bg-slate-100 text-slate-700 border-slate-200' }
   }
 }
 
@@ -148,7 +148,7 @@ export const getTeamMemberStatusConfig = (isActive: boolean, assignmentStatus?: 
   if (!isActive) {
     return {
       label: 'Inactive',
-      className: 'bg-gray-100 text-gray-800'
+      className: 'bg-slate-100 text-slate-700 border-slate-200'
     }
   }
 
@@ -156,20 +156,21 @@ export const getTeamMemberStatusConfig = (isActive: boolean, assignmentStatus?: 
     case 'assigned':
       return {
         label: 'Active',
-        className: 'bg-green-100 text-green-800'
+        className: 'bg-green-100 text-green-700 border-green-200'
       }
     case 'not_assigned':
       return {
         label: 'Available',
-        className: 'bg-yellow-100 text-yellow-800'
+        className: 'bg-amber-100 text-amber-700 border-amber-200'
       }
     default:
       return {
         label: 'Active',
-        className: 'bg-blue-100 text-blue-800'
+        className: 'bg-blue-100 text-blue-700 border-blue-200'
       }
   }
 }
+
 
 export const formatRoleLabel = (role: string) => {
   switch (role) {
@@ -184,14 +185,13 @@ export const formatRoleLabel = (role: string) => {
 
 export const getRoleColor = (role: string) => {
   switch (role) {
-    case 'super_admin': return 'bg-red-100 text-red-800 border-red-200'
-    case 'admin': return 'bg-orange-100 text-orange-800 border-orange-200'
-    case 'supervisor': return 'bg-purple-100 text-purple-800 border-purple-200'
-    case 'member': return 'bg-blue-100 text-blue-800 border-blue-200'
-    default: return 'bg-gray-100 text-gray-800 border-gray-200'
+    case 'super_admin': return 'bg-red-100 text-red-700 border-red-200'
+    case 'admin': return 'bg-orange-100 text-orange-700 border-orange-200'
+    case 'supervisor': return 'bg-purple-100 text-purple-700 border-purple-200'
+    case 'member': return 'bg-blue-100 text-blue-700 border-blue-200'
+    default: return 'bg-slate-100 text-slate-700 border-slate-200'
   }
 }
-
 export const getPunchListTeamRoleIcon = (role: string) => {
   switch (role) {
     case 'primary':
@@ -208,21 +208,22 @@ export const getPunchListTeamRoleIcon = (role: string) => {
 }
 export const getPunchListTeamRoleColor = (role: string) => {
   switch (role) {
-    case 'primary': return 'bg-orange-100 text-orange-800 border-orange-200'
-    case 'secondary': return 'bg-blue-100 text-blue-800 border-blue-200'
-    case 'inspector': return 'bg-purple-100 text-purple-800 border-purple-200'
-    case 'supervisor': return 'bg-green-100 text-green-800 border-green-200'
-    default: return 'bg-gray-100 text-gray-800 border-gray-200'
+    case 'primary': return 'bg-orange-100 text-orange-700 border-orange-200'
+    case 'secondary': return 'bg-blue-100 text-blue-700 border-blue-200'
+    case 'inspector': return 'bg-purple-100 text-purple-700 border-purple-200'
+    case 'supervisor': return 'bg-green-100 text-green-700 border-green-200'
+    default: return 'bg-slate-100 text-slate-700 border-slate-200'
   }
 }
 
 
 export const getProgressColor = (progress: number) => {
-  if (progress >= 90) return "bg-green-500"
-  if (progress >= 70) return "bg-blue-500"
-  if (progress >= 50) return "bg-yellow-500"
-  return "bg-gray-400"
+  if (progress >= 90) return "bg-green-600"
+  if (progress >= 70) return "bg-blue-600"
+  if (progress >= 50) return "bg-amber-600"
+  return "bg-slate-400"
 }
+
 
 export const formatStatus = (status: string) => {
   return status
@@ -355,49 +356,49 @@ export function getStatusBadgeVariant(status: string): 'default' | 'secondary' |
 export function getStatusColorClass(status: string): string {
   switch (status) {
     case 'approved':
-      return 'bg-green-100 text-green-800'
+      return 'bg-green-100 text-green-700 border-green-200'
     case 'pending':
-      return 'bg-amber-100 text-amber-800'
+      return 'bg-amber-100 text-amber-700 border-amber-200'
     case 'clocked_in':
-      return 'bg-blue-100 text-blue-800'
+      return 'bg-blue-100 text-blue-700 border-blue-200'
     case 'rejected':
-      return 'bg-red-100 text-red-800'
+      return 'bg-red-100 text-red-700 border-red-200'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'bg-slate-100 text-slate-700 border-slate-200'
   }
 }
 
-export   const getTimeEntryStatusColor = (status: string) => {
-    switch (status) {
-      case 'clocked_in':
-        return 'bg-green-100 text-green-800 border-green-200'
-      case 'clocked_out':
-        return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'approved':
-        return 'bg-purple-100 text-purple-800 border-purple-200'
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'rejected':
-        return 'bg-red-100 text-red-800 border-red-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
+export const getTimeEntryStatusColor = (status: string) => {
+  switch (status) {
+    case 'clocked_in':
+      return 'bg-green-100 text-green-700 border-green-200'
+    case 'clocked_out':
+      return 'bg-blue-100 text-blue-700 border-blue-200'
+    case 'approved':
+      return 'bg-purple-100 text-purple-700 border-purple-200'
+    case 'pending':
+      return 'bg-amber-100 text-amber-700 border-amber-200'
+    case 'rejected':
+      return 'bg-red-100 text-red-700 border-red-200'
+    default:
+      return 'bg-slate-100 text-slate-700 border-slate-200'
   }
+}
 
 
 // File Related Functions
 
 export function getFileIcon(fileType: string, mimeType: string) {
   if (mimeType?.startsWith('image/')) {
-    return { icon: FileImage, color: 'text-blue-600', bgColor: 'bg-blue-100' }
+    return { icon: FileImage, color: 'text-blue-700', bgColor: 'bg-blue-100' }
   } else if (mimeType === 'application/pdf') {
-    return { icon: FileType, color: 'text-red-600', bgColor: 'bg-red-100' }
+    return { icon: FileType, color: 'text-red-700', bgColor: 'bg-red-100' }
   } else if (mimeType?.includes('spreadsheet') || mimeType?.includes('excel')) {
-    return { icon: FileSpreadsheet, color: 'text-green-600', bgColor: 'bg-green-100' }
+    return { icon: FileSpreadsheet, color: 'text-green-700', bgColor: 'bg-green-100' }
   } else if (mimeType?.startsWith('video/')) {
-    return { icon: FileVideo, color: 'text-purple-600', bgColor: 'bg-purple-100' }
+    return { icon: FileVideo, color: 'text-purple-700', bgColor: 'bg-purple-100' }
   } else {
-    return { icon: FileText, color: 'text-gray-600', bgColor: 'bg-gray-100' }
+    return { icon: FileText, color: 'text-slate-700', bgColor: 'bg-slate-100' }
   }
 }
 
@@ -412,17 +413,17 @@ export function formatFileSize(bytes: number) {
 export function getFolderConfig(folder: string) {
   switch (folder) {
     case 'blueprints':
-      return { label: 'Blueprints', color: 'bg-blue-100 text-blue-800' }
+      return { label: 'Blueprints', color: 'bg-blue-100 text-blue-700 border-blue-200' }
     case 'documents':
-      return { label: 'Documents', color: 'bg-gray-100 text-gray-800' }
+      return { label: 'Documents', color: 'bg-slate-100 text-slate-700 border-slate-200' }
     case 'photos':
-      return { label: 'Photos', color: 'bg-green-100 text-green-800' }
+      return { label: 'Photos', color: 'bg-green-100 text-green-700 border-green-200' }
     case 'contracts':
-      return { label: 'Contracts', color: 'bg-purple-100 text-purple-800' }
+      return { label: 'Contracts', color: 'bg-purple-100 text-purple-700 border-purple-200' }
     case 'reports':
-      return { label: 'Reports', color: 'bg-orange-100 text-orange-800' }
+      return { label: 'Reports', color: 'bg-orange-100 text-orange-700 border-orange-200' }
     default:
-      return { label: 'General', color: 'bg-gray-100 text-gray-800' }
+      return { label: 'General', color: 'bg-slate-100 text-slate-700 border-slate-200' }
   }
 }
 
@@ -436,10 +437,10 @@ export const formatRate = (rate: number | null | undefined) => {
 
 // Hours & Percentages
 
-export  const formatHours = (hours: number) => {
-    return hours.toFixed(2) + 'h'
-  }
+export const formatHours = (hours: number) => {
+  return hours.toFixed(2) + 'h'
+}
 
-export  const formatPercent = (percent: number) => {
-    return percent.toFixed(2) + '%'
-  }
+export const formatPercent = (percent: number) => {
+  return percent.toFixed(2) + '%'
+}

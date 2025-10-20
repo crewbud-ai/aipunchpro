@@ -112,7 +112,7 @@ export function TimeEntryDetailsDialog({
   // ==============================================
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base xs:text-lg">Time Entry Details</DialogTitle>
           <DialogDescription className="text-xs xs:text-sm leading-snug xs:leading-normal">

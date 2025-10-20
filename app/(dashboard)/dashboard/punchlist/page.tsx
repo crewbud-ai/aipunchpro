@@ -36,6 +36,7 @@ import {
   Crown,
   Shield,
   UserCheck,
+  X,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -60,6 +61,13 @@ export default function PunchlistPage() {
   // STATE
   // ==============================================
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+
+  // Add local filter states for smooth client-side filtering
+  const [localSearchTerm, setLocalSearchTerm] = useState('')
+  const [localProjectFilter, setLocalProjectFilter] = useState('all')
+  const [localStatusFilter, setLocalStatusFilter] = useState('all')
+  const [localPriorityFilter, setLocalPriorityFilter] = useState('all')
+  const [showFilters, setShowFilters] = useState(false)
 
   // ==============================================
   // PERMISSIONS
@@ -108,16 +116,79 @@ export default function PunchlistPage() {
     )
   }, [projects])
 
+
+  // filtering
+  const filteredPunchlistItems = useMemo(() => {
+    let filtered = punchlistItems
+
+    // Search filter
+    if (localSearchTerm.trim()) {
+      const searchLower = localSearchTerm.toLowerCase().trim()
+      filtered = filtered.filter(item => {
+        const titleMatch = item.title?.toLowerCase().includes(searchLower)
+        const descriptionMatch = item.description?.toLowerCase().includes(searchLower)
+        const locationMatch = item.location?.toLowerCase().includes(searchLower)
+        const projectNameMatch = item.project?.name.toLowerCase().includes(searchLower)
+        const issueTypeMatch = getIssueTypeLabel(item.issueType)?.toLowerCase().includes(searchLower)
+
+        return titleMatch || descriptionMatch || locationMatch || projectNameMatch || issueTypeMatch
+      })
+    }
+
+    // Project filter
+    if (localProjectFilter !== 'all') {
+      filtered = filtered.filter(item => item.projectId === localProjectFilter)
+    }
+
+    // Status filter
+    if (localStatusFilter !== 'all') {
+      filtered = filtered.filter(item => item.status === localStatusFilter)
+    }
+
+    // Priority filter
+    if (localPriorityFilter !== 'all') {
+      filtered = filtered.filter(item => item.priority === localPriorityFilter)
+    }
+
+    return filtered
+  }, [punchlistItems, localSearchTerm, localProjectFilter, localStatusFilter, localPriorityFilter])
+
   const hasActiveFilters = useMemo(() => {
-    return !!(
-      filtersForm.search ||
-      filtersForm.projectId ||
-      filtersForm.status ||
-      filtersForm.priority ||
-      filtersForm.issueType ||
-      filtersForm.tradeCategory
-    )
-  }, [filtersForm])
+    return localSearchTerm || localProjectFilter !== 'all' || localStatusFilter !== 'all' || localPriorityFilter !== 'all'
+  }, [localSearchTerm, localProjectFilter, localStatusFilter, localPriorityFilter])
+
+  // ==============================================
+  // EVENT HANDLERS
+  // ==============================================
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalSearchTerm(e.target.value)
+  }
+
+  const handleProjectFilterChange = (value: string) => {
+    setLocalProjectFilter(value)
+  }
+
+  const handleStatusFilterChange = (value: string) => {
+    setLocalStatusFilter(value)
+  }
+
+  const handlePriorityFilterChange = (value: string) => {
+    setLocalPriorityFilter(value)
+  }
+
+  const handleClearAllFilters = () => {
+    setLocalSearchTerm('')
+    setLocalProjectFilter('all')
+    setLocalStatusFilter('all')
+    setLocalPriorityFilter('all')
+  }
+
+  // ==============================================
+  // COMPUTED VALUES
+  // ==============================================
+  const displayedPunchlistItems = filteredPunchlistItems
+  const punchlistItemsCount = filteredPunchlistItems.length
+
 
   // ==============================================
   // UTILITY FUNCTIONS
@@ -309,109 +380,93 @@ export default function PunchlistPage() {
             )}
           </div>
 
-          {/* Filters Bar */}
+          {/* Filters */}
           <Card>
-            <CardContent className="p-3 xs:p-4">
-              <div className="flex flex-col space-y-3 xs:space-y-4 md:flex-row md:space-y-0 md:space-x-4">
-                {/* Search */}
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <Input
-                      placeholder="Search punchlist items..."
-                      value={filtersForm.search}
-                      onChange={(e) => {
-                        updateFiltersForm('search', e.target.value)
-                        searchByTitle(e.target.value)
-                      }}
-                      className="pl-10 text-sm xs:text-base h-10 xs:h-11"
-                    />
-                  </div>
-                </div>
-
-                {/* Filters Row */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-none md:flex gap-2 md:gap-4">
-                  {/* Project Filter */}
-                  <Select
-                    value={filtersForm.projectId || "all"}
-                    onValueChange={(value) => {
-                      updateFiltersForm('projectId', value === "all" ? "" : value)
-                      filterByProject(value === "all" ? undefined : value)
-                    }}
+            <CardContent className="p-4 space-y-3">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search punchlist items..."
+                  value={localSearchTerm}
+                  onChange={handleSearchChange}
+                  className="pl-10 pr-10 h-11 text-base"
+                />
+                {localSearchTerm && (
+                  <button
+                    onClick={() => setLocalSearchTerm('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    aria-label="Clear search"
                   >
-                    <SelectTrigger className="w-full md:w-[180px] text-sm xs:text-base h-10 xs:h-11">
-                      <SelectValue placeholder="All Projects" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Projects</SelectItem>
-                      {activeProjects.map((project) => (
-                        <SelectItem key={project.id} value={project.id} className="text-sm xs:text-base">
-                          {project.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {/* Status Filter */}
-                  <Select
-                    value={filtersForm.status || "all"}
-                    onValueChange={(value) => {
-                      updateFiltersForm('status', value === "all" ? "" : value)
-                      filterByStatus(value === "all" ? undefined : value as any)
-                    }}
-                  >
-                    <SelectTrigger className="w-full md:w-[160px] text-sm xs:text-base h-10 xs:h-11">
-                      <SelectValue placeholder="All Statuses" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
-                      {PUNCHLIST_STATUS_OPTIONS.map((status) => (
-                        <SelectItem key={status.value} value={status.value} className="text-sm xs:text-base">
-                          {status.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {/* Priority Filter */}
-                  <Select
-                    value={filtersForm.priority || "all"}
-                    onValueChange={(value) => {
-                      updateFiltersForm('priority', value === "all" ? "" : value)
-                      filterByPriority(value === "all" ? undefined : value as any)
-                    }}
-                  >
-                    <SelectTrigger className="w-full md:w-[140px] text-sm xs:text-base h-10 xs:h-11">
-                      <SelectValue placeholder="All Priorities" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Priorities</SelectItem>
-                      {PUNCHLIST_PRIORITY_OPTIONS.map((priority) => (
-                        <SelectItem key={priority.value} value={priority.value} className="text-sm xs:text-base">
-                          {priority.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {/* Clear Filters */}
-                  {hasActiveFilters && (
-                    <Button variant="outline" onClick={clearFilters} className="col-span-2 sm:col-span-3 md:col-span-1 text-sm xs:text-base h-10 xs:h-11">
-                      <Filter className="mr-2 h-4 w-4" />
-                      Clear
-                    </Button>
-                  )}
-                </div>
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
 
-              {/* View Mode Toggle */}
-              <div className="flex justify-end mt-3 xs:mt-4 hidden">
-                <div className="flex border border-gray-200 rounded-md">
+              {/* Filter Toggle Button - Mobile */}
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                className="w-full sm:hidden h-10"
+              >
+                <Filter className="mr-2 h-4 w-4" />
+                Filters {hasActiveFilters && `(${[localProjectFilter !== 'all', localStatusFilter !== 'all', localPriorityFilter !== 'all'].filter(Boolean).length})`}
+              </Button>
+
+              {/* Filters Row - Desktop Always Show, Mobile Toggle */}
+              <div className={`${showFilters ? 'flex' : 'hidden'} sm:flex flex-col sm:flex-row gap-3`}>
+                {/* Project Filter */}
+                <Select value={localProjectFilter} onValueChange={handleProjectFilterChange}>
+                  <SelectTrigger className="h-10 sm:h-11 text-base">
+                    <SelectValue placeholder="All Projects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Projects</SelectItem>
+                    {activeProjects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Status Filter */}
+                <Select value={localStatusFilter} onValueChange={handleStatusFilterChange}>
+                  <SelectTrigger className="h-10 sm:h-11 text-base">
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    {PUNCHLIST_STATUS_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Priority Filter */}
+                <Select value={localPriorityFilter} onValueChange={handlePriorityFilterChange}>
+                  <SelectTrigger className="h-10 sm:h-11 text-base">
+                    <SelectValue placeholder="All Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priority</SelectItem>
+                    {PUNCHLIST_PRIORITY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* View Mode Toggle - Desktop Only */}
+                <div className="hidden md:flex border rounded-md">
                   <Button
                     variant={viewMode === 'grid' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setViewMode('grid')}
-                    className="rounded-r-none"
+                    className="rounded-r-none h-full"
                   >
                     <Grid3X3 className="h-4 w-4" />
                   </Button>
@@ -419,20 +474,33 @@ export default function PunchlistPage() {
                     variant={viewMode === 'list' ? 'default' : 'ghost'}
                     size="sm"
                     onClick={() => setViewMode('list')}
-                    className="rounded-l-none"
+                    className="rounded-l-none h-full"
                   >
                     <List className="h-4 w-4" />
                   </Button>
                 </div>
+
+                {/* Clear Filters */}
+                {hasActiveFilters && (
+                  <Button
+                    variant="outline"
+                    onClick={handleClearAllFilters}
+                    className="h-10 sm:h-11"
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Clear
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
+
 
           {/* Items Count */}
           {hasPunchlistItems && (
             <div className="flex xs:flex-col flex-row items-center xs:items-start justify-between gap-1 xs:gap-0 text-xs xs:text-sm text-gray-600">
               <span>
-                Showing {punchlistItems.length} of {pagination.total} punchlist item{pagination.total !== 1 ? 's' : ''}
+                Showing {punchlistItemsCount} of {pagination.total} punchlist item{pagination.total !== 1 ? 's' : ''}
               </span>
               {pagination && (
                 <span>
@@ -461,19 +529,21 @@ export default function PunchlistPage() {
                 },
                 {
                   label: "Clear Filters",
-                  onClick: clearFilters,
+                  onClick: handleClearAllFilters, // Use your new handler instead of clearFilters
                   variant: "outline",
                   icon: Filter,
-                  show: hasActiveFilters,
+                  show: Boolean(hasActiveFilters), // Convert to boolean explicitly
                 },
               ]}
             />
           )}
 
-          {/* Grid View */}
-          {hasPunchlistItems && viewMode === 'grid' && (
-            <div className="grid gap-4 xs:gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {punchlistItems.map((item) => {
+          {punchlistItemsCount > 0 ? (
+            <div className={cn(
+              "grid gap-4",
+              viewMode === 'grid' ? "md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"
+            )}>
+              {displayedPunchlistItems.map((item) => {
                 const assignedInfo = getAssignedMembersInfo(item)
 
                 return (
@@ -599,108 +669,49 @@ export default function PunchlistPage() {
                 )
               })}
             </div>
-          )}
-
-          {/* List View */}
-          {hasPunchlistItems && viewMode === 'list' && (
-            <div className="space-y-2 xs:space-y-3">
-              {punchlistItems.map((item) => {
-                const assignedInfo = getAssignedMembersInfo(item)
-                return (
-                  <Card key={item.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="py-3 xs:py-4 px-3 xs:px-4 sm:px-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-                        {/* Left Section */}
-                        <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-3 sm:gap-4 flex-1 min-w-0">
-                          {/* Status & Priority Badges */}
-                          <div className="flex items-center gap-1.5 xs:gap-2 shrink-0 flex-wrap">
-                            {getStatusIcon(item.status)}
-                            <Badge className={getPunchlistStatusColor(item.status)}>
-                              {PUNCHLIST_STATUS_OPTIONS.find(s => s.value === item.status)?.label || item.status}
-                            </Badge>
-                            <Badge className={getPunchlistPriorityColor(item.priority)}>
-                              {PUNCHLIST_PRIORITY_OPTIONS.find(p => p.value === item.priority)?.label || item.priority}
-                            </Badge>
-                          </div>
-
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-sm xs:text-base text-gray-900 truncate mb-1">
-                              {item.title}
-                            </h3>
-
-                            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-4 gap-1.5 xs:gap-2 text-xs xs:text-sm text-gray-600">
-                              {/* Project */}
-                              <div className="flex items-center gap-1">
-                                <Building2 className="h-3 w-3 shrink-0" />
-                                <span className="truncate">{getProjectName(item.projectId)}</span>
-                              </div>
-
-                              {/* Team */}
-                              <div className="flex items-center gap-1">
-                                <Users className="h-3 w-3 shrink-0" />
-                                {assignedInfo.count === 0 ? (
-                                  <span className="text-gray-500">Unassigned</span>
-                                ) : assignedInfo.count === 1 ? (
-                                  <div className="flex items-center gap-1 min-w-0">
-                                    {assignedInfo.primary && getRoleIcon(assignedInfo.primary.role)}
-                                    <span className="truncate">{assignedInfo.display}</span>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-xs bg-gray-100 px-1 py-0.5 rounded">
-                                      {assignedInfo.count}
-                                    </span>
-                                    {assignedInfo.primary && getRoleIcon(assignedInfo.primary.role)}
-                                    <span className="truncate text-xs">
-                                      {assignedInfo.primary?.user?.firstName || assignedInfo.display.split(' ')[0]}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Due Date */}
-                              {item.dueDate && (
-                                <div className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3 shrink-0" />
-                                  <span className={isOverdue(item.dueDate) ? 'text-red-600 font-medium' : ''}>
-                                    {formatDate(item.dueDate)}
-                                  </span>
-                                </div>
-                              )}
-
-                              {/* Location */}
-                              {item.location && (
-                                <div className="flex items-center gap-1">
-                                  <MapPin className="h-3 w-3 shrink-0" />
-                                  <span className="truncate">{item.location}</span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Right Section - Actions */}
-                        <div className="flex items-center gap-2 shrink-0 self-start xs:self-auto">
-                          <Button variant="outline" size="sm" className="flex-1 xs:flex-none" asChild>
-                            <Link href={`/dashboard/punchlist/${item.id}`}>
-                              <Eye className="h-3 w-3" />
-                            </Link>
-                          </Button>
-                          {withPermission('punchlist', 'edit',
-                            <Button variant="outline" size="sm" className="flex-1 xs:flex-none" asChild>
-                              <Link href={`/dashboard/punchlist/${item.id}/edit`}>
-                                <Edit className="h-3 w-3" />
-                              </Link>
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-12 text-center">
+                {hasActiveFilters ? (
+                  <>
+                    <Filter className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No punchlist items found</h3>
+                    <p className="text-gray-600 mb-4">
+                      No items match your current filters. Try adjusting your search criteria.
+                    </p>
+                    <div className="flex gap-2 justify-center">
+                      {canCreatePunchlist && (
+                        <Button className="bg-orange-600 hover:bg-orange-700" asChild>
+                          <Link href="/dashboard/punchlist/new">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Create Punchlist Item
+                          </Link>
+                        </Button>
+                      )}
+                      <Button variant="outline" onClick={handleClearAllFilters}>
+                        Clear Filters
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No punchlist items yet</h3>
+                    <p className="text-gray-600 mb-4">
+                      Get started by creating your first punchlist item.
+                    </p>
+                    {canCreatePunchlist && (
+                      <Button className="bg-orange-600 hover:bg-orange-700" asChild>
+                        <Link href="/dashboard/punchlist/new">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Create Punchlist Item
+                        </Link>
+                      </Button>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>

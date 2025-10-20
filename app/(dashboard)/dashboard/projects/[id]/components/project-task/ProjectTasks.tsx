@@ -489,7 +489,7 @@ export const ProjectTasks: React.FC<ProjectTasksProps> = ({
             {/* Filters - Mobile Responsive */}
             <Card>
                 <CardContent className="p-3 xs:p-4">
-                    <div className="flex flex-col xs:flex-row flex-wrap gap-2 xs:gap-3 sm:gap-4 items-stretch xs:items-center">
+                    <div className="flex flex-col sm:flex-row flex-wrap gap-2 xs:gap-3 sm:gap-4 items-stretch xs:items-center">
                         {/* Search */}
                         <div className="relative flex-1 min-w-0 xs:min-w-[200px] sm:min-w-[256px]">
                             <Search className="absolute left-2.5 xs:left-3 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400" />
