@@ -10,8 +10,12 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useLogin } from "@/hooks/auth/use-login"
+import { useGoogleAuthErrors } from "@/hooks/auth/use-google-auth-errors"
 
 export default function LoginPage() {
+
+  useGoogleAuthErrors()
+
   const [showPassword, setShowPassword] = useState(false)
   const {
     state,

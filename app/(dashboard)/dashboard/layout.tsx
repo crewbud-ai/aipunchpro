@@ -207,9 +207,9 @@ function SidebarNavigation({ isMobile = false, onItemClick }: { isMobile?: boole
   }
 
   const isItemActive = (href: string) => {
-    // Special case for dashboard - only active on exact match
+    // Special case for dashboard - active on /dashboard, /dashboard/admin, /dashboard/member
     if (href === "/dashboard") {
-      return pathname === href
+      return pathname === href || pathname === "/dashboard/admin" || pathname === "/dashboard/member"
     }
 
     // For other routes, check exact match or if it's a parent route
@@ -235,7 +235,7 @@ function SidebarNavigation({ isMobile = false, onItemClick }: { isMobile?: boole
                 <Button
                   variant="ghost"
                   className={cn(
-                    "w-full px-2 justify-between text-left font-medium",
+                    "w-full px-2 justify-between text-left font-medium transition-all duration-200",
                     isActive
                       ? "bg-orange-100 text-orange-900"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -245,11 +245,12 @@ function SidebarNavigation({ isMobile = false, onItemClick }: { isMobile?: boole
                     <item.icon className="mr-3 h-5 w-5" />
                     {item.name}
                   </div>
-                  {isSubmenuOpen ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
+                  <ChevronDown 
+                    className={cn(
+                      "h-4 w-4 transition-transform duration-300 ease-in-out",
+                      isSubmenuOpen && "rotate-180"
+                    )}
+                  />
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="ml-6 mt-1 space-y-1">
@@ -258,7 +259,7 @@ function SidebarNavigation({ isMobile = false, onItemClick }: { isMobile?: boole
                     key={subItem.name}
                     href={subItem.href}
                     className={cn(
-                      "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                      "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-all duration-200",
                       pathname === subItem.href
                         ? "bg-orange-100 text-orange-900"
                         : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -279,7 +280,7 @@ function SidebarNavigation({ isMobile = false, onItemClick }: { isMobile?: boole
               key={item.name}
               href={item.href}
               className={cn(
-                "group flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-all duration-200",
                 isActive
                   ? "bg-orange-100 text-orange-900"
                   : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"

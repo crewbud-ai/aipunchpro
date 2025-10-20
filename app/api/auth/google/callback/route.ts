@@ -6,119 +6,120 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AuthDatabaseService } from '@/lib/database/services'
 import { createUserSession } from '@/utils/auth-helpers'
-import { authEmailService } from '@/lib/email/index'
-import { generateVerificationToken, generateVerificationUrl } from '@/lib/email/utils/tokens'
 
 export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams
-    const code = searchParams.get('code')
-    const error = searchParams.get('error')
+    try {
+        const searchParams = request.nextUrl.searchParams
+        const code = searchParams.get('code')
+        const error = searchParams.get('error')
 
-    // If user cancelled or error occurred
-    if (error || !code) {
-      return NextResponse.redirect(
-        new URL(`/auth/login?error=${error || 'GoogleAuthFailed'}`, request.url)
-      )
-    }
+        // If user cancelled or error occurred
+        if (error || !code) {
+            return NextResponse.redirect(
+                new URL(`/auth/login?error=${error || 'GoogleAuthFailed'}`, request.url)
+            )
+        }
 
-    // Exchange authorization code for access token
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        code,
-        client_id: process.env.GOOGLE_CLIENT_ID,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET,
-        redirect_uri: `${process.env.NEXTAUTH_URL}/api/auth/google/callback`,
-        grant_type: 'authorization_code',
-      }),
-    })
 
-    const tokens = await tokenResponse.json()
+        // Exchange authorization code for access token
+        const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                code,
+                client_id: process.env.GOOGLE_CLIENT_ID,
+                client_secret: process.env.GOOGLE_CLIENT_SECRET,
+                redirect_uri: `${process.env.NEXTAUTH_URL}/api/auth/google/callback`,
+                grant_type: 'authorization_code',
+            }),
+        })
 
-    if (!tokenResponse.ok) {
-      console.error('❌ Token exchange failed:', tokens)
-      return NextResponse.redirect(
-        new URL('/auth/login?error=TokenExchangeFailed', request.url)
-      )
-    }
+        const tokens = await tokenResponse.json()
 
-    // Get user info from Google using access token
-    const userInfoResponse = await fetch(
-      'https://www.googleapis.com/oauth2/v2/userinfo',
-      {
-        headers: { Authorization: `Bearer ${tokens.access_token}` },
-      }
-    )
+        if (!tokenResponse.ok) {
+            console.error('❌ Token exchange failed:', tokens)
+            return NextResponse.redirect(
+                new URL('/auth/login?error=TokenExchangeFailed', request.url)
+            )
+        }
 
-    const googleUser = await userInfoResponse.json()
-
-    if (!userInfoResponse.ok) {
-      console.error('❌ Failed to get user info:', googleUser)
-      return NextResponse.redirect(
-        new URL('/auth/login?error=GoogleUserInfoFailed', request.url)
-      )
-    }
-
-    console.log('✅ Google user info:', {
-      email: googleUser.email,
-      name: googleUser.name,
-      id: googleUser.id
-    })
-
-    // Create auth service
-    const authService = new AuthDatabaseService(true, true)
-
-    // Check if user already exists by email
-    let user = await authService.getUserByEmail(googleUser.email)
-
-    if (user) {
-      // User exists - check if they signed up with Google
-      if (user.auth_provider !== 'google') {
-        console.log('❌ User exists but used email/password signup')
-        return NextResponse.redirect(
-          new URL('/auth/login?error=EmailAlreadyExists', request.url)
+        // Get user info from Google using access token
+        const userInfoResponse = await fetch(
+            'https://www.googleapis.com/oauth2/v2/userinfo',
+            {
+                headers: { Authorization: `Bearer ${tokens.access_token}` },
+            }
         )
-      }
-      console.log('✅ Existing Google user found - logging in')
-      
-      // Update last login
-      await authService.updateUserLastLogin(user.id)
-    } else {
-      // New user - create account
-      console.log('🆕 Creating new Google user')
-      
-      // Get the first/only company
-      const company = await authService.getFirstCompany()
 
-      if (!company) {
-        console.error('❌ No company found in system')
-        return NextResponse.redirect(
-          new URL('/auth/login?error=NoCompanyFound', request.url)
-        )
-      }
+        const googleUser = await userInfoResponse.json()
 
-      // Split name into first and last
-      const nameParts = googleUser.name?.split(' ') || ['', '']
-      const firstName = nameParts[0] || 'User'
-      const lastName = nameParts.slice(1).join(' ') || ''
+        if (!userInfoResponse.ok) {
+            console.error('❌ Failed to get user info:', googleUser)
+            return NextResponse.redirect(
+                new URL('/auth/login?error=GoogleUserInfoFailed', request.url)
+            )
+        }
 
-      // Create user with profile_completed = false
-      user = await authService.createGoogleUser({
-        email: googleUser.email,
-        firstName,
-        lastName,
-        googleId: googleUser.id,
-        companyId: company.id,
-        avatarUrl: googleUser.picture,
-      })
+        console.log('✅ Google user info:', {
+            email: googleUser.email,
+            name: googleUser.name,
+            id: googleUser.id
+        })
 
-      console.log('✅ New Google user created:', user.id)
-    }
+        // Create auth service
+        const authService = new AuthDatabaseService(true, true)
 
-    // Create session using shared helper function
-    const session = await createUserSession(user.id, request, authService, false)
+        // Check if user already exists by email
+        let user = await authService.getUserByEmail(googleUser.email)
+
+        if (user) {
+            // User exists - check if they signed up with Google
+            if (user.auth_provider !== 'google') {
+                console.log('❌ User exists but used email/password signup')
+                return NextResponse.redirect(
+                    new URL('/auth/login?error=EmailAlreadyExists', request.url)
+                )
+            }
+            console.log('✅ Existing Google user found - logging in')
+
+            // Update last login
+            await authService.updateUserLastLogin(user.id)
+        } else {
+            // New user - create account
+            console.log('🆕 Creating new Google user')
+
+            // Get the first/only company
+            const company = await authService.getFirstCompany()
+
+            if (!company) {
+                console.error('❌ No company found in system')
+                // Professional error - doesn't expose internal system details
+                return NextResponse.redirect(
+                    new URL('/auth/login?error=NoCompanyFound', request.url)
+                )
+            }
+
+            // Split name into first and last
+            const nameParts = googleUser.name?.split(' ') || ['', '']
+            const firstName = nameParts[0] || 'User'
+            const lastName = nameParts.slice(1).join(' ') || ''
+
+            // Create user with profile_completed = false
+            user = await authService.createGoogleUser({
+                email: googleUser.email,
+                firstName,
+                lastName,
+                googleId: googleUser.id,
+                companyId: company.id,
+                avatarUrl: googleUser.picture,
+            })
+
+            console.log('✅ New Google user created:', user.id)
+        }
+
+
+        // Create session using shared helper function
+        const session = await createUserSession(user.id, request, authService, false)
 
     // Get company data
     const company = await authService.getCompanyById(user.company_id!)
