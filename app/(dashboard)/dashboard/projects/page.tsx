@@ -914,7 +914,8 @@ export default function ProjectsPage() {
 
           {/* Empty State - PERMISSION-BASED */}
           {(isEmpty || state === 'empty') && !hasError && (
-            <div className="text-center py-12">
+            <Card>
+            <CardContent className="text-center py-12">
               <Building2 className="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 {canViewAllProjects ? "No projects found" : "No assigned projects"}
@@ -937,7 +938,8 @@ export default function ProjectsPage() {
                   </Link>
                 </PermissionGuard>
               )}
-            </div>
+            </CardContent>
+            </Card>
           )}
 
           {/* Projects Grid */}

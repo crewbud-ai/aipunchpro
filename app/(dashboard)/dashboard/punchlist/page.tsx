@@ -511,7 +511,7 @@ export default function PunchlistPage() {
           )}
 
           {/* Empty State */}
-          {isEmpty && !hasError && (
+          {/* {isEmpty && !hasError && (
             <EmptyState
               icon={AlertTriangle}
               title={hasActiveFilters ? "No punchlist items found" : "No punchlist items yet"}
@@ -536,7 +536,7 @@ export default function PunchlistPage() {
                 },
               ]}
             />
-          )}
+          )} */}
 
           {punchlistItemsCount > 0 ? (
             <div className={cn(

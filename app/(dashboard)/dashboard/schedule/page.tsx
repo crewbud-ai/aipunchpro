@@ -378,14 +378,12 @@ export default function SchedulePage() {
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Schedule</h1>
               <p className="text-sm sm:text-base text-gray-600">Manage crew schedules and project timelines</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="flex-1 sm:flex-none" asChild>
-                <Link href="/dashboard/schedule/new">
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Schedule
-                </Link>
+            <Link href="/dashboard/schedule/new" className="w-full sm:w-auto">
+              <Button className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700">
+                <Plus className="mr-2 h-4 w-4" />
+                <span className="text-sm xs:text-base">New Schedule</span>
               </Button>
-            </div>
+            </Link>
           </div>
 
           {/* Filters Bar */}

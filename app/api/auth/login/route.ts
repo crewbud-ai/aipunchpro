@@ -37,9 +37,13 @@ export async function POST(request: NextRequest) {
     // Create service instance
     const authDatabaseService = new AuthDatabaseService(true, false)
 
+    console.log(authDatabaseService, 'authDatabaseService')
+
     // Authenticate user
     const authResult = await authDatabaseService.authenticateUser(email, password)
     
+    console.log(authResult, 'authResult')
+
     if (!authResult.success) {
       // Handle different authentication errors
       switch (authResult.error) {

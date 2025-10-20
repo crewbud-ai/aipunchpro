@@ -222,6 +222,8 @@ export class AuthDatabaseService {
       .eq('email', email)
       .single()
 
+      console.log(error, 'Error')
+
     if (error && error.code !== 'PGRST116') {
       throw error
     }
@@ -384,6 +386,8 @@ export class AuthDatabaseService {
   async authenticateUser(email: string, password: string) {
     // Get user with password hash
     const user = await this.getUserForLogin(email)
+
+    console.log(user, 'user')
 
     if (!user) {
       return { success: false, error: 'INVALID_CREDENTIALS', user: null }
