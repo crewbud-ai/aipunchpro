@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Building2, Eye, EyeOff, Mail, Lock, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,8 +12,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useLogin } from "@/hooks/auth/use-login"
 import { useGoogleAuthErrors } from "@/hooks/auth/use-google-auth-errors"
 
-export default function LoginPage() {
-
+// Separate component that uses useSearchParams
+function LoginPageContent() {
   useGoogleAuthErrors()
 
   const [showPassword, setShowPassword] = useState(false)
@@ -289,5 +289,18 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Main component with Suspense boundary
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   )
 }
