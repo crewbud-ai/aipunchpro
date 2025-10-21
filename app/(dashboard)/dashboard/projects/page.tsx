@@ -554,7 +554,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PermissionGuard, RoleGuard } from "@/components/ui/permission-guard"
-import { Building2, Calendar, Users, DollarSign, Plus, Search, Filter, Grid3X3, List, MapPin, Clock, UserCheck, Crown, TrendingUp, X } from "lucide-react"
+import { Building2, Calendar, Users, DollarSign, Plus, Search, Filter, Grid3X3, List, MapPin, Clock, UserCheck, Crown, TrendingUp, X, Hash, Edit, Eye } from "lucide-react"
 import { useProjects } from "@/hooks/projects/use-projects"
 import { useMemberProjects } from "@/hooks/projects/use-member-projects"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -901,14 +901,18 @@ export default function ProjectsPage() {
           </Card>
 
           {/* Projects Count */}
-          {hasProjects && (
-            <div className="flex items-center justify-between text-sm text-gray-600">
-              <span>
-                Showing {projectCount} of {pagination.total} projects
-              </span>
-              <span>
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
+          {apiProjects.length > 0 && (
+            <div className="flex xs:flex-col flex-row xs:items-center justify-between gap-1.5 xs:gap-2 text-xs xs:text-sm text-gray-600">
+              <div className="flex items-center gap-1.5 xs:gap-2">
+                <span className="leading-snug">
+                  Showing {projectCount} of {apiProjects.length} team members
+                </span>
+              </div>
+              {pagination && (
+                <span className="leading-snug">
+                  Page {Math.floor(pagination.page / pagination.limit) + 1} of {Math.ceil(pagination.total / pagination.limit)}
+                </span>
+              )}
             </div>
           )}
 
@@ -944,87 +948,92 @@ export default function ProjectsPage() {
 
           {/* Projects Grid */}
           {projectCount > 0 ? (
-            <div className={`grid gap-4 sm:gap-6 ${viewMode === 'grid'
-              ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-              : 'grid-cols-1'
-              }`}>
-              {displayedProjects.map((project: any) => {
-                const daysUntilDeadline = getDaysUntilDeadline(project.endDate)
+            <>
+              {/* Grid View */}
+              {viewMode === 'grid' && (
+                <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                  {displayedProjects.map((project: any) => {
+                    const daysUntilDeadline = getDaysUntilDeadline(project.endDate)
 
-                return (
-                  <Link key={project.id} href={`/dashboard/projects/${project.id}`}>
-                    <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer group h-full">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <CardTitle className="text-lg group-hover:text-orange-600 transition-colors truncate">
-                              {project.name}
-                            </CardTitle>
-                            <CardDescription className="mt-1 line-clamp-2">
-                              {project.description || "No description provided"}
-                            </CardDescription>
+                    return (
+                      <Card key={project.id} className="hover:shadow-lg transition-shadow group">
+                        <CardHeader className="p-4 xs:p-5 sm:p-6">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className="text-base xs:text-lg truncate leading-tight group-hover:text-orange-600 transition-colors">
+                                {project.name}
+                              </CardTitle>
+                              <CardDescription className="truncate text-xs xs:text-sm mt-0.5 line-clamp-2">
+                                {project.description || "No description provided"}
+                              </CardDescription>
+                            </div>
+                            <Badge className={`${getStatusColor(project.status)} text-xs shrink-0`}>
+                              {formatStatusLabel(project.status)}
+                            </Badge>
                           </div>
-                          <Badge className={getStatusColor(project.status)}>
-                            {formatStatusLabel(project.status)}
-                          </Badge>
-                        </div>
-                      </CardHeader>
+                        </CardHeader>
 
-                      <CardContent className="space-y-4">
-                        {/* Project Details */}
-                        <div className="grid grid-cols-3 justify-between gap-4 text-sm">
-                          {/* Timeline */}
-                          <div className="col-span-2">
-                            <div className="flex items-center text-gray-600">
-                              <Calendar className="mr-2 h-4 w-4" />
-                              Timeline
+                        <CardContent className="space-y-3 xs:space-y-4 p-4 xs:p-5 sm:p-6 pt-0">
+                          {/* Project Details */}
+                          <div className="space-y-1.5 xs:space-y-2 text-xs xs:text-sm">
+                            {/* Timeline */}
+                            <div className="flex items-start gap-1.5 xs:gap-2">
+                              <Calendar className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-gray-600 leading-snug">
+                                  {formatDate(project.startDate)} - {formatDate(project.endDate)}
+                                </div>
+                                {daysUntilDeadline !== null && (
+                                  <div className={`text-xs ${daysUntilDeadline < 0
+                                      ? 'text-red-600'
+                                      : daysUntilDeadline < 30
+                                        ? 'text-yellow-600'
+                                        : 'text-green-600'
+                                    }`}>
+                                    {daysUntilDeadline < 0
+                                      ? `${Math.abs(daysUntilDeadline)} days overdue`
+                                      : `${daysUntilDeadline} days remaining`
+                                    }
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div className="font-medium">
-                              {formatDate(project.startDate)} - {formatDate(project.endDate)}
+
+                            {/* Location */}
+                            <div className="flex items-center gap-1.5 xs:gap-2">
+                              <MapPin className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 flex-shrink-0" />
+                              <span className="text-gray-600 truncate leading-snug">
+                                {project.location?.address || 'Not specified'}
+                              </span>
                             </div>
-                            {daysUntilDeadline !== null && (
-                              <div className={`text-xs ${daysUntilDeadline < 0
-                                ? 'text-red-600'
-                                : daysUntilDeadline < 30
-                                  ? 'text-yellow-600'
-                                  : 'text-green-600'
-                                }`}>
-                                {daysUntilDeadline < 0
-                                  ? `${Math.abs(daysUntilDeadline)} days overdue`
-                                  : `${daysUntilDeadline} days remaining`
-                                }
+
+                            {/* Project Number */}
+                            {project.projectNumber && (
+                              <div className="flex items-center gap-1.5 xs:gap-2">
+                                <Hash className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 flex-shrink-0" />
+                                <span className="text-gray-600 leading-snug">
+                                  Project #{project.projectNumber}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Progress */}
+                            {project.progress !== undefined && (
+                              <div className="flex items-center gap-1.5 xs:gap-2">
+                                <TrendingUp className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-gray-400 flex-shrink-0" />
+                                <span className="text-gray-600 leading-snug">
+                                  {project.progress}% Complete
+                                </span>
                               </div>
                             )}
                           </div>
 
-                          {/* Location */}
-                          <div className="space-y-1">
-                            <div className="flex items-center text-gray-600">
-                              <MapPin className="mr-2 h-4 w-4" />
-                              Location
-                            </div>
-                            <div className="font-medium text-sm">
-                              {project.location?.address ? (
-                                <span className="line-clamp-2">{project.location.address}</span>
-                              ) : (
-                                <span className="text-gray-500 italic">Not specified</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Progress & Budget Row */}
-                        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                          {/* Progress */}
+                          {/* Progress Bar */}
                           {project.progress !== undefined && (
-                            <div className="text-center min-w-[80px]">
-                              <div className="text-2xl font-bold text-gray-900">
-                                {project.progress}%
-                              </div>
-                              <div className="text-xs text-gray-600">Complete</div>
-                              <div className="w-16 bg-gray-200 rounded-full h-2 mt-1">
+                            <div>
+                              <div className="w-full bg-gray-200 rounded-full h-1.5 xs:h-2">
                                 <div
-                                  className={`h-2 rounded-full transition-all duration-300 ${getProgressColor(project.progress)}`}
+                                  className={`h-1.5 xs:h-2 rounded-full transition-all duration-300 ${getProgressColor(project.progress)}`}
                                   style={{ width: `${project.progress}%` }}
                                 />
                               </div>
@@ -1034,32 +1043,106 @@ export default function ProjectsPage() {
                           {/* Budget - PERMISSION-BASED */}
                           <PermissionGuard category="financials" permission="view">
                             {project.budget && (
-                              <div className="text-center">
-                                <div className="flex items-center text-gray-600">
-                                  <DollarSign className="mr-1 h-4 w-4" />
-                                  Budget
-                                </div>
-                                <div className="font-bold text-green-600">
-                                  {formatCurrency(project.budget)}
-                                </div>
+                              <div>
+                                <p className="text-xs xs:text-sm font-medium leading-snug">
+                                  Budget: <span className="text-green-600">{formatCurrency(project.budget)}</span>
+                                </p>
                               </div>
                             )}
                           </PermissionGuard>
 
-                          {/* Project Number */}
-                          {project.projectNumber && (
-                            <div className="text-center">
-                              <div className="text-xs text-gray-500">Project #</div>
-                              <div className="font-medium text-sm">{project.projectNumber}</div>
+                          {/* Action Buttons - Mobile Responsive */}
+                          <div className="flex gap-1.5 xs:gap-2 pt-2 border-t border-gray-100">
+                            <Link href={`/dashboard/projects/${project.id}`} className="flex-1">
+                              <Button variant="outline" size="sm" className="w-full h-8 xs:h-9 text-xs xs:text-sm">
+                                <Eye className="h-3 w-3 xs:h-3.5 xs:w-3.5 mr-1" />
+                                <span className="hidden xs:inline">View Project</span>
+                                <span className="xs:hidden">View</span>
+                              </Button>
+                            </Link>
+                            {withPermission('projects', 'edit',
+                              <Link href={`/dashboard/projects/${project.id}/edit`} className="flex-1">
+                                <Button variant="outline" size="sm" className="w-full h-8 xs:h-9 text-xs xs:text-sm">
+                                  <Edit className="h-3 w-3 xs:h-3.5 xs:w-3.5 mr-1" />
+                                  <span className="hidden xs:inline">Edit</span>
+                                  <span className="xs:hidden">Edit</span>
+                                </Button>
+                              </Link>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* List View */}
+              {viewMode === 'list' && (
+                <div className="space-y-3">
+                  {displayedProjects.map((project: any) => {
+                    const daysUntilDeadline = getDaysUntilDeadline(project.endDate)
+
+                    return (
+                      <Card key={project.id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-3 xs:p-4">
+                          <div className="flex items-center justify-between gap-3 xs:gap-4">
+                            <div className="flex items-center gap-2.5 xs:gap-3 sm:gap-4 flex-1 min-w-0">
+                              <div className="h-9 w-9 xs:h-10 xs:w-10 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                                <Building2 className="h-4 w-4 xs:h-5 xs:w-5 text-orange-600" />
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 xs:gap-3 mb-0.5 xs:mb-1 flex-wrap">
+                                  <h3 className="font-semibold text-sm xs:text-base text-gray-900 truncate leading-tight">
+                                    {project.name}
+                                  </h3>
+                                  <Badge className={`${getStatusColor(project.status)} text-xs shrink-0`} variant="secondary">
+                                    {formatStatusLabel(project.status)}
+                                  </Badge>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 xs:gap-1.5 sm:gap-2 text-xs xs:text-sm text-gray-600">
+                                  <div className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                    <span className="truncate leading-snug">{formatDate(project.startDate)} - {formatDate(project.endDate)}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <MapPin className="h-3 w-3 xs:h-3.5 xs:w-3.5 shrink-0" />
+                                    <span className="truncate leading-snug">
+                                      {project.location?.address || 'No location'}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span className="font-medium">Progress:</span>
+                                    <span className="leading-snug">{project.progress}%</span>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
-                )
-              })}
-            </div>
+
+                            <div className="flex items-center gap-1 xs:gap-1.5 sm:gap-2 shrink-0">
+                              <Link href={`/dashboard/projects/${project.id}`}>
+                                <Button variant="outline" size="sm" className="h-8 w-8 xs:h-9 xs:w-9 p-0">
+                                  <Eye className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
+                                </Button>
+                              </Link>
+                              {withPermission('projects', 'edit',
+                                <Link href={`/dashboard/projects/${project.id}/edit`}>
+                                  <Button variant="outline" size="sm" className="h-8 w-8 xs:h-9 xs:w-9 p-0">
+                                    <Edit className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
+                                  </Button>
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </>
           ) : (
             <Card>
               <CardContent className="p-12 text-center">

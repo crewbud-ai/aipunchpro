@@ -330,13 +330,13 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
               {/* Title */}
               <div className="space-y-2">
                 <Label htmlFor="title" className="text-sm">
-                  Task Title <span className="text-red-500">*</span>
+                  Work Title <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="title"
                   value={formData.title}
                   onChange={(e) => updateFormData('title', e.target.value)}
-                  placeholder="Enter task title..."
+                  placeholder="e.g., Kitchen Electrical Installation"
                   className={`text-sm ${localErrors.title ? 'border-red-500' : ''}`}
                 />
                 {localErrors.title && (
@@ -351,7 +351,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
                   id="description"
                   value={formData.description}
                   onChange={(e) => updateFormData('description', e.target.value)}
-                  placeholder="Describe the work to be done..."
+                  placeholder="Describe the work to be performed..."
                   rows={3}
                   className="text-sm"
                 />
@@ -462,7 +462,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
                   step="0.25"
                   value={formData.estimatedHours || ''}
                   onChange={(e) => updateFormData('estimatedHours', e.target.value ? Number(e.target.value) : undefined)}
-                  placeholder="0.00"
+                  placeholder="e.g., 8.5"
                   className={`text-sm ${localErrors.estimatedHours ? 'border-red-500' : ''}`}
                 />
                 {localErrors.estimatedHours && (
@@ -478,6 +478,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
               <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
                 <Users className="h-4 w-4" />
                 Team Assignment
+                <span className="text-red-500">*</span>
               </CardTitle>
               <CardDescription className="text-xs sm:text-sm">
                 Select team members to assign to this task
@@ -556,7 +557,9 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {/* Priority */}
                 <div className="space-y-2">
-                  <Label className="text-sm">Priority</Label>
+                  <Label className="text-sm">
+                    Priority <span className="text-red-500">*</span>
+                  </Label>
                   <Select
                     value={formData.priority}
                     onValueChange={(value) => updateFormData('priority', value)}
@@ -564,7 +567,7 @@ export const TaskCreateDialog: React.FC<TaskCreateDialogProps> = ({
                     <SelectTrigger className="text-sm">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent> 
                       {PRIORITY_OPTIONS.map((priority) => (
                         <SelectItem key={priority.value} value={priority.value}>
                           <div className="flex items-center gap-2">

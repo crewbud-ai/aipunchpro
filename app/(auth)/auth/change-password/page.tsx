@@ -46,7 +46,7 @@ export default function ChangePasswordPage() {
   // Success state - password changed - Mobile Optimized
   if (isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 px-4 sm:px-6 lg:px-8 py-8">
         <div className="w-full max-w-md space-y-6 sm:space-y-8">
           {/* Header - Mobile Optimized */}
           <div className="text-center">

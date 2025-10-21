@@ -184,13 +184,13 @@ export const AssignmentStep = React.memo<AssignmentStepProps>(({
                         <SelectContent>
                             {SCHEDULE_PRIORITY.map((priority) => (
                                 <SelectItem key={priority} value={priority} className="block text-sm xs:text-base h-10 xs:h-11">
-                                    <div className="flex items-center gap-1.5 xs:gap-2 ">
+                                    <div className="flex items-center gap-1.5 xs:gap-2 "> 
                                         <div className={cn(
                                             "w-2 h-2 rounded-full shrink-0",
-                                            priority === 'low' && "bg-green-500",
-                                            priority === 'medium' && "bg-yellow-500",
-                                            priority === 'high' && "bg-orange-500",
-                                            priority === 'critical' && "bg-red-500",
+                                            priority === 'low' && "bg-green-700",
+                                            priority === 'medium' && "bg-yellow-700",
+                                            priority === 'high' && "bg-orange-700",
+                                            priority === 'critical' && "bg-red-700",
                                         )} />
                                         {priority.charAt(0).toUpperCase() + priority.slice(1)}
                                     </div>
