@@ -460,7 +460,7 @@ export default function EditProjectPage() {
                                     <Button
                                         variant="outline"
                                         onClick={handlePrevious}
-                                        className="flex-1 sm:flex-none"
+                                        className="flex-1 sm:flex-none w-full md:w-auto"
                                     >
                                         <ChevronLeft className="mr-2 h-4 w-4" />
                                         Previous
@@ -470,7 +470,7 @@ export default function EditProjectPage() {
                                 <Button
                                     variant="outline"
                                     onClick={handleCancel}
-                                    className="flex-1 sm:flex-none"
+                                    className="flex-1 sm:flex-none w-full md:w-auto"
                                 >
                                     <X className="mr-2 h-4 w-4" />
                                     Cancel

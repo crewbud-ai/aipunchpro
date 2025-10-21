@@ -355,7 +355,7 @@ export default function CreateProjectPage() {
                     type="button"
                     variant="outline"
                     onClick={handlePrevious}
-                    className="h-10 sm:h-11"
+                    className="h-10 sm:h-11 w-full md:w-auto"
                   >
                     <ChevronLeft className="mr-1 sm:mr-2 h-4 w-4" />
                     <span className="text-sm sm:text-base">Previous</span>
@@ -363,10 +363,10 @@ export default function CreateProjectPage() {
                 )}
 
                 {activeStep === 1 && (
-                  <Link href="/dashboard/projects">
+                  <Link className="w-full md:w-auto" href="/dashboard/projects">
                     <Button
                       variant="outline"
-                      className="h-10 sm:h-11 text-sm sm:text-base"
+                      className="h-10 sm:h-11 w-full md:w-auto text-sm sm:text-base"
                     >
                       Cancel
                     </Button>
