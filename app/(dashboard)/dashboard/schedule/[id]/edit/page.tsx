@@ -437,7 +437,7 @@ export default function EditSchedulePage() {
                         {renderStepContent()}
                         <Separator />
                         {/* Navigation */}
-                        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-4 sm:pt-6">
+                        {/* <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-4 sm:pt-6">
                             <div className="flex gap-2 sm:gap-3 order-2 md:order-1">
                                 {currentStep > 0 && (
                                     <Button
@@ -489,6 +489,57 @@ export default function EditSchedulePage() {
                                     </Button>
                                 )}
                             </div>
+                        </div> */}
+
+                        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-4 sm:pt-6">
+                            <div className="flex gap-2 sm:gap-3 order-2 md:order-1">
+                                {currentStep > 1 && (
+                                    <Button
+                                        variant="outline"
+                                        onClick={handlePrevious}
+                                        className="flex-1 sm:flex-none w-full md:w-auto"
+                                    >
+                                        <ChevronLeft className="mr-2 h-4 w-4" />
+                                        Previous
+                                    </Button>
+                                )}
+
+                                <Button
+                                    variant="outline"
+                                    onClick={handleCancel}
+                                    className="flex-1 sm:flex-none w-full md:w-auto"
+                                >
+                                    <X className="mr-2 h-4 w-4" />
+                                    Cancel
+                                </Button>
+                            </div>
+
+                            {currentStep < totalSteps ? (
+                                <Button
+                                    onClick={handleNext}
+                                    className="order-1 md:order-2 w-full md:w-auto bg-orange-600 hover:bg-orange-700 text-white h-11 sm:h-12 text-base"
+                                >
+                                    <span className="text-sm sm:text-base">Next</span>
+                                    <ChevronRight className="ml-1 sm:ml-2 h-4 w-4" />
+                                </Button>
+                            ) : (
+                                <Button
+                                    onClick={handleSubmit}
+                                    className="order-1 md:order-2 flex-1 sm:flex-none bg-orange-600 hover:bg-orange-700"
+                                >
+                                    {isUpdating ? (
+                                        <>
+                                            <Loader2 className="ml-1 sm:ml-2 h-4 w-4 animate-spin" />
+                                            <span className="text-sm sm:text-base">Updating...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="ml-1 sm:ml-2 h-4 w-4" />
+                                            <span className="text-sm sm:text-base">Update Schedule</span>
+                                        </>
+                                    )}
+                                </Button>
+                            )}
                         </div>
                     </CardContent>
                 </Card>

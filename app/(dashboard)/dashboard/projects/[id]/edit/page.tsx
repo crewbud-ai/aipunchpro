@@ -490,7 +490,7 @@ export default function EditProjectPage() {
                                 <Button
                                     onClick={handleSave}
                                     disabled={!canSave}
-                                    className="flex-1 sm:flex-none bg-orange-600 hover:bg-orange-700"
+                                    className="order-1 md:order-2 flex-1 sm:flex-none bg-orange-600 hover:bg-orange-700"
                                 >
                                     {isUpdating ? (
                                         <>

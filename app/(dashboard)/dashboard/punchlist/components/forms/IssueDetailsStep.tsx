@@ -201,7 +201,16 @@ export const IssueDetailsStep = React.memo<IssueDetailsStepProps>(({
                                     value={option.value}
                                     className="block text-sm xs:text-base h-10 xs:h-11"
                                 >
-                                    <span>{option.label}</span>
+                                    <div className="flex items-center gap-1.5 xs:gap-2">
+                                        <div className={cn(
+                                            "w-2 h-2 rounded-full shrink-0",
+                                            option.value === 'low' && "bg-green-700",
+                                            option.value === 'medium' && "bg-yellow-700",
+                                            option.value === 'high' && "bg-orange-700",
+                                            option.value === 'critical' && "bg-red-700",
+                                        )} />
+                                        <span>{option.label}</span>
+                                    </div>
                                 </SelectItem>
                             ))}
                         </SelectContent>

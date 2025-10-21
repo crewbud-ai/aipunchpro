@@ -51,7 +51,8 @@ import {
     Crown,
     Shield,
     UserCheck,
-    UserPlus
+    UserPlus,
+    ExternalLink
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -71,7 +72,7 @@ import {
 } from "@/types/punchlist-items"
 import { withPermission } from "@/lib/permissions"
 import { cn } from "@/lib/utils"
-import { formatDate, formatDateTime, getPunchListTeamRoleColor } from "@/utils/format-functions"
+import { formatDate, formatDateTime, formatStatusLabel, getPunchListTeamRoleColor, getStatusColor } from "@/utils/format-functions"
 
 export default function PunchlistItemPage() {
     const params = useParams()
@@ -95,7 +96,7 @@ export default function PunchlistItemPage() {
     // UTILITY FUNCTIONS
     // ==============================================
 
-    
+
 
     const formatRoleLabel = (role: string) => {
         return role.charAt(0).toUpperCase() + role.slice(1)
@@ -929,9 +930,26 @@ export default function PunchlistItemPage() {
                                                     {project.name}
                                                 </Link>
                                             </div>
-                                            <Badge variant="outline" className="text-xs">
-                                                {project.status}
+                                            <Badge variant="outline" className={cn("text-xs", getStatusColor(project.status))}>
+                                                {formatStatusLabel(project.status)}
                                             </Badge>
+                                        </CardContent>
+                                        <CardContent className="p-4 xs:p-5 sm:p-6 pt-0">
+                                            <div className="space-y-2.5 xs:space-y-3">
+                                                <div key={project.id} className="flex items-center justify-between p-2.5 xs:p-3 bg-gray-50 rounded-lg gap-2">
+                                                    <div className="flex gap-2">
+                                                        <p className="text-xs xs:text-sm font-medium text-gray-900 truncate leading-snug">{project.name}</p>
+                                                        <Badge variant="outline" className={cn("text-xs", getStatusColor(project.status))}>
+                                                            {formatStatusLabel(project.status)}
+                                                        </Badge>
+                                                    </div>
+                                                    <Link href={`/dashboard/projects/${project.id}`}>
+                                                        <Button variant="ghost" size="sm" className="h-7 w-7 xs:h-8 xs:w-8 p-0">
+                                                            <ExternalLink className="h-3 w-3 xs:h-3.5 xs:w-3.5" />
+                                                        </Button>
+                                                    </Link>
+                                                </div>
+                                            </div>
                                         </CardContent>
                                     </Card>
                                 )}

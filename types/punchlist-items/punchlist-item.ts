@@ -664,7 +664,7 @@ export interface PunchlistStatusOption {
 export interface PunchlistPriorityOption {
   value: PunchlistPriority
   label: string
-  color: 'gray' | 'blue' | 'yellow' | 'red'
+  color: 'bg-green-700' | 'bg-yellow-700' | 'bg-orange-700' | 'bg-red-700'
 }
 
 export interface TradeCategoryOption {
@@ -703,10 +703,10 @@ export const PUNCHLIST_STATUS_OPTIONS: PunchlistStatusOption[] = [
 ]
 
 export const PUNCHLIST_PRIORITY_OPTIONS: PunchlistPriorityOption[] = [
-  { value: 'low', label: 'Low', color: 'gray' },
-  { value: 'medium', label: 'Medium', color: 'blue' },
-  { value: 'high', label: 'High', color: 'yellow' },
-  { value: 'critical', label: 'Critical', color: 'red' }
+  { value: 'low', label: 'Low', color: 'bg-green-700' },
+  { value: 'medium', label: 'Medium', color: 'bg-yellow-700' },
+  { value: 'high', label: 'High', color: 'bg-orange-700' },
+  { value: 'critical', label: 'Critical', color: 'bg-red-700' }
 ]
 
 export const TRADE_CATEGORY_OPTIONS: TradeCategoryOption[] = [
