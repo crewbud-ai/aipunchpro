@@ -78,7 +78,6 @@ interface UseUpdateTeamMemberReturn extends UseUpdateTeamMemberState, UseUpdateT
 // FORM DATA TRANSFORMATION
 // ==============================================
 function transformFormDataToApiData(formData: UpdateTeamMemberFormData, teamMemberId: string): UpdateTeamMemberData {
-    console.log(formData, 'formData')
     const data: UpdateTeamMemberData = {
         id: teamMemberId,
         firstName: formData.firstName.trim(),
@@ -318,8 +317,6 @@ export const useUpdateTeamMember = () => {
 
             // Use custom data if provided, otherwise transform form data
             const apiData = customData || transformFormDataToApiData(state.formData, state.originalTeamMember.id)
-
-            console.log(apiData, 'Update Team Member apiData')
 
             // Validate data
             const validation = validateUpdateTeamMember(apiData)

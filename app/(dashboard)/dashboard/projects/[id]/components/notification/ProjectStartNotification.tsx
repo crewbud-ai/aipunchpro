@@ -74,7 +74,7 @@ export const ProjectStartNotification: React.FC<ProjectStartNotificationProps> =
     if (!isVisible) return null
 
     return (
-        <Alert className="bg-blue-50 border-blue-200 relative">
+        <Alert className="bg-blue-50 border-blue-200 relative mt-4">
             <Rocket className="h-4 w-4 text-blue-600" />
             <AlertTitle className="text-blue-900">Ready to Start?</AlertTitle>
             <AlertDescription className="text-blue-800">

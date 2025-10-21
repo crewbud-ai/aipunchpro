@@ -157,7 +157,7 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
                         {/* Status */}
                         <Badge
                             variant="outline"
-                            className={`text-xs ${projectAssignment.status === 'active'
+                            className={`text-xs w-fit ${projectAssignment.status === 'active'
                                 ? 'bg-green-50 text-green-700 border-green-200'
                                 : 'bg-yellow-50 text-yellow-700 border-yellow-200'
                                 }`}

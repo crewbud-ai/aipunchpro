@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Save, Loader2, CheckCircle, AlertCircle } from "lucide-react"
+import { ArrowLeft, Save, Loader2, CheckCircle, AlertCircle, X } from "lucide-react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 
@@ -172,12 +172,9 @@ export default function EditTeamMemberPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        console.log('Current form data:', formData) // Debug log
-        console.log('Current project assignment data:', projectAssignmentData) // Debug log
-
         // Prepare the complete update data including project assignment
-        const completeUpdateData = {
-            id: teamMemberId, // Required id field
+        const completeUpdateData: any = {
+            id: teamMemberId,
             firstName: formData.firstName,
             lastName: formData.lastName,
             email: formData.email,
@@ -188,23 +185,34 @@ export default function EditTeamMemberPage() {
             hourlyRate: formData.hourlyRate,
             overtimeRate: formData.overtimeRate,
             startDate: formData.startDate,
-            certifications: formData.certifications,
+            // Fix: Convert certifications array to string
+            certifications: Array.isArray(formData.certifications)
+                ? formData.certifications.join(', ')
+                : formData.certifications || '',
             emergencyContactName: formData.emergencyContactName,
             emergencyContactPhone: formData.emergencyContactPhone,
             isActive: formData.isActive,
-
-            // Add project assignment fields
-            assignToProject: projectAssignmentData.assignToProject,
-            projectId: projectAssignmentData.projectId,
-            projectHourlyRate: projectAssignmentData.projectHourlyRate,
-            projectOvertimeRate: projectAssignmentData.projectOvertimeRate,
-            projectNotes: projectAssignmentData.projectNotes,
         }
 
-        console.log('Complete update data being sent:', completeUpdateData) // Debug log
+        // Only add project assignment fields if assignToProject is true
+        if (projectAssignmentData.assignToProject && projectAssignmentData.projectId) {
+            completeUpdateData.assignToProject = true
+            completeUpdateData.projectId = projectAssignmentData.projectId
+
+            // Only add rates if they have actual values (not null/undefined)
+            if (projectAssignmentData.projectHourlyRate != null) {
+                completeUpdateData.projectHourlyRate = projectAssignmentData.projectHourlyRate
+            }
+            if (projectAssignmentData.projectOvertimeRate != null) {
+                completeUpdateData.projectOvertimeRate = projectAssignmentData.projectOvertimeRate
+            }
+            if (projectAssignmentData.projectNotes) {
+                completeUpdateData.projectNotes = projectAssignmentData.projectNotes
+            }
+        }
 
         // Call updateTeamMember with the complete data
-        await updateTeamMember(completeUpdateData as any)
+        await updateTeamMember(completeUpdateData)
     }
 
     // Handle input changes with error clearing and smart auto-calculation
@@ -388,7 +396,7 @@ export default function EditTeamMemberPage() {
 
                 {/* Main Form Card */}
                 <Card>
-                    <CardContent className="p-4 xs:p-5 sm:p-6 pt-0">
+                    <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6 py-4 sm:py-6">
                         <form onSubmit={handleSubmit} className="space-y-8">
                             {/* Personal Information */}
                             <div className="space-y-3.5 xs:space-y-4">
@@ -796,28 +804,29 @@ export default function EditTeamMemberPage() {
                             <Separator />
 
                             {/* Submit Buttons */}
-                            <div className="flex flex-col md:flex-row md:justify-end justify-between items-stretch md:items-center gap-3 pt-4 sm:pt-6">
+                            <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-4 sm:pt-6">
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={handleCancel}
                                     disabled={isUpdating}
-                                    className="w-full md:w-auto h-10 sm:h-11"
+                                    className="order-2 md:order-1 flex-1 sm:flex-none w-full md:w-auto"
                                 >
+                                    <X className="mr-2 h-4 w-4" />
                                     <span className="text-sm sm:text-base">Cancel</span>
                                 </Button>
                                 <Button
                                     type="submit"
-                                    className="w-full md:w-auto h-10 sm:h-11 bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
+                                    className="order-1 md:order-2 w-full md:w-auto bg-orange-600 hover:bg-orange-700 text-white h-11 sm:h-12 text-base"
                                 >
                                     {isUpdating ? (
                                         <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            <Loader2 className="ml-1 sm:ml-2 h-4 w-4" />
                                             <span className="text-sm sm:text-base">Updating...</span>
                                         </>
                                     ) : (
                                         <>
-                                            <Save className="mr-2 h-4 w-4" />
+                                            <Save className="ml-1 sm:ml-2 h-4 w-4" />
                                             <span className="text-sm sm:text-base">Update Team Member</span>
                                         </>
                                     )}

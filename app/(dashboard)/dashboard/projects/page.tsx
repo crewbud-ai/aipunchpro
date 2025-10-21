@@ -559,7 +559,7 @@ import { useProjects } from "@/hooks/projects/use-projects"
 import { useMemberProjects } from "@/hooks/projects/use-member-projects"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { hasPermission } from "@/lib/permissions"
+import { hasPermission, withPermission } from "@/lib/permissions"
 import { formatCurrency, formatDate, formatStatusLabel, getDaysUntilDeadline, getProgressColor, getRoleColor, getStatusColor } from "@/utils/format-functions"
 
 export default function ProjectsPage() {
@@ -915,35 +915,35 @@ export default function ProjectsPage() {
           {/* Empty State - PERMISSION-BASED */}
           {(isEmpty || state === 'empty') && !hasError && (
             <Card>
-            <CardContent className="text-center py-12">
-              <Building2 className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {canViewAllProjects ? "No projects found" : "No assigned projects"}
-              </h3>
-              <p className="text-gray-600 mb-6">
-                {filters.search || filters.status
-                  ? "Try adjusting your search criteria or filters."
-                  : canViewAllProjects
-                    ? "Get started by creating your first construction project."
-                    : "You haven't been assigned to any projects yet. Contact your supervisor for project assignments."
-                }
-              </p>
-              {canViewAllProjects && !filters.search && !filters.status && (
-                <PermissionGuard category="projects" permission="create">
-                  <Link href="/dashboard/projects/new">
-                    <Button className="bg-orange-600 hover:bg-orange-700">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Create Your First Project
-                    </Button>
-                  </Link>
-                </PermissionGuard>
-              )}
-            </CardContent>
+              <CardContent className="text-center py-12">
+                <Building2 className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {canViewAllProjects ? "No projects found" : "No assigned projects"}
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  {filters.search || filters.status
+                    ? "Try adjusting your search criteria or filters."
+                    : canViewAllProjects
+                      ? "Get started by creating your first construction project."
+                      : "You haven't been assigned to any projects yet. Contact your supervisor for project assignments."
+                  }
+                </p>
+                {canViewAllProjects && !filters.search && !filters.status && (
+                  <PermissionGuard category="projects" permission="create">
+                    <Link href="/dashboard/projects/new">
+                      <Button className="bg-orange-600 hover:bg-orange-700">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create Your First Project
+                      </Button>
+                    </Link>
+                  </PermissionGuard>
+                )}
+              </CardContent>
             </Card>
           )}
 
           {/* Projects Grid */}
-          {projectCount > 0 && (
+          {projectCount > 0 ? (
             <div className={`grid gap-4 sm:gap-6 ${viewMode === 'grid'
               ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
               : 'grid-cols-1'
@@ -1060,9 +1060,50 @@ export default function ProjectsPage() {
                 )
               })}
             </div>
+          ) : (
+            <Card>
+              <CardContent className="p-12 text-center">
+                {hasActiveFilters ? (
+                  <>
+                    <Filter className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No projects found</h3>
+                    <p className="text-gray-600 mb-4">
+                      No projects match your current filters. Try adjusting your search criteria.
+                    </p>
+                    <div className="flex gap-2 justify-center">
+                      {withPermission('projects', 'create',
+                        <Button className="bg-orange-600 hover:bg-orange-700" asChild>
+                          <Link href="/dashboard/projects/new">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Add Project
+                          </Link>
+                        </Button>
+                      )}
+                      <Button variant="outline" onClick={handleClearAllFilters}>
+                        Clear Filters
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
+                    <p className="text-gray-600 mb-4">
+                      Get started by creating your first construction project.
+                    </p>
+                    {withPermission('projects', 'create',
+                      <Button className="bg-orange-600 hover:bg-orange-700" asChild>
+                        <Link href="/dashboard/projects/new">
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Project
+                        </Link>
+                      </Button>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
           )}
-
-          {/* List View and Pagination remain the same, just replace isMember checks with permission checks */}
 
           {/* Pagination */}
           {pagination.totalPages > 1 && (
@@ -1088,6 +1129,8 @@ export default function ProjectsPage() {
               </Button>
             </div>
           )}
+
+
         </div>
       </div>
     </div>

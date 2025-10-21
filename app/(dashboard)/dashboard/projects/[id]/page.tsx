@@ -419,7 +419,7 @@ export default function ProjectPage() {
             <div className="flex gap-1.5 xs:gap-2">
               {withFeature('editProject', (
                 <>
-                  <Button variant="outline" asChild size="sm" className="h-9 xs:h-10 text-xs xs:text-sm">
+                  <Button variant="outline" asChild size="sm" className="!h-9 xs:!h-10 text-xs xs:text-sm">
                     <Link href={`/dashboard/projects/${projectId}/edit`}>
                       <Edit className="mr-1.5 xs:mr-2 h-3.5 w-3.5 xs:h-4 xs:w-4" />
                       <span className="hidden xs:inline">Edit</span>
@@ -431,7 +431,7 @@ export default function ProjectPage() {
               {withFeature('deleteProject', (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon" className="h-9 w-9 xs:h-10 xs:w-10">
+                    <Button variant="outline" size="icon" className="!h-9 !w-9 xs:!h-10 xs:!w-10">
                       <MoreHorizontal className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
                     </Button>
                   </DropdownMenuTrigger>

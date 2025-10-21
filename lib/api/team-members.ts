@@ -364,8 +364,6 @@ export const teamMembersApi = {
                 throw new ApiError(400, 'Invalid team member ID')
             }
 
-            console.log('Sending update data:', data) // Debug log
-
             const response = await apiCall<UpdateTeamMemberResult>(`/api/team-members/${id}`, {
                 method: 'PUT',
                 body: JSON.stringify(data),

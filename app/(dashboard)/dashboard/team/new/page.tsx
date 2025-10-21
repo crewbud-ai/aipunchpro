@@ -50,6 +50,60 @@ export default function AddTeamMemberPage() {
   )
 
   // Handle form submission
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault()
+
+  //   // Transform data to match API expectations
+  //   const submissionData = {
+  //     ...formData,
+  //     role: 'member' as const,
+  //     // Convert certifications array to string (API expects string)
+  //     certifications: Array.isArray(formData.certifications)
+  //       ? formData.certifications.join(', ')
+  //       : formData.certifications || '',
+  //     // Clean up emergency contact fields - if name is empty, clear phone too
+  //     emergencyContactName: formData.emergencyContactName?.trim() || undefined,
+  //     emergencyContactPhone: formData.emergencyContactName?.trim()
+  //       ? formData.emergencyContactPhone
+  //       : undefined,
+  //   }
+
+  //   // Create cleaned data object with proper typing
+  //   const cleanedData: any = {
+  //     firstName: submissionData.firstName,
+  //     lastName: submissionData.lastName,
+  //     email: submissionData.email,
+  //     phone: submissionData.phone,
+  //     role: submissionData.role,
+  //     jobTitle: submissionData.jobTitle,
+  //     tradeSpecialty: submissionData.tradeSpecialty,
+  //     hourlyRate: submissionData.hourlyRate,
+  //     overtimeRate: submissionData.overtimeRate,
+  //     startDate: submissionData.startDate,
+  //     certifications: submissionData.certifications,
+  //     emergencyContactName: submissionData.emergencyContactName,
+  //     emergencyContactPhone: submissionData.emergencyContactPhone,
+  //     isActive: submissionData.isActive,
+  //   }
+
+  //   // Add project fields only if assigning to project
+  //   if (formData.assignToProject && formData.projectId) {
+  //     cleanedData.projectId = formData.projectId
+  //     cleanedData.hourlyRate = formData.projectHourlyRate
+  //     cleanedData.overtimeRate = formData.projectOvertimeRate
+  //     cleanedData.assignmentNotes = formData.projectNotes
+  //   }
+
+  //   // Remove undefined values
+  //   Object.keys(cleanedData).forEach(key => {
+  //     if (cleanedData[key] === undefined) {
+  //       delete cleanedData[key]
+  //     }
+  //   })
+
+  //   await createTeamMember(cleanedData)
+  // }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -77,8 +131,8 @@ export default function AddTeamMemberPage() {
       role: submissionData.role,
       jobTitle: submissionData.jobTitle,
       tradeSpecialty: submissionData.tradeSpecialty,
-      hourlyRate: submissionData.hourlyRate,
-      overtimeRate: submissionData.overtimeRate,
+      hourlyRate: submissionData.hourlyRate,  // ✅ Keep base hourly rate
+      overtimeRate: submissionData.overtimeRate,  // ✅ Keep base overtime rate
       startDate: submissionData.startDate,
       certifications: submissionData.certifications,
       emergencyContactName: submissionData.emergencyContactName,
@@ -86,11 +140,11 @@ export default function AddTeamMemberPage() {
       isActive: submissionData.isActive,
     }
 
-    // Add project fields only if assigning to project
+    // ✅ Add PROJECT-SPECIFIC fields only if assigning to project
     if (formData.assignToProject && formData.projectId) {
       cleanedData.projectId = formData.projectId
-      cleanedData.hourlyRate = formData.projectHourlyRate
-      cleanedData.overtimeRate = formData.projectOvertimeRate
+      cleanedData.projectHourlyRate = formData.projectHourlyRate  // ✅ Use projectHourlyRate
+      cleanedData.projectOvertimeRate = formData.projectOvertimeRate  // ✅ Use projectOvertimeRate
       cleanedData.assignmentNotes = formData.projectNotes
     }
 
@@ -175,7 +229,7 @@ export default function AddTeamMemberPage() {
 
         {/* Main Form Card */}
         <Card>
-          <CardContent className="p-4 xs:p-5 sm:p-6 pt-0">
+          <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6 py-4 sm:py-6">
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* Personal Information */}
               <div className="space-y-3.5 xs:space-y-4">

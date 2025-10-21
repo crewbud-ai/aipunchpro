@@ -185,8 +185,6 @@ export async function PUT(
     // Parse request body
     const body = await request.json()
 
-    console.log(body, 'update body') // Debug log
-
     // Add ID to validation data
     const validationData = { ...body, id: teamMemberId }
 
@@ -251,7 +249,6 @@ export async function PUT(
 
     // Check if project assignment is included in the update
     if (body.assignToProject && body.projectId) {
-      console.log('Processing project assignment for update...') // Debug log
 
       try {
         // Get project details
@@ -276,7 +273,6 @@ export async function PUT(
             notes: body.projectNotes,
             status: 'active',
           })
-          console.log('Updated existing project assignment') // Debug log
         } else {
           // Create new project assignment
           projectAssignment = await teamService.assignToProject(teamMemberId, body.projectId, companyId, {
@@ -286,7 +282,6 @@ export async function PUT(
             status: 'active',
             assignedBy: userId,
           })
-          console.log('Created new project assignment') // Debug log
         }
 
         // ==============================================
@@ -666,7 +661,6 @@ export async function POST(
     // ==========================================
     try {
       await authService.setRequiresPasswordChange(teamMemberId, true)
-      console.log(`✅ Set requires_password_change flag for reactivated user ${teamMemberId}`)
     } catch (flagError) {
       // Log error but don't fail the entire request
       console.error('Failed to set password change requirement on reactivation:', flagError)

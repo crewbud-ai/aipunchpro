@@ -124,7 +124,6 @@ export const createTeamMemberSchema = baseTeamMemberSchema.extend({
         .default('active'),
 
 }).refine((data) => {
-    console.log(data, 'data')
     // If emergency contact name provided, phone is required
     if (data.emergencyContactName && !data.emergencyContactPhone) {
         return false
@@ -185,10 +184,29 @@ export const createTeamMemberSchema = baseTeamMemberSchema.extend({
 // ==============================================
 export const updateTeamMemberSchema = baseTeamMemberSchema.partial().extend({
     id: z.string().uuid('Invalid team member ID'),
+
+    // Override emergency contact phone to handle empty strings
+    emergencyContactPhone: z
+        .string()
+        .optional()
+        .refine(
+            val => !val || val === '' || /^\+1\d{10}$/.test(val),
+            'Emergency contact phone must be in format +1XXXXXXXXXX'
+        ),
+
+    // Add project assignment fields explicitly
+    assignToProject: z.boolean().optional(),
+    projectId: z.string().uuid('Invalid project ID').optional(),
+    projectHourlyRate: z.number().min(0).max(999.99).optional(),
+    projectOvertimeRate: z.number().min(0).max(999.99).optional(),
+    projectNotes: z.string().max(500).optional(),
+
 }).refine((data) => {
-    // Same refinements as create, but all fields are optional
-    if (data.emergencyContactName && !data.emergencyContactPhone) {
-        return false
+    // Only validate if emergency contact name has actual content
+    if (data.emergencyContactName && data.emergencyContactName.trim() !== '') {
+        if (!data.emergencyContactPhone || data.emergencyContactPhone.trim() === '') {
+            return false
+        }
     }
     return true
 }, {
@@ -479,7 +497,6 @@ export interface CreateTeamMemberFormData {
 // VALIDATION HELPER FUNCTIONS
 // ==============================================
 export function validateCreateTeamMember(data: unknown) {
-    console.log(data, 'Data comming to parse')
     return createTeamMemberSchema.safeParse(data)
 }
 

@@ -663,7 +663,7 @@ export default function TeamMemberDetailPage({ }: TeamMemberDetailPageProps) {
                                         </Button>
                                     )}
 
-                                    {withPermission('projects', 'view',
+                                    {/* {withPermission('projects', 'view',
                                         <Button variant="outline" className="w-full justify-start h-9 xs:h-10 text-xs xs:text-sm" asChild>
                                             <Link href={`/dashboard/projects?teamMember=${teamMemberId}`}>
                                                 <Building2 className="h-3.5 w-3.5 xs:h-4 xs:w-4 mr-1.5 xs:mr-2" />
@@ -679,7 +679,7 @@ export default function TeamMemberDetailPage({ }: TeamMemberDetailPageProps) {
                                                 View Schedule
                                             </Link>
                                         </Button>
-                                    )}
+                                    )} */}
                                 </div>
                             </CardContent>
                         </Card>

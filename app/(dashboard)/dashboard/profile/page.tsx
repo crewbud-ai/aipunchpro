@@ -30,6 +30,7 @@ import {
 import { useProfile } from "@/hooks/dashboard/use-profile"
 import { formatPhoneNumber } from "@/types/dashboard/profile"
 import { ProfileSkeleton } from "@/components/skeletons/profile"
+import { formatIndustryLabel } from "@/utils/format-functions"
 
 export default function ProfilePage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
@@ -604,7 +605,7 @@ export default function ProfilePage() {
                         <div className="h-4 w-4 xs:h-5 xs:w-5 flex-shrink-0" /> {/* Spacer */}
                         <div className="min-w-0 flex-1">
                           <p className="text-xs xs:text-sm font-medium truncate">Industry</p>
-                          <p className="text-xs xs:text-sm text-gray-600 truncate">{company.industry}</p>
+                          <p className="text-xs xs:text-sm text-gray-600 truncate">{formatIndustryLabel(company.industry)}</p>
                         </div>
                       </div>
                     )}
