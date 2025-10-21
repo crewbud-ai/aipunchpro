@@ -629,7 +629,7 @@ export default function AddTeamMemberPage() {
               <Separator />
 
               {/* Submit Buttons */}
-              <div className="flex flex-col md:flex-row md:justify-end justify-between   items-stretch md:items-center gap-3 pt-4 sm:pt-6">
+              <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-4 sm:pt-6">
                 <Button
                   type="submit"
                   disabled={!canActuallySubmit}

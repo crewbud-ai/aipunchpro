@@ -457,14 +457,14 @@ export default function EditPunchlistItemPage() {
                         <Separator />
 
                         {/* Navigation - Mobile Responsive */}
-                        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-4 sm:pt-6">
-                            <div className="flex gap-2 sm:gap-3 order-1 md:order-2">
+                        <div className="fflex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-4 sm:pt-6">
+                            <div className="flex gap-2 sm:gap-3 order-2 md:order-1">
                                 {activeStep > 1 && (
                                     <Button
                                         variant="outline"
                                         onClick={handlePrevious}
                                         disabled={isUpdating || isUploadingFiles}
-                                        className="flex items-center gap-2 text-xs xs:text-sm "
+                                        className="h-10 sm:h-11"
                                     >
                                         <ChevronLeft className="mr-1 sm:mr-2 h-4 w-4" />
                                         <span className="text-sm sm:text-base">Previous</span>
@@ -475,9 +475,10 @@ export default function EditPunchlistItemPage() {
                                     <Button
                                         variant="outline"
                                         disabled={isUpdating || isUploadingFiles}
-                                        className=" text-sm sm:text-base"
+                                        className="flex-1 sm:flex-none h-10 sm:h-11 text-sm sm:text-base"
                                     >
-                                        Cancel
+                                        <X className="mr-2 h-4 w-4" />
+                                        <span className="text-sm sm:text-base">Cancel</span>
                                     </Button>
                                 </Link>
                             </div>
@@ -490,7 +491,7 @@ export default function EditPunchlistItemPage() {
                                         disabled={isUpdating || isUploadingFiles}
                                         className=" text-sm sm:text-base"
                                     >
-                                        Reset
+                                        <span className="text-sm sm:text-base">Reset</span>
                                     </Button>
                                 )}
 
@@ -498,7 +499,7 @@ export default function EditPunchlistItemPage() {
                                     <Button
                                         onClick={handleNext}
                                         disabled={!canProceedToNext || isUpdating || isUploadingFiles}
-                                        className="order-1 md:order-2 w-full  md:w-auto bg-orange-600 hover:bg-orange-700 text-white h-11 sm:h-12 text-base"
+                                        className="order-1 md:order-2 w-full md:w-auto bg-orange-600 hover:bg-orange-700 text-white h-11 sm:h-12 text-base"
                                     >
                                         <span className="text-sm sm:text-base">Next</span>
                                         <ChevronRight className="ml-1 sm:ml-2 h-4 w-4" />
@@ -507,7 +508,7 @@ export default function EditPunchlistItemPage() {
                                     <Button
                                         onClick={handleSubmit}
                                         disabled={!canSubmit || isUpdating || isUploadingFiles}
-                                        className="order-1 md:order-2 w-full md:w-auto  bg-orange-600 hover:bg-orange-700"
+                                        className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
                                     >
                                         {isUpdating || isUploadingFiles ? (
                                             <>

@@ -20,6 +20,7 @@ import {
     AlertCircle,
     CheckCircle,
     Loader2,
+    X,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -337,8 +338,9 @@ export default function CreateSchedulePage() {
 
                                     {currentStep === 1 && (
                                         <Link href="/dashboard/schedule" className="flex-1 sm:flex-none">
-                                            <Button variant="outline" className="h-10 sm:h-11 text-sm sm:text-base">
-                                                Cancel
+                                            <Button variant="outline" className="h-10 sm:h-11">
+                                                <X className="mr-1 sm:mr-2 h-4 w-4" />
+                                                <span className="text-sm sm:text-base">Cancel</span>
                                             </Button>
                                         </Link>
                                     )}
@@ -351,7 +353,7 @@ export default function CreateSchedulePage() {
                                         disabled={!canProceedToNext}
                                         className="order-1 md:order-2 w-full md:w-auto bg-orange-600 hover:bg-orange-700 text-white h-11 sm:h-12 text-base"
                                     >
-                                        Next
+                                        <span className="text-sm sm:text-base">Next</span>
                                         <ChevronRight className="ml-1 sm:ml-2 h-4 w-4" />
                                     </Button>
                                 ) : (

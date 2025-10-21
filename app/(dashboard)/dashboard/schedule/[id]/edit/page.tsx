@@ -437,27 +437,27 @@ export default function EditSchedulePage() {
                         {renderStepContent()}
                         <Separator />
                         {/* Navigation */}
-                        <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                            <div className="flex gap-2 flex-1">
+                        <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 pt-4 sm:pt-6">
+                            <div className="flex gap-2 sm:gap-3 order-2 md:order-1">
                                 {currentStep > 0 && (
                                     <Button
                                         variant="outline"
                                         onClick={handlePrevious}
                                         disabled={currentStep === 1}
-                                        className="flex items-center gap-2"
+                                        className="h-10 sm:h-11"
                                     >
-                                        <ChevronLeft className="h-4 w-4" />
-                                        Previous
+                                        <ChevronLeft className="mr-1 sm:mr-2 h-4 w-4" />
+                                        <span className="text-sm sm:text-base">Previous</span>
                                     </Button>
                                 )}
 
                                 <Button
                                     variant="outline"
                                     onClick={handleCancel}
-                                    className="flex-1 sm:flex-none"
+                                    className="flex-1 sm:flex-none h-10 sm:h-11 text-sm sm:text-base"
                                 >
                                     <X className="mr-2 h-4 w-4" />
-                                    Cancel
+                                    <span className="text-sm sm:text-base">Cancel</span>
                                 </Button>
                             </div>
 
@@ -465,10 +465,10 @@ export default function EditSchedulePage() {
                                 {currentStep < totalSteps ? (
                                     <Button
                                         onClick={handleNext}
-                                        className="bg-orange-600 hover:bg-orange-700 flex items-center gap-2"
+                                        className="order-1 md:order-2 w-full md:w-auto bg-orange-600 hover:bg-orange-700 text-white h-11 sm:h-12 text-base"
                                     >
-                                        Next
-                                        <ChevronRight className="h-4 w-4" />
+                                        <span className="text-sm sm:text-base">Next</span>
+                                        <ChevronRight className="ml-1 sm:ml-2 h-4 w-4" />
                                     </Button>
                                 ) : (
                                     <Button
@@ -477,13 +477,13 @@ export default function EditSchedulePage() {
                                     >
                                         {isUpdating ? (
                                             <>
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                                Updating...
+                                                <Loader2 className="ml-1 sm:ml-2 h-4 w-4 animate-spin" />
+                                                <span className="text-sm sm:text-base">Updating...</span>
                                             </>
                                         ) : (
                                             <>
-                                                <Save className="h-4 w-4" />
-                                                Update Schedule
+                                                <Save className="ml-1 sm:ml-2 h-4 w-4" />
+                                                <span className="text-sm sm:text-base">Update Schedule</span>
                                             </>
                                         )}
                                     </Button>

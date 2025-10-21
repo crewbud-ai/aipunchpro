@@ -21,6 +21,7 @@ import {
     AlertCircle,
     CheckCircle,
     Loader2,
+    X,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -406,7 +407,8 @@ export default function CreatePunchlistPage() {
                                                 className="h-10 sm:h-11 text-sm sm:text-base"
                                                 disabled={isUploadingFiles}
                                             >
-                                                Cancel
+                                                <X className="mr-1 sm:mr-2 h-4 w-4" />
+                                                <span className="text-sm sm:text-base">Cancel</span>
                                             </Button>
                                         </Link>
                                     )}
