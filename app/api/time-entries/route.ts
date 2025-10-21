@@ -18,6 +18,10 @@ export async function GET(request: NextRequest) {
     // Get user info from middleware
     const userId = request.headers.get('x-user-id')
     const companyId = request.headers.get('x-company-id')
+    const userRole = request.headers.get('x-user-role')
+
+    console.log(companyId, 'companyId')
+    console.log(userId, 'userId')
 
     if (!userId || !companyId) {
       return NextResponse.json(
@@ -32,8 +36,13 @@ export async function GET(request: NextRequest) {
 
     // Parse query parameters
     const url = new URL(request.url)
+
+    // ✅ FIX: Only default to current user if not admin AND no userId specified
+    const isAdmin = userRole === 'admin' || userRole === 'super_admin'
+    const requestedUserId = url.searchParams.get('userId')
+
     const queryParams = {
-      userId: url.searchParams.get('userId') || userId,
+      userId: requestedUserId || (isAdmin ? undefined : userId), // ✅ Admins see all by default
       projectId: url.searchParams.get('projectId'),
       scheduleProjectId: url.searchParams.get('scheduleProjectId'),
       status: url.searchParams.get('status'),
@@ -61,10 +70,10 @@ export async function GET(request: NextRequest) {
       dateFrom: queryParams.dateFrom || undefined,
       dateTo: queryParams.dateTo || undefined,
       search: queryParams.search || undefined,
-      needsApproval: queryParams.needsApproval === 'true' ? true : 
-                     queryParams.needsApproval === 'false' ? false : undefined,
-      isActive: queryParams.isActive === 'true' ? true : 
-                queryParams.isActive === 'false' ? false : undefined,
+      needsApproval: queryParams.needsApproval === 'true' ? true :
+        queryParams.needsApproval === 'false' ? false : undefined,
+      isActive: queryParams.isActive === 'true' ? true :
+        queryParams.isActive === 'false' ? false : undefined,
       sortBy: queryParams.sortBy || undefined,
       sortOrder: queryParams.sortOrder || undefined,
       limit: queryParams.limit ? parseInt(queryParams.limit) : undefined,
@@ -91,90 +100,100 @@ export async function GET(request: NextRequest) {
     // Get time entries with filters
     const result = await timeEntriesService.getTimeEntries(companyId, validation.data)
 
+    console.log('Raw time entries from DB:', result)
+    console.log('Raw time entries from DB:', result.timeEntries.length, result.timeEntries[0])
+
     // Transform time entries to clean structure
-    const transformedTimeEntries = result.timeEntries.map((entry: any) => ({
-      id: entry.id,
-      companyId: entry.company_id,
-      projectId: entry.project_id,
-      scheduleProjectId: entry.schedule_project_id,
-      userId: entry.user_id,
-      workerName: entry.worker_name,
-      isSystemUser: entry.is_system_user,
-      date: entry.date,
-      startTime: entry.start_time,
-      endTime: entry.end_time,
-      breakMinutes: entry.break_minutes,
-      regularHours: parseFloat(entry.regular_hours || '0'),
-      overtimeHours: parseFloat(entry.overtime_hours || '0'),
-      doubleTimeHours: parseFloat(entry.double_time_hours || '0'),
-      totalHours: parseFloat(entry.total_hours || '0'),
-      regularRate: entry.regular_rate ? parseFloat(entry.regular_rate) : undefined,
-      overtimeRate: entry.overtime_rate ? parseFloat(entry.overtime_rate) : undefined,
-      doubleTimeRate: entry.double_time_rate ? parseFloat(entry.double_time_rate) : undefined,
-      totalPay: entry.total_pay ? parseFloat(entry.total_pay) : undefined,
-      description: entry.description,
-      workType: entry.work_type,
-      trade: entry.trade,
-      clockInLocation: entry.clock_in_location ? {
-        lat: parseFloat(entry.clock_in_location.split(',')[0].replace('(', '')),
-        lng: parseFloat(entry.clock_in_location.split(',')[1].replace(')', ''))
-      } : undefined,
-      clockOutLocation: entry.clock_out_location ? {
-        lat: parseFloat(entry.clock_out_location.split(',')[0].replace('(', '')),
-        lng: parseFloat(entry.clock_out_location.split(',')[1].replace(')', ''))
-      } : undefined,
-      workLocation: entry.work_location,
-      status: entry.status,
-      submittedAt: entry.submitted_at,
-      approvedBy: entry.approved_by,
-      approvedAt: entry.approved_at,
-      rejectionReason: entry.rejection_reason,
-      equipmentUsed: entry.equipment_used || [],
-      materialsUsed: entry.materials_used || [],
-      weatherConditions: entry.weather_conditions,
-      temperatureF: entry.temperature_f,
-      workConditions: entry.work_conditions,
-      safetyIncidents: entry.safety_incidents,
-      ppe: entry.ppe || [],
-      workCompleted: entry.work_completed,
-      issuesEncountered: entry.issues_encountered,
-      nextSteps: entry.next_steps,
-      qualityRating: entry.quality_rating,
-      createdBy: entry.created_by,
-      lastModifiedBy: entry.last_modified_by,
-      createdAt: entry.created_at,
-      updatedAt: entry.updated_at,
+    const transformedTimeEntries = result.timeEntries.map((entry: any) => {
+      try {
+        return {
+          id: entry.id,
+          companyId: entry.company_id,
+          projectId: entry.project_id,
+          scheduleProjectId: entry.schedule_project_id,
+          userId: entry.user_id,
+          workerName: entry.worker_name,
+          isSystemUser: entry.is_system_user,
+          date: entry.date,
+          startTime: entry.start_time,
+          endTime: entry.end_time,
+          breakMinutes: entry.break_minutes || 0,
+          regularHours: parseFloat(entry.regular_hours || '0'),
+          overtimeHours: parseFloat(entry.overtime_hours || '0'),
+          doubleTimeHours: parseFloat(entry.double_time_hours || '0'),
+          totalHours: parseFloat(entry.total_hours || '0'),
+          regularRate: entry.regular_rate ? parseFloat(entry.regular_rate) : undefined,
+          overtimeRate: entry.overtime_rate ? parseFloat(entry.overtime_rate) : undefined,
+          doubleTimeRate: entry.double_time_rate ? parseFloat(entry.double_time_rate) : undefined,
+          totalPay: entry.total_pay ? parseFloat(entry.total_pay) : undefined,
+          description: entry.description,
+          workType: entry.work_type,
+          trade: entry.trade,
+          clockInLocation: entry.clock_in_location ? {
+            lat: parseFloat(entry.clock_in_location.split(',')[0].replace('(', '')),
+            lng: parseFloat(entry.clock_in_location.split(',')[1].replace(')', ''))
+          } : undefined,
+          clockOutLocation: entry.clock_out_location ? {
+            lat: parseFloat(entry.clock_out_location.split(',')[0].replace('(', '')),
+            lng: parseFloat(entry.clock_out_location.split(',')[1].replace(')', ''))
+          } : undefined,
+          workLocation: entry.work_location,
+          status: entry.status,
+          submittedAt: entry.submitted_at,
+          approvedBy: entry.approved_by,
+          approvedAt: entry.approved_at,
+          rejectionReason: entry.rejection_reason,
+          equipmentUsed: entry.equipment_used || [],
+          materialsUsed: entry.materials_used || [],
+          weatherConditions: entry.weather_conditions,
+          temperatureF: entry.temperature_f,
+          workConditions: entry.work_conditions,
+          safetyIncidents: entry.safety_incidents,
+          ppe: entry.ppe || [],
+          workCompleted: entry.work_completed,
+          issuesEncountered: entry.issues_encountered,
+          nextSteps: entry.next_steps,
+          qualityRating: entry.quality_rating,
+          createdBy: entry.created_by,
+          lastModifiedBy: entry.last_modified_by,
+          createdAt: entry.created_at,
+          updatedAt: entry.updated_at,
 
-      // Related data
-      project: entry.project ? {
-        id: entry.project.id,
-        name: entry.project.name,
-        status: entry.project.status,
-        projectNumber: entry.project.project_number,
-      } : null,
+          // Related data
+          project: entry.project ? {
+            id: entry.project.id,
+            name: entry.project.name,
+            status: entry.project.status,
+            projectNumber: entry.project.project_number,
+          } : null,
 
-      scheduleProject: entry.schedule_project ? {
-        id: entry.schedule_project.id,
-        title: entry.schedule_project.title,
-        status: entry.schedule_project.status,
-      } : null,
+          scheduleProject: entry.schedule_project ? {
+            id: entry.schedule_project.id,
+            title: entry.schedule_project.title,
+            status: entry.schedule_project.status,
+          } : null,
 
-      worker: entry.worker ? {
-        id: entry.worker.id,
-        firstName: entry.worker.first_name,
-        lastName: entry.worker.last_name,
-        email: entry.worker.email,
-      } : null,
+          worker: entry.worker ? {
+            id: entry.worker.id,
+            firstName: entry.worker.first_name,
+            lastName: entry.worker.last_name,
+            email: entry.worker.email,
+          } : null,
 
-      approver: entry.approver ? {
-        id: entry.approver.id,
-        firstName: entry.approver.first_name,
-        lastName: entry.approver.last_name,
-        email: entry.approver.email,
-      } : null,
-    }))
+          approver: entry.approver ? {
+            id: entry.approver.id,
+            firstName: entry.approver.first_name,
+            lastName: entry.approver.last_name,
+            email: entry.approver.email,
+          } : null,
+        }
+      } catch (transformError) {
+        console.error('Error transforming entry:', entry.id, transformError)
+        console.error('Problematic entry:', JSON.stringify(entry, null, 2))
+        return null
+      }
+    }).filter(Boolean)
 
-    
     return NextResponse.json(
       {
         success: true,
@@ -205,7 +224,6 @@ export async function GET(request: NextRequest) {
     )
   }
 }
-
 // ==============================================
 // POST /api/time-entries - Create Time Entry (Manual)
 // ==============================================
@@ -247,8 +265,8 @@ export async function POST(request: NextRequest) {
 
     // Check if user has access to the project
     const hasProjectAccess = await timeEntriesService.checkProjectAccess(
-      validation.data.projectId, 
-      userId, 
+      validation.data.projectId,
+      userId,
       companyId
     )
 

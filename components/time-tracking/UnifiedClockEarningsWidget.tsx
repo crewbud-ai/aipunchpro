@@ -81,6 +81,14 @@ export function UnifiedClockEarningsWidget() {
     window.location.reload()
   }
 
+  function formatDuration(minutes: number): string {
+  const hours = Math.floor(minutes / 60)
+  const mins = Math.floor(minutes % 60)
+  const secs = Math.floor((minutes % 1) * 60)
+  
+  return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+}
+
   const hasOvertime = overtimeHours > 0
   const statusColor = hasOvertime ? 'yellow' : 'green'
   const statusBg = hasOvertime ? 'bg-yellow-50' : 'bg-green-50'
@@ -151,7 +159,7 @@ export function UnifiedClockEarningsWidget() {
                   <Clock className="h-3.5 w-3.5 xs:h-4 xs:w-4 text-blue-600 shrink-0" />
                 </div>
                 <p className="text-xl xs:text-2xl font-bold text-gray-900 font-mono">
-                  {formatTime12Hour(sessionDuration.toString())}
+                  {formatDuration(sessionDuration)}
                 </p>
                 <p className="text-xs text-gray-500 mt-0.5 xs:mt-1">
                   {(sessionDuration / 60).toFixed(2)} hours

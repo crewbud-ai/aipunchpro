@@ -456,60 +456,78 @@ export class TimeEntriesDatabaseService {
     let query = this.supabaseClient
       .from('time_entries')
       .select(`
-        *,
-        project:projects(id, name, status, project_number),
-        schedule_project:schedule_projects(id, title, status),
-        worker:users!time_entries_user_id_users_id_fk(id, first_name, last_name, email),
-        approver:users!time_entries_approved_by_users_id_fk(id, first_name, last_name, email)
-      `)
+      *,
+      project:projects(id, name, status, project_number),
+      schedule_project:schedule_projects(id, title, status),
+      worker:users!time_entries_user_id_users_id_fk(id, first_name, last_name, email),
+      approver:users!time_entries_approved_by_users_id_fk(id, first_name, last_name, email)
+    `)
       .eq('company_id', companyId)
 
-    // Apply filters
+    // ✅ Build a separate count query with the same filters
+    let countQuery = this.supabaseClient
+      .from('time_entries')
+      .select('*', { count: 'exact', head: true })
+      .eq('company_id', companyId)
+
+    // Apply filters to BOTH queries
     if (options.userId) {
       query = query.eq('user_id', options.userId)
+      countQuery = countQuery.eq('user_id', options.userId)
     }
 
     if (options.projectId) {
       query = query.eq('project_id', options.projectId)
+      countQuery = countQuery.eq('project_id', options.projectId)
     }
 
     if (options.scheduleProjectId) {
       query = query.eq('schedule_project_id', options.scheduleProjectId)
+      countQuery = countQuery.eq('schedule_project_id', options.scheduleProjectId)
     }
 
     if (options.status) {
       query = query.eq('status', options.status)
+      countQuery = countQuery.eq('status', options.status)
     }
 
     if (options.workType) {
       query = query.eq('work_type', options.workType)
+      countQuery = countQuery.eq('work_type', options.workType)
     }
 
     if (options.trade) {
       query = query.eq('trade', options.trade)
+      countQuery = countQuery.eq('trade', options.trade)
     }
 
     if (options.dateFrom) {
       query = query.gte('date', options.dateFrom)
+      countQuery = countQuery.gte('date', options.dateFrom)
     }
 
     if (options.dateTo) {
       query = query.lte('date', options.dateTo)
+      countQuery = countQuery.lte('date', options.dateTo)
     }
 
     if (options.needsApproval) {
       query = query.eq('status', 'pending')
+      countQuery = countQuery.eq('status', 'pending')
     }
 
     if (options.isActive) {
       query = query.eq('status', 'clocked_in')
+      countQuery = countQuery.eq('status', 'clocked_in')
     }
 
     if (options.search) {
-      query = query.or(`description.ilike.%${options.search}%,work_completed.ilike.%${options.search}%`)
+      const searchFilter = `description.ilike.%${options.search}%,work_completed.ilike.%${options.search}%`
+      query = query.or(searchFilter)
+      countQuery = countQuery.or(searchFilter)
     }
 
-    // Apply sorting
+    // Apply sorting (only to main query)
     const sortBy = options.sortBy || 'date'
     const sortOrder = options.sortOrder || 'desc'
 
@@ -529,23 +547,29 @@ export class TimeEntriesDatabaseService {
 
     query = query.order(sortByColumn, { ascending: sortOrder === 'asc' })
 
-    // Apply pagination
+    // Apply pagination (only to main query)
     const limit = options.limit || 50
     const offset = options.offset || 0
     query = query.range(offset, offset + limit - 1)
 
+    // Execute both queries
     const { data: timeEntries, error } = await query
+    const { count, error: countError } = await countQuery
 
     if (error) {
       this.log('Get time entries error', error)
       throw new Error(`Failed to get time entries: ${error.message}`)
     }
 
-    // Get total count for pagination
-    const { count } = await this.supabaseClient
-      .from('time_entries')
-      .select('*', { count: 'exact', head: true })
-      .eq('company_id', companyId)
+    if (countError) {
+      this.log('Get time entries count error', countError)
+      console.error('Count query failed:', countError)
+    }
+
+    this.log('Query results', {
+      entriesFound: timeEntries?.length || 0,
+      totalCount: count || 0
+    })
 
     return {
       timeEntries: timeEntries || [],
@@ -554,20 +578,20 @@ export class TimeEntriesDatabaseService {
   }
 
   // ==============================================
-  // GET SINGLE TIME ENTRY
+  // GET SINGLE TIME ENTRY (CORRECTED)
   // ==============================================
-  async getTimeEntry(timeEntryId: string, companyId: string): Promise<TimeEntryRow | null> {
-    this.log('Getting time entry', { timeEntryId })
+  async getTimeEntry(timeEntryId: string, companyId: string): Promise<any | null> {
+    this.log('Getting time entry', { timeEntryId, companyId })
 
     const { data: timeEntry, error } = await this.supabaseClient
       .from('time_entries')
       .select(`
-        *,
-        project:projects(id, name, status, project_number),
-        schedule_project:schedule_projects(id, title, status),
-        worker:users!time_entries_user_id_users_id_fk(id, first_name, last_name, email, trade_specialty),
-        approver:users!time_entries_approved_by_users_id_fk(id, first_name, last_name, email)
-      `)
+      *,
+      project:projects(id, name, status, project_number),
+      schedule_project:schedule_projects(id, title, status),
+      worker:users!time_entries_user_id_users_id_fk(id, first_name, last_name, email, trade_specialty),
+      approver:users!time_entries_approved_by_users_id_fk(id, first_name, last_name, email)
+    `)
       .eq('id', timeEntryId)
       .eq('company_id', companyId)
       .single()
@@ -576,6 +600,8 @@ export class TimeEntriesDatabaseService {
       this.log('Get time entry error', error)
       throw new Error(`Failed to get time entry: ${error.message}`)
     }
+
+    this.log('Time entry retrieved', { found: !!timeEntry })
 
     return timeEntry || null
   }
